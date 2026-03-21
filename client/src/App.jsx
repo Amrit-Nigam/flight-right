@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import TopBar from "@/components/TopBar";
 import MetricsRow from "@/components/MetricsRow";
 import ConflictBanner from "@/components/ConflictBanner";
 import ResolveModal from "@/components/ResolveModal";
 import SuccessToast from "@/components/SuccessToast";
 import RadarCanvas from "@/components/RadarCanvas";
+const FlightRadarMap = lazy(() => import("@/components/FlightRadarMap"));
 import TimelinePanel from "@/components/TimelinePanel";
 import FlightListPanel from "@/components/FlightListPanel";
 import AISuggestionsPanel from "@/components/AISuggestionsPanel";
@@ -84,6 +85,7 @@ function App() {
   };
 
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [mapView, setMapView] = useState("map"); // "map" | "radar"
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
@@ -115,7 +117,44 @@ function App() {
 
         {/* CENTER LEFT — Radar Hero */}
         <div className="w-[55vw] shrink-0 h-full flex flex-col gap-4">
-          <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme} />
+          {/* Toggle row */}
+          <div className="flex items-center gap-0 shrink-0" style={{ height: 30 }}>
+            {[{ key: "map", label: "MAP VIEW" }, { key: "radar", label: "RADAR SWEEP" }].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setMapView(key)}
+                className="font-display text-[11px] tracking-widest px-5 py-1.5 transition-all"
+                style={{
+                  background: mapView === key ? "var(--amber)" : "transparent",
+                  color:      mapView === key ? "#0a0b0e"     : "var(--amber)",
+                  border:     "1px solid var(--amber)",
+                  marginLeft: key === "radar" ? -1 : 0,
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Both panels mounted, CSS-toggled so animations don't reset */}
+          <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
+            <div style={{ position: "absolute", inset: 0, display: mapView === "map" ? "block" : "none" }}>
+              <Suspense fallback={
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#060608" }}>
+                  <span style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 12, color: "var(--text-muted)", letterSpacing: "0.2em" }}>LOADING RADAR MAP…</span>
+                </div>
+              }>
+                <FlightRadarMap
+                  flights={flights}
+                  selectedFlight={selectedFlight}
+                  onSelectFlight={handleSelectFlight}
+                />
+              </Suspense>
+            </div>
+            <div style={{ position: "absolute", inset: 0, display: mapView === "radar" ? "block" : "none" }}>
+              <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme} />
+            </div>
+          </div>
         </div>
 
         {/* RIGHT — Metrics + Runways + Suggestions + Comms */}
