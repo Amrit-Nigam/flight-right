@@ -5,10 +5,10 @@
 @layer base {
   /* ========== DARK MODE (default) ========== */
   :root {
-    --bg-base: #060608;
-    --bg-panel: #0a0b0e;
-    --bg-panel-alt: #0e1014;
-    --bg-raised: #12141a;
+    --bg-base: #100f0e;
+    --bg-panel: #161513;
+    --bg-panel-alt: #1a1917;
+    --bg-raised: #22201e;
     --amber: #f5a623;
     --amber-dim: #c47d0e;
     --amber-glow: rgba(245,166,35,0.15);
@@ -20,45 +20,45 @@
     --red-glow: rgba(255,45,45,0.15);
     --green: #00ff88;
     --green-dim: #00b360;
-    --yellow: #ffdd00;
-    --text-primary: #f0e8d0;
-    --text-secondary: #8a7d65;
-    --text-muted: #5a5245;
-    --border-default: rgba(245,166,35,0.18);
-    --border-bright: rgba(245,166,35,0.45);
+    --yellow: #ffdd00; /* Leaving yellow just in case but mostly we use amber */
+    --text-primary: #e8e3dc;
+    --text-secondary: #9c978f;
+    --text-muted: #6b655f;
+    --border-default: #2f2d2a;
+    --border-bright: #45423f;
     --border-teal: rgba(0,229,204,0.25);
     --border-red: rgba(255,45,45,0.5);
     --radius: 4px;
     --scanline-opacity: 0.04;
 
     /* shadcn compat */
-    --background: 0 0% 2.4%;
-    --foreground: 42 33% 91%;
-    --card: 240 7% 4.5%;
-    --card-foreground: 42 33% 91%;
-    --popover: 240 7% 4.5%;
-    --popover-foreground: 42 33% 91%;
+    --background: 24 6% 6%;
+    --foreground: 35 15% 88%;
+    --card: 30 7% 8%;
+    --card-foreground: 35 15% 88%;
+    --popover: 30 7% 8%;
+    --popover-foreground: 35 15% 88%;
     --primary: 36 91% 55%;
-    --primary-foreground: 0 0% 2.4%;
-    --secondary: 240 10% 8%;
-    --secondary-foreground: 42 33% 91%;
-    --muted: 240 10% 8%;
-    --muted-foreground: 37 24% 37%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 30 7% 12%;
+    --secondary-foreground: 35 15% 88%;
+    --muted: 30 7% 12%;
+    --muted-foreground: 30 5% 40%;
     --accent: 170 100% 45%;
-    --accent-foreground: 0 0% 2.4%;
+    --accent-foreground: 0 0% 10%;
     --destructive: 0 100% 59%;
     --destructive-foreground: 0 0% 98%;
-    --border: 36 91% 55% / 0.18;
-    --input: 36 91% 55% / 0.18;
+    --border: 30 5% 18%;
+    --input: 30 5% 18%;
     --ring: 36 91% 55%;
   }
 
   /* ========== LIGHT MODE ========== */
   .light {
-    --bg-base: #f1f5f9;
+    --bg-base: #f5f4f2;
     --bg-panel: #ffffff;
-    --bg-panel-alt: #f8fafc;
-    --bg-raised: #e2e8f0;
+    --bg-panel-alt: #faf9f7;
+    --bg-raised: #f0ebe1;
     --amber: #d97706;
     --amber-dim: #b45309;
     --amber-glow: rgba(217,119,6,0.1);
@@ -71,29 +71,29 @@
     --green: #16a34a;
     --green-dim: #15803d;
     --yellow: #ca8a04;
-    --text-primary: #0f172a;
-    --text-secondary: #334155;
-    --text-muted: #64748b;
-    --border-default: #cbd5e1;
-    --border-bright: #94a3b8;
+    --text-primary: #1c1a17;
+    --text-secondary: #57534e;
+    --text-muted: #78716c;
+    --border-default: #d6d3d1;
+    --border-bright: #a8a29e;
     --border-teal: rgba(13,148,136,0.3);
     --border-red: rgba(220,38,38,0.3);
     --scanline-opacity: 0;
 
-    --background: 210 40% 96%;
-    --foreground: 222 47% 11%;
+    --background: 40 15% 96%;
+    --foreground: 30 10% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 30 10% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 30 10% 10%;
     --primary: 38 92% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --secondary: 40 20% 90%;
+    --secondary-foreground: 30 10% 10%;
+    --muted: 40 20% 90%;
+    --muted-foreground: 30 5% 45%;
+    --border: 30 15% 84%;
+    --input: 30 15% 84%;
   }
 }
 
@@ -178,6 +178,13 @@ body::after {
   100% { transform: scale(1); opacity: 1; }
 }
 .animate-conflict-pulse { animation: conflict-pulse 0.8s ease-in-out infinite; }
+
+@keyframes header-pulse {
+  0% { border-bottom-color: rgba(255,45,45,1); box-shadow: 0 4px 24px rgba(255,45,45,0.6); }
+  50% { border-bottom-color: rgba(255,45,45,0.4); box-shadow: 0 4px 12px rgba(255,45,45,0.1); }
+  100% { border-bottom-color: rgba(255,45,45,1); box-shadow: 0 4px 24px rgba(255,45,45,0.6); }
+}
+.animate-header-pulse { animation: header-pulse 1.5s ease-in-out infinite; }
 
 @keyframes bar-fill { from { width: 0%; } }
 .animate-bar-fill { animation: bar-fill 1.2s ease-out forwards; }
