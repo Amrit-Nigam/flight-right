@@ -9,6 +9,10 @@
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+  		fontFamily: {
+  			sans: ['Outfit', 'sans-serif'],
+  			mono: ['Space Mono', 'monospace'],
+  		},
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -49,6 +53,24 @@
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
+  			},
+  			// ATC custom colors
+  			atc: {
+  				bg: '#050b14',
+  				'bg-secondary': '#080f1c',
+  				panel: '#0d1e33',
+  				'panel-alt': '#102240',
+  				cyan: '#00c8ff',
+  				green: '#00ffc8',
+  				orange: '#ff6b35',
+  				gold: '#ffd700',
+  				danger: '#ff3b5c',
+  				warning: '#ffaa00',
+  				success: '#00e676',
+  				purple: '#a855f7',
+  				'text-primary': '#e8f4ff',
+  				'text-secondary': '#7ba8c8',
+  				'text-muted': '#4a7090',
   			}
   		}
   	}
