@@ -95,7 +95,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
     const draw = () => {
       const cx = w / 2;
       const cy = h / 2;
-      const radius = Math.min(cx, cy) - 20;
+      const radius = Math.max(0, Math.min(cx, cy) - 20); // Clamp to prevent negative radius error
 
       // Clear + background
       ctx.fillStyle = bgSolid;

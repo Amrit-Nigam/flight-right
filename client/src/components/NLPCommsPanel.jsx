@@ -27,7 +27,7 @@ export default function NLPCommsPanel({ feed }) {
 
       {/* Transcript Feed */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar font-display text-[11px] tracking-wide scroll-smooth">
-        {comms.map((comm) => {
+        {comms.map((comm, idx) => {
           const isATC = comm.type === 'ATC';
           const isPilot = comm.type === 'PILOT';
           const isSystem = comm.type === 'SYSTEM';
@@ -36,7 +36,7 @@ export default function NLPCommsPanel({ feed }) {
           const textColor = isSystem ? 'var(--green)' : 'var(--text-primary)';
 
           return (
-            <div key={comm.id} className="flex flex-col gap-1 group hover:bg-white/[0.02] p-1.5 -mx-1.5 rounded transition-colors border-l-2 border-transparent hover:border-[var(--border-bright)]">
+            <div key={comm.id || idx} className="flex flex-col gap-1 group hover:bg-white/[0.02] p-1.5 -mx-1.5 rounded transition-colors border-l-2 border-transparent hover:border-[var(--border-bright)]">
               <div className="flex items-center gap-2.5 opacity-60 group-hover:opacity-100 transition-opacity">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }} />
                 <span className="text-[10px] text-[var(--text-muted)]">121.500</span>
