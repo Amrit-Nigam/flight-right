@@ -12,21 +12,21 @@ export default function NLPCommsPanel({ feed }) {
   return (
     <div className="panel flex flex-col">
       <div className="panel-header">
-        <h3 className="font-display text-[11px] tracking-wider" style={{ color: 'var(--amber)' }}>◎ NLP COMMS FEED</h3>
-        <p className="font-body text-[8px] mt-0.5" style={{ color: 'var(--text-muted)' }}>AI-assisted transcript</p>
+        <h3 className="font-display text-[13px] tracking-wider" style={{ color: 'var(--amber)' }}>◎ NLP COMMS FEED</h3>
+        <p className="font-body text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>AI-assisted transcript</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto max-h-[240px]">
+      <div className="flex-1 overflow-y-auto max-h-[280px]">
         {data.map((msg, i) => {
           const badge = TYPE_BADGE[msg.type] || TYPE_BADGE.ATC;
           return (
-            <div key={i} className="flex gap-2 p-2" style={{ borderBottom: '1px solid var(--border-default)' }}>
-              <span className="font-display text-[9px] shrink-0 pt-0.5" style={{ color: 'var(--text-muted)' }}>{msg.time}</span>
+            <div key={i} className="flex gap-3 p-3" style={{ borderBottom: '1px solid var(--border-default)' }}>
+              <span className="font-display text-[11px] shrink-0 pt-0.5" style={{ color: 'var(--text-muted)' }}>{msg.time}</span>
               <div className="min-w-0">
-                <span className="inline-block font-display text-[9px] px-1.5 py-0.5 mb-1" style={{ background: badge.bg, border: `1px solid ${badge.border}`, color: badge.color }}>
+                <span className="inline-block font-display text-[10px] px-2 py-0.5 mb-1" style={{ background: badge.bg, border: `1px solid ${badge.border}`, color: badge.color }}>
                   {msg.type} — {msg.flight}
                 </span>
-                <p className="font-body text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{msg.text}</p>
+                <p className="font-body text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{msg.text}</p>
               </div>
             </div>
           );

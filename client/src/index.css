@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 @layer base {
+  /* ========== DARK MODE (default) ========== */
   :root {
     --bg-base: #060608;
     --bg-panel: #0a0b0e;
@@ -22,14 +23,15 @@
     --yellow: #ffdd00;
     --text-primary: #f0e8d0;
     --text-secondary: #8a7d65;
-    --text-muted: #4a4535;
+    --text-muted: #5a5245;
     --border-default: rgba(245,166,35,0.18);
     --border-bright: rgba(245,166,35,0.45);
     --border-teal: rgba(0,229,204,0.25);
     --border-red: rgba(255,45,45,0.5);
     --radius: 4px;
+    --scanline-opacity: 0.04;
 
-    /* shadcn compatibility */
+    /* shadcn compat */
     --background: 0 0% 2.4%;
     --foreground: 42 33% 91%;
     --card: 240 7% 4.5%;
@@ -49,11 +51,49 @@
     --border: 36 91% 55% / 0.18;
     --input: 36 91% 55% / 0.18;
     --ring: 36 91% 55%;
-    --chart-1: 36 91% 55%;
-    --chart-2: 170 100% 45%;
-    --chart-3: 0 100% 59%;
-    --chart-4: 55 100% 50%;
-    --chart-5: 145 100% 50%;
+  }
+
+  /* ========== LIGHT MODE ========== */
+  .light {
+    --bg-base: #f1f5f9;
+    --bg-panel: #ffffff;
+    --bg-panel-alt: #f8fafc;
+    --bg-raised: #e2e8f0;
+    --amber: #d97706;
+    --amber-dim: #b45309;
+    --amber-glow: rgba(217,119,6,0.1);
+    --teal: #0d9488;
+    --teal-dim: #0f766e;
+    --teal-glow: rgba(13,148,136,0.08);
+    --red: #dc2626;
+    --red-dim: #b91c1c;
+    --red-glow: rgba(220,38,38,0.08);
+    --green: #16a34a;
+    --green-dim: #15803d;
+    --yellow: #ca8a04;
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --border-default: #cbd5e1;
+    --border-bright: #94a3b8;
+    --border-teal: rgba(13,148,136,0.3);
+    --border-red: rgba(220,38,38,0.3);
+    --scanline-opacity: 0;
+
+    --background: 210 40% 96%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
   }
 }
 
@@ -65,21 +105,23 @@
     background: var(--bg-base);
     color: var(--text-primary);
     font-family: "Inter", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
   }
 }
 
-/* ========== NERV SCANLINE OVERLAY ========== */
+/* ========== SCANLINE OVERLAY ========== */
 body::after {
   content: '';
   position: fixed;
   inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.04) 3px, rgba(0,0,0,0.04) 4px);
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,var(--scanline-opacity)) 3px, rgba(0,0,0,var(--scanline-opacity)) 4px);
   pointer-events: none;
   z-index: 9999;
 }
 
 /* ========== CUSTOM SCROLLBAR ========== */
-::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: rgba(245,166,35,0.2); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(245,166,35,0.4); }
@@ -93,6 +135,9 @@ body::after {
 .glow-teal { text-shadow: 0 0 12px rgba(0,229,204,0.5); }
 .glow-red { text-shadow: 0 0 12px rgba(255,45,45,0.7); }
 .glow-green { text-shadow: 0 0 12px rgba(0,255,136,0.5); }
+.light .glow-amber, .light .glow-teal, .light .glow-red, .light .glow-green {
+  text-shadow: none;
+}
 
 /* ========== PANEL STYLES ========== */
 .panel {
@@ -106,7 +151,7 @@ body::after {
 .panel-header {
   background: var(--bg-panel-alt);
   border-bottom: 2px solid var(--amber);
-  padding: 8px 14px;
+  padding: 10px 14px;
 }
 
 /* ========== HEX TEXTURE ========== */
@@ -152,10 +197,10 @@ body::after {
 /* ========== STATUS BADGES ========== */
 .status-badge {
   font-family: "Share Tech Mono", monospace;
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-width: 2px;
   border-style: solid;
 }
