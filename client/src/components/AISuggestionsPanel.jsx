@@ -1,114 +1,99 @@
-import { useState } from "react";
-import { aiSuggestions } from "@/data/mockData";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Brain, Check, X, AlertTriangle, Sparkles, CloudRain, ArrowUpDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-const TYPE_CONFIG = {
-  CONFLICT: { icon: AlertTriangle, color: "#ff3b5c" },
-  OPTIMIZE: { icon: Sparkles, color: "#00ffc8" },
-  WEATHER: { icon: CloudRain, color: "#ffaa00" },
-  SEQUENCE: { icon: ArrowUpDown, color: "#00c8ff" },
-};
-
-const PRIORITY_STYLES = {
-  CRITICAL: "bg-atc-danger/10 text-atc-danger border-atc-danger/30",
-  HIGH: "bg-atc-orange/10 text-atc-orange border-atc-orange/30",
-  MEDIUM: "bg-atc-warning/10 text-atc-warning border-atc-warning/30",
-  LOW: "bg-atc-text-muted/10 text-atc-text-muted border-atc-text-muted/30",
-};
-
-export default function AISuggestionsPanel() {
-  const [items, setItems] = useState(aiSuggestions);
-  const [accepted, setAccepted] = useState(new Set());
-
-  const handleAccept = (id) => {
-    setAccepted((prev) => new Set([...prev, id]));
-  };
-
-  const handleDismiss = (id) => {
-    setItems((prev) => prev.filter((s) => s.id !== id));
-  };
-
+export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, aiEnabled, acceptedCount }) {
   return (
-    <div className="rounded-lg border border-atc-cyan/10 bg-atc-panel/50 flex flex-col">
-      <div className="p-3 border-b border-atc-cyan/10">
-        <h3 className="text-[10px] font-bold tracking-widest text-atc-text-muted uppercase flex items-center gap-1.5">
-          <Brain className="w-3 h-3 text-atc-purple" />
-          AI Recommendations
+    <div className="panel flex flex-col">
+      <div className="panel-header flex items-center justify-between">
+        <h3 className="font-display text-[11px] tracking-wider" style={{ color: 'var(--amber)' }}>
+          ✦ AI RECOMMENDATIONS
         </h3>
+        {acceptedCount > 0 && (
+          <span className="font-display text-[9px]" style={{ color: 'var(--green)' }}>{acceptedCount} applied</span>
+        )}
       </div>
 
-      <ScrollArea className="flex-1 max-h-[400px]">
-        <div className="p-2 space-y-2">
-          {items.map((s) => {
-            const cfg = TYPE_CONFIG[s.type] || TYPE_CONFIG.OPTIMIZE;
-            const Icon = cfg.icon;
-            const isAccepted = accepted.has(s.id);
+      <div className="flex-1 overflow-y-auto p-2 space-y-2 relative">
+        {!aiEnabled && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ background: 'rgba(6,6,8,0.85)' }}>
+            <p className="font-display text-[12px] tracking-wider" style={{ color: 'var(--text-muted)' }}>AI ASSIST DISABLED</p>
+          </div>
+        )}
 
-            return (
-              <div
-                key={s.id}
-                className={`rounded-md border p-3 transition-all ${
-                  isAccepted
-                    ? "border-atc-success/30 bg-atc-success/5"
-                    : "border-white/5 bg-white/[0.02] hover:bg-white/[0.04]"
-                }`}
-                style={{ borderLeftColor: cfg.color, borderLeftWidth: "3px" }}
-              >
-                {/* Header */}
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-3.5 h-3.5" style={{ color: cfg.color }} />
-                    <span className="text-[9px] font-mono font-bold tracking-wider" style={{ color: cfg.color }}>
-                      {s.type}
-                    </span>
-                    <span className={`text-[8px] font-mono px-1 py-0.5 rounded border ${PRIORITY_STYLES[s.priority]}`}>
-                      {s.priority}
-                    </span>
-                  </div>
-                  <span className="text-[9px] font-mono text-atc-text-muted">{s.confidence}</span>
-                </div>
-
-                {/* Flight refs */}
-                <div className="flex items-center gap-1 mb-1.5">
-                  {s.flightRefs.map((f) => (
-                    <span key={f} className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-atc-cyan/10 text-atc-cyan border border-atc-cyan/15">
-                      {f}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Text */}
-                <p className="text-[10px] text-atc-text-secondary leading-relaxed mb-2">{s.text}</p>
-
-                {/* Actions */}
+        <AnimatePresence>
+          {suggestions.map((s) => (
+            <motion.div
+              key={s.id}
+              layout
+              initial={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: "100%" }}
+              transition={{ duration: 0.3 }}
+              className="p-3"
+              style={{
+                background: 'var(--bg-panel)',
+                borderLeft: `3px solid ${s.typeColor}`,
+                border: '1px solid var(--border-default)',
+                borderLeftWidth: '3px',
+                borderLeftColor: s.typeColor,
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  {isAccepted ? (
-                    <span className="text-[9px] font-mono text-atc-success flex items-center gap-1">
-                      <Check className="w-3 h-3" /> APPLIED
-                    </span>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => handleAccept(s.id)}
-                        className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono tracking-wider rounded bg-atc-success/10 text-atc-success border border-atc-success/20 hover:bg-atc-success/20 transition-colors"
-                      >
-                        <Check className="w-3 h-3" /> ACCEPT
-                      </button>
-                      <button
-                        onClick={() => handleDismiss(s.id)}
-                        className="flex items-center gap-1 px-2 py-1 text-[9px] font-mono tracking-wider rounded bg-white/5 text-atc-text-muted border border-white/5 hover:bg-white/10 transition-colors"
-                      >
-                        <X className="w-3 h-3" /> DISMISS
-                      </button>
-                    </>
-                  )}
+                  <span className="font-display text-[9px] uppercase tracking-wider px-1.5 py-0.5" style={{ borderWidth: '2px', borderStyle: 'solid', borderColor: s.typeColor, color: s.typeColor, background: `${s.typeColor}18` }}>
+                    {s.type}
+                  </span>
+                  <span className="font-display text-[8px] px-1.5 py-0.5" style={{
+                    borderWidth: '1px', borderStyle: 'solid',
+                    borderColor: s.priority === 'CRITICAL' ? 'var(--red)' : s.priority === 'HIGH' ? 'var(--amber)' : 'var(--text-muted)',
+                    color: s.priority === 'CRITICAL' ? 'var(--red)' : s.priority === 'HIGH' ? 'var(--amber)' : 'var(--text-muted)',
+                  }}>
+                    {s.priority}
+                  </span>
                 </div>
+                <span className="font-display text-[10px]" style={{ color: 'var(--text-muted)' }}>{s.confidence}</span>
               </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+
+              {/* Flight chips */}
+              <div className="flex gap-1 mb-2">
+                {s.flights.map((f) => (
+                  <span key={f} className="font-display text-[8px] px-1.5 py-0.5" style={{ background: 'var(--amber-glow)', border: '1px solid var(--border-default)', color: 'var(--amber)' }}>
+                    {f}
+                  </span>
+                ))}
+              </div>
+
+              {/* Text */}
+              <p className="font-body text-[12px] leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>{s.text}</p>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onAccept(s)}
+                  className="font-display text-[10px] px-3 py-1.5 transition-colors"
+                  style={{ border: '1px solid var(--green)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)' }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(0,255,136,0.15)'}
+                  onMouseLeave={(e) => e.target.style.background = 'rgba(0,255,136,0.08)'}
+                >
+                  ✓ ACCEPT
+                </button>
+                <button
+                  onClick={() => onDismiss(s.id)}
+                  className="font-display text-[10px] px-3 py-1.5 transition-colors"
+                  style={{ border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}
+                >
+                  ✕ DISMISS
+                </button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {suggestions.length === 0 && (
+          <div className="flex items-center justify-center py-8">
+            <p className="font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>— ALL RECOMMENDATIONS REVIEWED —</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

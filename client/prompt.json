@@ -1,0 +1,612 @@
+{
+  "meta": {
+    "prompt_version": "2.0",
+    "purpose": "Complete frontend build spec for AeroSync ATC dashboard. All data is mock. No backend. Cursor should read this top-to-bottom and build every component exactly as described.",
+    "stack": "React 18 + Vite + Tailwind CSS (JIT) + Recharts + Lucide React + Framer Motion",
+    "install": "npm create vite@latest aerosync-atc -- --template react && cd aerosync-atc && npm install tailwindcss postcss autoprefixer recharts lucide-react framer-motion && npx tailwindcss init -p"
+  },
+
+  "design_system": {
+    "theme_description": "NERV Command Center meets military aviation ops. Think Neon Genesis Evangelion UI — deep black backgrounds, amber/orange primary accent, teal secondary accent, red for critical danger. Hexagonal textures. Chunky bordered panels with diagonal corner cuts. Monospaced data readouts. Every panel feels like it belongs in a nuclear command bunker or NERV HQ. NO purple. NO generic blue gradients. Orange is life.",
+    "fonts": {
+      "display": "Share Tech Mono — all callsigns, numbers, KPIs, clocks",
+      "body": "Inter — labels, descriptions, body copy",
+      "import": "@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap')"
+    },
+    "colors": {
+      "bg_base": "#060608",
+      "bg_panel": "#0a0b0e",
+      "bg_panel_alt": "#0e1014",
+      "bg_raised": "#12141a",
+      "amber": "#f5a623",
+      "amber_dim": "#c47d0e",
+      "amber_glow": "rgba(245,166,35,0.15)",
+      "teal": "#00e5cc",
+      "teal_dim": "#009e8e",
+      "teal_glow": "rgba(0,229,204,0.12)",
+      "red": "#ff2d2d",
+      "red_dim": "#c41a1a",
+      "red_glow": "rgba(255,45,45,0.15)",
+      "green": "#00ff88",
+      "green_dim": "#00b360",
+      "yellow": "#ffdd00",
+      "text_primary": "#f0e8d0",
+      "text_secondary": "#8a7d65",
+      "text_muted": "#4a4535",
+      "border_default": "rgba(245,166,35,0.18)",
+      "border_bright": "rgba(245,166,35,0.45)",
+      "border_teal": "rgba(0,229,204,0.25)",
+      "border_red": "rgba(255,45,45,0.5)"
+    },
+    "css_variables": "Define all colors as CSS variables in :root inside index.css",
+    "panel_style": {
+      "background": "var(--bg-panel)",
+      "border": "1px solid var(--border-default)",
+      "border_radius": "4px — NO large radius. Sharp corners. Max 4px.",
+      "header_bg": "var(--bg-panel-alt)",
+      "header_border_bottom": "2px solid var(--amber)",
+      "header_padding": "8px 14px",
+      "corner_cut": "Use CSS clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)) on major panels for diagonal corner cut effect"
+    },
+    "hex_texture": {
+      "description": "Subtle hexagonal SVG pattern as background on radar and hero panels",
+      "implementation": "SVG backgroundImage with hex path, very low opacity (0.04–0.06), amber stroke",
+      "svg_pattern": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='32'%3E%3Cpolygon points='14,2 26,9 26,23 14,30 2,23 2,9' fill='none' stroke='%23f5a623' stroke-width='0.5' stroke-opacity='0.15'/%3E%3C/svg%3E"
+    },
+    "glow_effects": {
+      "amber_text": "text-shadow: 0 0 12px rgba(245,166,35,0.6)",
+      "teal_text": "text-shadow: 0 0 12px rgba(0,229,204,0.5)",
+      "red_text": "text-shadow: 0 0 12px rgba(255,45,45,0.7)",
+      "panel_hover": "box-shadow: 0 0 0 1px var(--amber), 0 0 20px rgba(245,166,35,0.1)"
+    },
+    "scanline_overlay": "body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 4px); pointer-events:none; z-index:9999; }",
+    "status_badge_style": {
+      "shape": "All status badges use sharp rectangle, 2px border, monospace font, uppercase, letter-spacing 1.5px",
+      "conflict": "border: 2px solid #ff2d2d; color: #ff2d2d; background: rgba(255,45,45,0.12); animation: blink 1s infinite",
+      "holding": "border: 2px solid #ffdd00; color: #ffdd00; background: rgba(255,221,0,0.1)",
+      "landing": "border: 2px solid #00e5cc; color: #00e5cc; background: rgba(0,229,204,0.1)",
+      "takeoff": "border: 2px solid #f5a623; color: #f5a623; background: rgba(245,166,35,0.1)",
+      "cruise": "border: 2px solid #8a7d65; color: #8a7d65; background: rgba(138,125,101,0.1)",
+      "approach": "border: 2px solid #00e5cc; color: #00e5cc; background: rgba(0,229,204,0.08)",
+      "departing": "border: 2px solid #f5a623; color: #f5a623; background: rgba(245,166,35,0.08)"
+    }
+  },
+
+  "layout": {
+    "overview": "Fixed topbar (56px) + 3-column body. Left 260px fixed. Right 300px fixed. Center fluid. Rows inside center stacked vertically. NO nested scroll except flight list and comms feed.",
+    "grid": "grid-template-columns: 260px 1fr 300px; height: calc(100vh - 56px); overflow: hidden",
+    "columns": {
+      "left": "FlightListPanel — full height, internal scroll on list only",
+      "center": "ConflictBanner (conditional) → MetricsRow → RadarPanel → TimelinePanel",
+      "right": "AISuggestionsPanel → RunwayStatusPanel → NLPCommsPanel"
+    },
+    "spacing_rule": "12px gap between all panels. 14px internal padding on all panels. Never nest panels."
+  },
+
+  "components": {
+
+    "TopBar": {
+      "height": "56px",
+      "bg": "var(--bg-base) with bottom border: 2px solid var(--amber)",
+      "layout": "flex justify-between items-center px-4",
+      "left": {
+        "icon": "Plane icon (Lucide) in amber",
+        "title": "AEROSYNC ATC",
+        "subtitle": "Air Traffic Controller Assistant v2.4.1",
+        "title_style": "Share Tech Mono, 16px, amber, letter-spacing 3px"
+      },
+      "center": {
+        "status_pill": {
+          "when_nominal": "green dot (pulsing) + 'SYSTEM ACTIVE — ALL SYSTEMS NOMINAL'",
+          "when_alert": "red dot (fast pulse) + 'ALERT — CONFLICT DETECTED'",
+          "style": "border 1px solid current color, bg tinted, monospace 11px"
+        },
+        "clock": {
+          "format": "HH:MM:SS UTC",
+          "style": "Share Tech Mono 22px amber, text-shadow glow",
+          "update": "setInterval every 1000ms using new Date().toUTCString() parsed"
+        }
+      },
+      "right": {
+        "alert_button": {
+          "text": "⚠ {alertCount} ALERTS",
+          "style": "when alerts > 0: red border, red text, blinking. When 0: muted",
+          "onClick": "scrolls to ConflictBanner and highlights it with a 2s pulse animation"
+        },
+        "ai_toggle": {
+          "text_on": "✦ AI ASSIST ON",
+          "text_off": "✦ AI ASSIST OFF",
+          "state": "useState(true)",
+          "style_on": "teal border, teal text",
+          "style_off": "muted border, muted text",
+          "onClick": "toggles aiEnabled state — when OFF, all AI suggestion cards show 'AI ASSIST DISABLED' overlay"
+        },
+        "controller_info": "A. SHARMA / SECTOR: 7B-ALPHA — right aligned, muted monospace"
+      }
+    },
+
+    "ConflictAlertBanner": {
+      "description": "Full-width critical alert bar. Conditionally rendered only when conflicts exist. Dismissible.",
+      "state": "conflictState: { visible: true, countdown: 260, flight1: 'AI6302', flight2: 'SG881', detail: 'FL280 hdg 045° vs FL270 hdg 320° — CPA 2.1 NM — Below 3 NM minimum' }",
+      "visibility": "Only renders when conflictState.visible === true",
+      "layout": "flex items-center gap-4 px-4 py-3",
+      "style": "background: rgba(255,45,45,0.08); border: 1px solid #ff2d2d; border-left: 4px solid #ff2d2d; no border-radius",
+      "elements": {
+        "icon": "⚡ — blinking amber icon, 24px",
+        "title": "POTENTIAL CONFLICT — AI PREDICTED",
+        "detail_text": "AI6302 (FL280, hdg 045°) vs SG881 (FL270, hdg 320°) — Estimated CPA: 2.1 NM — Below 3 NM minimum separation",
+        "countdown": {
+          "label": "TIME TO CPA",
+          "display": "MM:SS format counting down from 04:20",
+          "style": "Share Tech Mono 24px red, glow",
+          "logic": "useEffect with setInterval decrementing every second. When reaches 0 show 'SEPARATION LOST' in red"
+        },
+        "resolve_button": {
+          "text": "RESOLVE NOW",
+          "style": "bg: #ff2d2d, color: white, monospace, px-6 py-2, sharp corners, hover: bg #c41a1a",
+          "onClick": "opens ResolveModal (see below)"
+        }
+      },
+      "animation": "On mount: slide down from top using Framer Motion. On dismiss: slide up and remove."
+    },
+
+    "ResolveModal": {
+      "description": "Full-screen overlay modal that opens when RESOLVE NOW is clicked. Shows 3 AI resolution options. Controller must pick one or dismiss.",
+      "trigger": "resolve_button onClick in ConflictAlertBanner",
+      "overlay": "position fixed inset-0 bg black/80 backdrop-blur-sm z-50 flex items-center justify-center",
+      "modal_style": "bg: var(--bg-panel), border: 2px solid #ff2d2d, max-width 640px, w-full, clip-path diagonal corners",
+      "header": {
+        "title": "⚡ CONFLICT RESOLUTION — AI6302 × SG881",
+        "subtitle": "Select a resolution strategy. AI recommends Option 1.",
+        "close_button": "X in top right — closes modal without resolving (conflict stays active)"
+      },
+      "conflict_summary_bar": {
+        "style": "bg rgba(255,45,45,0.08), border border-red, p-3 mb-4",
+        "content": "AI6302 FL280 hdg045 @ 420kt ←→ SG881 FL270 hdg320 @ 210kt | CPA: 2.1NM in {countdown}"
+      },
+      "resolution_options": [
+        {
+          "id": "OPT_1",
+          "recommended": true,
+          "label": "OPTION 1 — ALTITUDE SEPARATION",
+          "action": "Descend AI6302 → FL260. Issue heading 020° to SG881.",
+          "result": "Separation increases to 4.2 NM. Resolves in 2 min 40 sec.",
+          "confidence": "97.4%",
+          "fuel_impact": "+140 kg",
+          "delay_impact": "+2 min AI6302",
+          "style_selected": "border: 2px solid #00ff88; bg: rgba(0,255,136,0.06)",
+          "style_default": "border: 1px solid var(--border-default)",
+          "badge": "AI RECOMMENDED — green badge top-right of card"
+        },
+        {
+          "id": "OPT_2",
+          "recommended": false,
+          "label": "OPTION 2 — LATERAL SEPARATION",
+          "action": "Turn AI6302 left heading 010°. No altitude change.",
+          "result": "Separation increases to 3.6 NM. Resolves in 3 min 10 sec.",
+          "confidence": "84.1%",
+          "fuel_impact": "+80 kg",
+          "delay_impact": "+1 min AI6302"
+        },
+        {
+          "id": "OPT_3",
+          "recommended": false,
+          "label": "OPTION 3 — SPEED REDUCTION",
+          "action": "Reduce SG881 speed to 180 kt. Hold pattern at DEGAN.",
+          "result": "Separation increases to 3.4 NM. Resolves in 4 min 00 sec.",
+          "confidence": "71.8%",
+          "fuel_impact": "+220 kg",
+          "delay_impact": "+6 min SG881"
+        }
+      ],
+      "option_card_layout": "Each option is a clickable card. Clicking selects it (highlighted border). Only one selectable at a time.",
+      "footer": {
+        "selected_option_display": "Shows selected option ID and action text",
+        "apply_button": {
+          "text": "APPLY RESOLUTION",
+          "style": "full width, bg amber, black text, monospace, py-3",
+          "onClick": "1) Close modal. 2) Set conflictState.visible = false. 3) Add resolved conflict to resolvedLog state array. 4) Show success toast 'Resolution Applied — AI6302 & SG881 Separation Secured' for 4 seconds. 5) Decrement alertCount in TopBar. 6) Flash the two flight items in FlightList green for 2s. 7) Update those flights' status from CONFLICT/HOLDING to ENROUTE."
+        },
+        "cancel_button": {
+          "text": "CANCEL — HANDLE MANUALLY",
+          "style": "ghost, red text, monospace",
+          "onClick": "Close modal only. Conflict stays active."
+        }
+      }
+    },
+
+    "SuccessToast": {
+      "description": "Animated notification that slides in from top-right on successful resolution",
+      "style": "position fixed top-20 right-4, bg var(--bg-panel), border-left 4px solid #00ff88, px-4 py-3, z-50",
+      "content": "✓ {message}",
+      "animation": "Framer Motion: slide in from right, stay 4s, slide out",
+      "usage": "Also used for 'AI Suggestion Applied' when accepting suggestions"
+    },
+
+    "MetricsRow": {
+      "description": "8 stat cards in a single horizontal row across center column top",
+      "layout": "grid grid-cols-8 gap-2",
+      "card_style": "bg var(--bg-panel), border 1px solid var(--border-default), p-3, no border-radius, clip-path diagonal on top-right corner only",
+      "readability_rules": "Each card has ONE big number + ONE label + ONE delta. Nothing else.",
+      "cards": [
+        { "id": "active", "value": "28", "label": "ACTIVE FLIGHTS", "delta": "↑3 from 1h", "value_color": "amber" },
+        { "id": "ontime", "value": "94.2%", "label": "ON-TIME RATE", "delta": "↑2.1% vs avg", "value_color": "green" },
+        { "id": "conflicts", "value": "2", "label": "AI CONFLICTS", "delta": "Predicting now", "value_color": "red", "pulse": true },
+        { "id": "aiscore", "value": "87%", "label": "AI OPT SCORE", "delta": "Best today ↑", "value_color": "teal" },
+        { "id": "runways", "value": "6", "label": "RWYS ACTIVE", "delta": "2L 2R 3L 3R 5A 5B", "value_color": "amber" },
+        { "id": "wind", "value": "18 kt", "label": "WIND SPEED", "delta": "270° NW", "value_color": "text_primary" },
+        { "id": "vis", "value": "7 km", "label": "VISIBILITY", "delta": "CLR — No IMC", "value_color": "green" },
+        { "id": "spacing", "value": "1.4m", "label": "AVG SPACING", "delta": "↑ AI Optimized", "value_color": "teal" }
+      ],
+      "value_style": "Share Tech Mono 24px, colored per above, glow text-shadow",
+      "label_style": "Inter 9px uppercase letter-spacing-2 text-muted",
+      "delta_style": "Inter 10px text-secondary"
+    },
+
+    "RadarPanel": {
+      "description": "Center hero — animated radar scope. Canvas-based. Hexagonal background texture. Rotating sweep with flight blips.",
+      "implementation": "useRef on <canvas>. useEffect starts requestAnimationFrame loop. Cleanup on unmount.",
+      "dimensions": "width: 100% of center column. height: 420px fixed.",
+      "canvas_setup": {
+        "background": "Fill with #060608 first, then draw hex grid pattern (SVG or manual hexagons) in amber at 0.05 opacity",
+        "hex_grid": "Draw hexagons using canvas path, side_length=18px, amber stroke at 0.06 opacity, covering full canvas"
+      },
+      "elements": {
+        "range_rings": {
+          "count": 5,
+          "style": "stroke rgba(245,166,35,0.12), lineWidth 0.8",
+          "labels": ["10", "20", "30", "40", "50 NM"],
+          "label_style": "Share Tech Mono 9px, rgba(245,166,35,0.35)"
+        },
+        "crosshairs": "rgba(245,166,35,0.08), lineWidth 0.5, full canvas cross through center",
+        "sweep_beam": {
+          "style": "createLinearGradient from center to edge: rgba(245,166,35,0) → rgba(245,166,35,0.7)",
+          "width_degrees": 6,
+          "speed": "1.0 degrees per frame (60fps ≈ 6 seconds per full rotation)",
+          "trail": "Draw 8 previous angles at decreasing opacity [0.5, 0.4, 0.3, 0.2, 0.15, 0.1, 0.06, 0.03] using pie slice fills in amber"
+        },
+        "center_dot": "circle r=4, fill amber, always on top",
+        "flight_blips": {
+          "shape": "Diamond shape (4-point, rotated square) — NOT circle. Width 8px.",
+          "conflict_shape": "Pulsing hexagon outline + filled diamond center",
+          "label": "CALLSIGN above blip (9px Share Tech Mono), altitude below (8px muted)",
+          "velocity_vector": "Line in heading direction, length 16px, amber 0.5 opacity",
+          "colors": {
+            "conflict": "#ff2d2d with pulsing outer ring animation",
+            "holding": "#ffdd00",
+            "landing": "#00e5cc",
+            "takeoff": "#f5a623",
+            "cruise": "#8a7d65",
+            "approach": "#00e5cc"
+          },
+          "motion": "Each blip moves 0.4–0.8px per frame in heading direction. Bounces off canvas edge."
+        }
+      },
+      "overlay_text": {
+        "position": "top-left of canvas (drawn in canvas ctx)",
+        "lines": ["MODE: APP/DEP", "RANGE: 50 NM", "SECTOR: 7B-ALPHA", "FILTER: ALL TRAFFIC"],
+        "style": "Share Tech Mono 10px, rgba(245,166,35,0.4), line-height 16px"
+      },
+      "radar_bottom_bar": {
+        "layout": "flex justify-between px-4 py-2 border-top border-amber/20",
+        "items": ["28 TRACKS", "6 RWYS", "2 ALERTS", "87% OPT", "UTC CLOCK"],
+        "style": "Share Tech Mono 10px amber/60"
+      }
+    },
+
+    "TimelinePanel": {
+      "description": "Gantt chart showing 2-hour flight activity window. Scrollable horizontally if needed.",
+      "time_range": "13:00 to 15:00 UTC (120 min window, 24 ticks at 5-min intervals)",
+      "layout": "header row with time ticks, then one row per flight",
+      "now_line": {
+        "style": "2px solid #ff2d2d, opacity 0.9",
+        "label": "NOW — red label above line",
+        "position": "Calculated as % of 120-min window from start time"
+      },
+      "row_height": "28px per flight row. Flight label 80px wide fixed on left.",
+      "label_style": "Share Tech Mono 10px amber",
+      "bar_style": "height 16px, centered in row, border-radius 2px",
+      "bar_colors": {
+        "landing": "bg rgba(0,229,204,0.25) border-teal text-teal",
+        "takeoff": "bg rgba(245,166,35,0.2) border-amber text-amber",
+        "holding": "bg rgba(255,221,0,0.15) border-yellow text-yellow",
+        "cruise": "bg rgba(138,125,101,0.12) border rgba(138,125,101,0.4) text-muted",
+        "conflict": "bg rgba(255,45,45,0.2) border-red text-red — animate: pulse border opacity",
+        "optimized": "bg rgba(0,255,136,0.12) border-green text-green — prefix: ✦"
+      },
+      "rows": [
+        { "flight": "EK512", "bars": [{ "type": "landing", "start_min": 5, "dur": 18, "label": "ILS RWY 27L" }] },
+        { "flight": "9W445", "bars": [{ "type": "takeoff", "start_min": 12, "dur": 10, "label": "DEP RWY 09R" }] },
+        { "flight": "AI6302", "bars": [{ "type": "conflict", "start_min": 35, "dur": 6, "label": "⚡ CONFLICT" }] },
+        { "flight": "SG881", "bars": [{ "type": "holding", "start_min": 30, "dur": 20, "label": "HOLD DEGAN" }] },
+        { "flight": "6E741", "bars": [{ "type": "landing", "start_min": 45, "dur": 15, "label": "ILS RWY 27R" }] },
+        { "flight": "QR552", "bars": [{ "type": "takeoff", "start_min": 50, "dur": 12, "label": "DEP RWY 09L" }] },
+        { "flight": "UK965", "bars": [{ "type": "cruise", "start_min": 0, "dur": 60, "label": "FL350" }] },
+        { "flight": "BA118", "bars": [{ "type": "cruise", "start_min": 20, "dur": 60, "label": "FL390" }] },
+        { "flight": "G8423", "bars": [{ "type": "optimized", "start_min": 58, "dur": 14, "label": "✦ AI RESEQ" }] }
+      ]
+    },
+
+    "FlightListPanel": {
+      "description": "Left column full-height panel. Header + filter tabs + scrollable list.",
+      "header": "✈ ACTIVE FLIGHTS — count badge amber",
+      "tabs": {
+        "options": ["ALL", "LANDING", "TAKEOFF", "ALERTS"],
+        "style": "Sharp tab buttons. Active tab: amber border-bottom 2px, amber text. Inactive: muted.",
+        "behavior": "Filters flight list array by status type"
+      },
+      "list_scroll": "overflow-y: auto on list container only. flex-1.",
+      "flight_card": {
+        "layout": "grid grid-cols-[auto_1fr_auto] items-start gap-2 p-3 border-b border-default",
+        "left_icon": {
+          "size": "32x32px, border 1px, bg tinted, sharp corners",
+          "icons": { "landing": "↘", "takeoff": "↗", "cruise": "→", "holding": "⏸", "conflict": "⚡", "departing": "◈" }
+        },
+        "center": {
+          "callsign": "Share Tech Mono 13px bold — color matches status",
+          "route": "Inter 11px text-muted",
+          "stats_row": "flex gap-3 mt-1 — altitude | speed | eta | aircraft — each 10px text-secondary"
+        },
+        "right": {
+          "status_badge": "See design_system.status_badge_style",
+          "nothing_else": "No extra elements on right — keep it clean"
+        },
+        "states": {
+          "default": "border-l: 3px solid transparent",
+          "conflict": "border-l: 3px solid #ff2d2d; bg: rgba(255,45,45,0.04)",
+          "holding": "border-l: 3px solid #ffdd00; bg: rgba(255,221,0,0.03)",
+          "selected": "border-l: 3px solid #f5a623; bg: rgba(245,166,35,0.06)"
+        },
+        "onClick": "Sets selectedFlight state. Highlights matching blip on radar with bright ring. Opens FlightDetailDrawer."
+      },
+      "FlightDetailDrawer": {
+        "description": "Slide-in drawer from bottom of left panel when a flight is clicked",
+        "trigger": "flight card onClick",
+        "style": "position absolute bottom-0 left-0 right-0, bg var(--bg-raised), border-top 2px solid amber, p-4, z-20, Framer Motion slide up",
+        "content": {
+          "header": "Callsign + route + close X button",
+          "data_grid": "grid grid-cols-2 gap-2 — all key flight stats as label:value pairs",
+          "fields": ["Altitude", "Speed", "Heading", "Aircraft Type", "ETA", "Phase", "Squawk", "Fuel Remaining", "Waypoint"],
+          "quick_actions": [
+            { "label": "ISSUE CLEARANCE", "color": "amber", "onClick": "show simple text input modal for free-text clearance" },
+            { "label": "ADD TO SEQUENCE", "color": "teal", "onClick": "add flight to landing sequence" },
+            { "label": "ASSIGN HOLDING", "color": "yellow", "onClick": "change flight status to holding" }
+          ]
+        }
+      },
+      "flights": [
+        { "callsign": "AI6302", "route": "BOM→DEL", "status": "CONFLICT", "altitude": "FL280", "speed": "420 kt", "eta": "34m", "aircraft": "B737", "heading": 45, "squawk": "7700", "fuel": "4.2h", "waypoint": "DEGAN" },
+        { "callsign": "SG881", "route": "HYD→BOM", "status": "HOLDING", "altitude": "FL270", "speed": "210 kt", "eta": "22m", "aircraft": "A320", "heading": 320, "squawk": "5502", "fuel": "3.1h", "waypoint": "DEGAN" },
+        { "callsign": "EK512", "route": "DXB→BOM", "status": "LANDING", "altitude": "4800ft", "speed": "165 kt", "eta": "8m", "aircraft": "B777", "heading": 272, "squawk": "2341", "fuel": "1.2h", "waypoint": "27L ILS" },
+        { "callsign": "9W445", "route": "BOM→CCU", "status": "TAKEOFF", "altitude": "1200ft", "speed": "190 kt", "eta": "NOW", "aircraft": "B737", "heading": 90, "squawk": "4412", "fuel": "5.8h", "waypoint": "DISHA" },
+        { "callsign": "UK965", "route": "MAA→DEL", "status": "CRUISE", "altitude": "FL350", "speed": "470 kt", "eta": "55m", "aircraft": "A321", "heading": 15, "squawk": "3301", "fuel": "6.4h", "waypoint": "ARSIN" },
+        { "callsign": "6E741", "route": "DEL→BOM", "status": "APPROACH", "altitude": "6200ft", "speed": "180 kt", "eta": "14m", "aircraft": "A320", "heading": 265, "squawk": "2201", "fuel": "0.8h", "waypoint": "27R ILS" },
+        { "callsign": "QR552", "route": "BOM→DOH", "status": "DEPARTING", "altitude": "GND", "speed": "0 kt", "eta": "NOW", "aircraft": "B787", "heading": 90, "squawk": "5561", "fuel": "9.2h", "waypoint": "RWY 09L" },
+        { "callsign": "BA118", "route": "LHR→BOM", "status": "CRUISE", "altitude": "FL390", "speed": "490 kt", "eta": "88m", "aircraft": "B777", "heading": 110, "squawk": "1145", "fuel": "7.1h", "waypoint": "OKLOV" },
+        { "callsign": "AA258", "route": "ORD→BOM", "status": "APPROACH", "altitude": "9400ft", "speed": "200 kt", "eta": "18m", "aircraft": "B787", "heading": 268, "squawk": "3312", "fuel": "1.5h", "waypoint": "32L VISU" },
+        { "callsign": "G8423", "route": "COK→BOM", "status": "HOLDING", "altitude": "FL140", "speed": "215 kt", "eta": "30m", "aircraft": "ATR72", "heading": 180, "squawk": "4401", "fuel": "2.2h", "waypoint": "DEGAN" },
+        { "callsign": "IX304", "route": "AMD→BOM", "status": "LANDING", "altitude": "3100ft", "speed": "155 kt", "eta": "5m", "aircraft": "A320", "heading": 270, "squawk": "2442", "fuel": "0.6h", "waypoint": "27L FINAL" },
+        { "callsign": "LD501", "route": "BOM→PNQ", "status": "TAKEOFF", "altitude": "2400ft", "speed": "210 kt", "eta": "NOW", "aircraft": "ATR72", "heading": 95, "squawk": "4413", "fuel": "3.1h", "waypoint": "RWY 09R" }
+      ]
+    },
+
+    "AISuggestionsPanel": {
+      "description": "Right column top section. AI recommendation cards with WORKING accept/dismiss.",
+      "header": "✦ AI RECOMMENDATIONS",
+      "state": "suggestions: useState([...initial array])",
+      "card_style": {
+        "base": "border-l: 3px solid {type_color}, bg var(--bg-panel), p-3, mb-2",
+        "header_row": "flex items-center justify-between mb-2",
+        "type_badge": "monospace 9px uppercase, colored border, sharp",
+        "confidence": "Share Tech Mono 10px text-muted right aligned",
+        "flights_row": "flex gap-1 mb-2 — small amber chips for each referenced flight callsign",
+        "text": "Inter 12px text-secondary line-height-1.5",
+        "actions": "flex gap-2 mt-3"
+      },
+      "accept_button": {
+        "style": "border 1px solid #00ff88, color #00ff88, bg rgba(0,255,136,0.08), monospace 10px, px-3 py-1.5, hover bg rgba(0,255,136,0.15)",
+        "icon": "✓ ACCEPT",
+        "onClick": [
+          "Remove card from suggestions array with fade-out animation (Framer AnimatePresence)",
+          "Add to resolvedSuggestions log",
+          "Show SuccessToast: 'AI Suggestion Applied — {suggestion.label}'",
+          "If suggestion affects flights (e.g. resequencing): update those flights' status in flightsData state",
+          "Increment acceptedCount in a stats counter shown in panel header"
+        ]
+      },
+      "dismiss_button": {
+        "style": "border 1px solid var(--border-default), color text-muted, monospace 10px, px-3 py-1.5, hover border-secondary",
+        "icon": "✕ DISMISS",
+        "onClick": "Remove card from suggestions array with fade-out. No toast. Increment dismissedCount."
+      },
+      "empty_state": "When all dismissed: show '— ALL RECOMMENDATIONS REVIEWED —' in muted center text",
+      "suggestions": [
+        {
+          "id": "s1",
+          "type": "CONFLICT",
+          "type_color": "#ff2d2d",
+          "priority": "CRITICAL",
+          "confidence": "97.4%",
+          "flights": ["AI6302", "SG881"],
+          "text": "Descend AI6302 to FL260 immediately. Issue heading 020° to SG881. Separation increases to 4.2 NM. Resolves in 2 min 40 sec.",
+          "auto_applicable": false
+        },
+        {
+          "id": "s2",
+          "type": "OPTIMIZE",
+          "type_color": "#00e5cc",
+          "priority": "HIGH",
+          "confidence": "91.2%",
+          "flights": ["EK512", "IX304"],
+          "text": "Sequence EK512 before IX304 on RWY 27L. EK512 is heavier (B777 vs A320). Saves 3.2 min total delay.",
+          "auto_applicable": true
+        },
+        {
+          "id": "s3",
+          "type": "WEATHER",
+          "type_color": "#ffdd00",
+          "priority": "MEDIUM",
+          "confidence": "84.0%",
+          "flights": ["BA118"],
+          "text": "Wind shift expected in 22 min (250° → 300°). Issue updated QNH to BA118 on approach. Pre-brief crew.",
+          "auto_applicable": false
+        },
+        {
+          "id": "s4",
+          "type": "SEQUENCE",
+          "type_color": "#f5a623",
+          "priority": "MEDIUM",
+          "confidence": "88.7%",
+          "flights": ["G8423", "6E741", "AA258"],
+          "text": "AI resequenced landing queue: 6E741 → EK512 → AA258 → G8423. Reduces total holding fuel burn by 340 kg.",
+          "auto_applicable": true
+        }
+      ]
+    },
+
+    "RunwayStatusPanel": {
+      "description": "Right column middle. Visual runway occupancy. Clean, readable.",
+      "header": "⊞ RUNWAY STATUS — Next 30 min",
+      "layout": "One row per runway. Label left, bar track right.",
+      "bar_track": "height 20px, bg var(--bg-raised), border 1px solid var(--border-default), relative, overflow hidden",
+      "slots": {
+        "land": "bg rgba(0,229,204,0.5) border-none",
+        "take": "bg rgba(245,166,35,0.5) border-none",
+        "clear": "bg transparent — just empty track",
+        "hold": "bg rgba(255,221,0,0.4)",
+        "maint": "bg repeating-linear-gradient(45deg, rgba(255,45,45,0.3) 0px, rgba(255,45,45,0.3) 4px, transparent 4px, transparent 8px) border 1px solid #ff2d2d"
+      },
+      "slot_tooltip": "On hover: show flight callsign + time window in small tooltip",
+      "legend": "Small legend row: ● Landing ● Takeoff ● Clear ● Maint — 10px each",
+      "runways": [
+        { "id": "RWY 27L", "type": "LAND", "slots": [{"type":"land","pct_start":5,"pct_w":12,"flight":"EK512"},{"type":"clear","pct_start":17,"pct_w":14},{"type":"land","pct_start":31,"pct_w":10,"flight":"IX304"},{"type":"clear","pct_start":41,"pct_w":11},{"type":"land","pct_start":52,"pct_w":14,"flight":"AA258"},{"type":"clear","pct_start":66,"pct_w":34}] },
+        { "id": "RWY 27R", "type": "LAND", "slots": [{"type":"clear","pct_start":0,"pct_w":10},{"type":"land","pct_start":10,"pct_w":11,"flight":"6E741"},{"type":"clear","pct_start":21,"pct_w":20},{"type":"land","pct_start":41,"pct_w":10,"flight":"G8423"},{"type":"clear","pct_start":51,"pct_w":49}] },
+        { "id": "RWY 09L", "type": "DEP", "slots": [{"type":"clear","pct_start":0,"pct_w":18},{"type":"take","pct_start":18,"pct_w":8,"flight":"QR552"},{"type":"clear","pct_start":26,"pct_w":74}] },
+        { "id": "RWY 09R", "type": "DEP", "slots": [{"type":"take","pct_start":0,"pct_w":7,"flight":"9W445"},{"type":"clear","pct_start":7,"pct_w":18},{"type":"take","pct_start":25,"pct_w":6,"flight":"LD501"},{"type":"clear","pct_start":31,"pct_w":69}] },
+        { "id": "RWY 32L", "type": "MAINT", "slots": [{"type":"maint","pct_start":0,"pct_w":30,"label":"MAINTENANCE"},{"type":"clear","pct_start":30,"pct_w":70}] },
+        { "id": "RWY 32R", "type": "LAND", "slots": [{"type":"clear","pct_start":0,"pct_w":40},{"type":"land","pct_start":40,"pct_w":15,"flight":"BA118"},{"type":"clear","pct_start":55,"pct_w":45}] }
+      ]
+    },
+
+    "NLPCommsPanel": {
+      "description": "Right column bottom. ATC ↔ Pilot comms with AI transcription tags. Fixed height, internal scroll.",
+      "header": "◎ NLP COMMS FEED — AI-assisted transcript",
+      "height": "max-height: 240px, overflow-y: auto",
+      "item_layout": "flex gap-2 p-2 border-b border-default",
+      "time_style": "Share Tech Mono 9px text-muted, flex-shrink-0, pt-0.5",
+      "type_badge": {
+        "ATC": "bg rgba(245,166,35,0.12) border-amber text-amber 9px monospace",
+        "PILOT": "bg rgba(0,229,204,0.1) border-teal text-teal 9px monospace",
+        "AI": "bg rgba(0,255,136,0.1) border-green text-green 9px monospace — only for AI system messages"
+      },
+      "text_style": "Inter 11px text-secondary line-height 1.4",
+      "feed": [
+        { "time": "14:34:12", "type": "ATC", "flight": "EK512", "text": "Emirates five-one-two, descend and maintain four thousand feet, reduce speed one-six-zero knots, cleared ILS approach runway two-seven-left." },
+        { "time": "14:34:28", "type": "PILOT", "flight": "EK512", "text": "Descend maintain four thousand, reduce one-six-zero, cleared ILS two-seven-left, Emirates five-one-two." },
+        { "time": "14:35:01", "type": "AI", "flight": "SYSTEM", "text": "⚡ Conflict detected. Suggested: 'Air India six-three-zero-two, turn left heading zero-two-zero, descend flight level two-six-zero immediately.'" },
+        { "time": "14:35:44", "type": "ATC", "flight": "SG881", "text": "SpiceJet eight-eight-one, enter holding at DEGAN, maintain flight level two-seven-zero, expect further clearance at one-five-zero-zero." },
+        { "time": "14:36:55", "type": "AI", "flight": "SYSTEM", "text": "✦ Sequence optimized: EK512 → IX304 → AA258 on RWY 27L. Delay savings: 3.2 min. Fuel saved: 180 kg." },
+        { "time": "14:37:08", "type": "ATC", "flight": "QR552", "text": "Qatar five-five-two, pushback and startup approved, QNH one-zero-one-two, ATIS Kilo." }
+      ]
+    },
+
+    "WeatherPanel": {
+      "description": "Bottom of left column or collapsible section. Compact METAR strip.",
+      "show_as": "Collapsible section at the bottom of FlightListPanel, toggle with a small WX button in list header",
+      "content": {
+        "metar": "VABB 211200Z 27018KT 7200 FEW030 28/22 Q1012 NOSIG",
+        "atis": "ATIS KILO",
+        "wind": "270° / 18 kt (G24)",
+        "visibility": "7,200 m",
+        "ceiling": "FEW030",
+        "temp_dp": "28° / 22°",
+        "qnh": "Q1012",
+        "active_rwys": "LAND: 27L/27R | DEP: 09L/09R"
+      }
+    }
+  },
+
+  "state_management": {
+    "description": "All state lives in App.jsx as useState hooks. Passed as props. No Redux needed.",
+    "atoms": [
+      { "name": "flights", "type": "array", "description": "Master flight list. Mutated on resolution/suggestions accepted." },
+      { "name": "conflict", "type": "object | null", "description": "Active conflict data. Set to null when resolved." },
+      { "name": "suggestions", "type": "array", "description": "AI suggestion cards. Items removed on accept/dismiss." },
+      { "name": "resolveModalOpen", "type": "boolean", "description": "Controls ResolveModal visibility." },
+      { "name": "selectedOption", "type": "string | null", "description": "Which resolution option is selected in modal." },
+      { "name": "selectedFlight", "type": "string | null", "description": "Callsign of clicked flight in list." },
+      { "name": "aiEnabled", "type": "boolean", "description": "AI assist toggle." },
+      { "name": "toast", "type": "object | null", "description": "{ message, type } for SuccessToast. Null = hidden." },
+      { "name": "activeTab", "type": "string", "description": "Flight list filter tab: ALL|LANDING|TAKEOFF|ALERTS" },
+      { "name": "acceptedCount", "type": "number", "description": "Count of accepted AI suggestions today." }
+    ]
+  },
+
+  "interaction_flows": {
+    "conflict_resolution_full_flow": [
+      "1. ConflictBanner visible with countdown ticking",
+      "2. User clicks RESOLVE NOW",
+      "3. setResolveModalOpen(true)",
+      "4. ResolveModal renders with 3 options. Option 1 pre-highlighted as AI recommended.",
+      "5. User clicks an option card → setSelectedOption('OPT_1')",
+      "6. User clicks APPLY RESOLUTION",
+      "7. setResolveModalOpen(false)",
+      "8. setConflict(null) → ConflictBanner unmounts with slide-up animation",
+      "9. Update flights array: AI6302 status → ENROUTE, SG881 status → ENROUTE",
+      "10. setToast({ message: 'Resolution Applied — AI6302 & SG881 Separation Secured', type: 'success' })",
+      "11. setTimeout 4000ms → setToast(null)",
+      "12. alertCount in TopBar decrements by 1",
+      "13. AI6302 and SG881 cards in FlightList flash green border for 2s"
+    ],
+    "suggestion_accept_flow": [
+      "1. User clicks ✓ ACCEPT on a suggestion card",
+      "2. Card fades out (Framer Motion exit animation, 300ms)",
+      "3. Card removed from suggestions array",
+      "4. If suggestion has flight effects: update flights array accordingly",
+      "5. setToast({ message: 'Applied: {suggestion.type} — {suggestion.flights.join(' ')}', type: 'success' })",
+      "6. acceptedCount += 1"
+    ],
+    "flight_select_flow": [
+      "1. User clicks flight card in list",
+      "2. setSelectedFlight(callsign)",
+      "3. FlightDetailDrawer slides up from bottom of left panel",
+      "4. Corresponding radar blip gets bright amber ring drawn around it",
+      "5. Clicking another flight switches selection. Clicking same flight deselects."
+    ]
+  },
+
+  "animations": {
+    "library": "Framer Motion for all enter/exit transitions. CSS @keyframes for continuous loops.",
+    "rules": [
+      "ConflictBanner: AnimatePresence y:-60→0 on enter, 0→-60 on exit",
+      "ResolveModal overlay: opacity 0→1. Modal: scale 0.95→1 + opacity",
+      "FlightDetailDrawer: y: full-height → 0 slide up",
+      "Suggestion card dismiss: x: 0→100%, opacity 1→0",
+      "SuccessToast: x: 100%→0 slide in, delay, x: 0→100% slide out",
+      "Conflict blip pulse: CSS @keyframes scale 1→1.4→1 + opacity 1→0.6→1 on 0.8s loop",
+      "Clock: just text update, no animation",
+      "Metric values: count-up on mount (simple useEffect with interval)",
+      "Bar fills: CSS transition: width 1.2s ease-out on mount"
+    ]
+  },
+
+  "file_structure": {
+    "src/App.jsx": "Root. All state. 3-column layout. Passes props to all children.",
+    "src/index.css": "CSS variables. Global styles. Scanlines. Keyframe animations.",
+    "src/data/mockData.js": "All flights, suggestions, timeline rows, comms feed, runway slots. Export as named consts.",
+    "src/components/TopBar.jsx": "Props: alertCount, aiEnabled, onToggleAI, clock",
+    "src/components/ConflictBanner.jsx": "Props: conflict, onResolveClick. AnimatePresence wrap.",
+    "src/components/ResolveModal.jsx": "Props: open, conflict, countdown, selectedOption, onSelectOption, onApply, onCancel",
+    "src/components/SuccessToast.jsx": "Props: toast (object|null). Self-contained AnimatePresence.",
+    "src/components/MetricsRow.jsx": "Props: metrics array. Count-up on mount.",
+    "src/components/RadarCanvas.jsx": "Props: flights, selectedFlight. Canvas rAF loop.",
+    "src/components/TimelinePanel.jsx": "Props: rows, nowOffsetPercent",
+    "src/components/FlightListPanel.jsx": "Props: flights, selectedFlight, onSelectFlight, activeTab, onTabChange",
+    "src/components/FlightDetailDrawer.jsx": "Props: flight (object|null), onClose, onAction",
+    "src/components/AISuggestionsPanel.jsx": "Props: suggestions, onAccept, onDismiss, aiEnabled, acceptedCount",
+    "src/components/RunwayStatusPanel.jsx": "Props: runways",
+    "src/components/NLPCommsPanel.jsx": "Props: feed array"
+  },
+
+  "cursor_prompt": "Read aerosync_atc_v2.json fully before writing any code. Build each component in the exact file listed in file_structure. All state lives in App.jsx. The most critical flows are conflict_resolution_full_flow and suggestion_accept_flow — these must work correctly end-to-end. Theme is NERV command center: black background, amber primary, teal secondary, red for danger, Share Tech Mono for all data. Sharp corners everywhere. Hex texture on radar. Diamond blips on canvas. Every button must do something visible. No dead UI."
+}

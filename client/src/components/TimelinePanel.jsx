@@ -1,32 +1,32 @@
 import { timelineRows } from "@/data/mockData";
 
 const TYPE_STYLES = {
-  landing:   { bg: "rgba(0,230,118,0.15)", border: "rgba(0,230,118,0.5)",  text: "#00e676" },
-  takeoff:   { bg: "rgba(0,200,255,0.12)",  border: "rgba(0,200,255,0.45)", text: "#00c8ff" },
-  holding:   { bg: "rgba(255,170,0,0.12)",  border: "rgba(255,170,0,0.4)",  text: "#ffaa00" },
-  cruise:    { bg: "rgba(168,85,247,0.10)", border: "rgba(168,85,247,0.4)", text: "#a855f7" },
-  conflict:  { bg: "rgba(255,59,92,0.15)",  border: "rgba(255,59,92,0.5)",  text: "#ff3b5c" },
-  optimized: { bg: "rgba(0,255,200,0.10)", border: "rgba(0,255,200,0.4)", text: "#00ffc8" },
+  landing:   { bg: "rgba(0,229,204,0.25)", border: "#00e5cc", text: "#00e5cc" },
+  takeoff:   { bg: "rgba(245,166,35,0.2)", border: "#f5a623", text: "#f5a623" },
+  holding:   { bg: "rgba(255,221,0,0.15)", border: "#ffdd00", text: "#ffdd00" },
+  cruise:    { bg: "rgba(138,125,101,0.12)", border: "rgba(138,125,101,0.4)", text: "#8a7d65" },
+  conflict:  { bg: "rgba(255,45,45,0.2)", border: "#ff2d2d", text: "#ff2d2d" },
+  optimized: { bg: "rgba(0,255,136,0.12)", border: "#00ff88", text: "#00ff88" },
 };
 
 const TOTAL_MINUTES = 120;
-const NOW_MINUTE = 37; // ~14:37 UTC
+const NOW_MINUTE = 37;
 
 export default function TimelinePanel() {
   const ticks = Array.from({ length: 25 }, (_, i) => i * 5);
 
   return (
-    <div className="rounded-lg border border-atc-cyan/10 bg-atc-panel/50 p-3 overflow-hidden">
+    <div className="panel p-3.5 overflow-hidden">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[10px] font-bold tracking-widest text-atc-text-muted uppercase">Flight Timeline</h3>
-        <span className="text-[9px] font-mono text-atc-text-muted">13:00 — 15:00 UTC</span>
+        <h3 className="font-display text-[10px] tracking-wider" style={{ color: 'var(--text-muted)' }}>FLIGHT TIMELINE</h3>
+        <span className="font-display text-[9px]" style={{ color: 'var(--text-muted)' }}>13:00 — 15:00 UTC</span>
       </div>
 
-      {/* Time axis */}
-      <div className="relative ml-16">
+      {/* Time ticks */}
+      <div className="ml-20">
         <div className="flex justify-between mb-1">
           {ticks.filter((_, i) => i % 3 === 0).map((t) => (
-            <span key={t} className="text-[8px] font-mono text-atc-text-muted/50">
+            <span key={t} className="font-display text-[8px]" style={{ color: 'var(--text-muted)' }}>
               {`${13 + Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`}
             </span>
           ))}
@@ -34,47 +34,32 @@ export default function TimelinePanel() {
       </div>
 
       {/* Rows */}
-      <div className="space-y-1 relative">
-        {/* NOW indicator */}
-        <div
-          className="absolute top-0 bottom-0 w-px bg-atc-danger/60 z-10"
-          style={{ left: `calc(64px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)` }}
-        />
-        <div
-          className="absolute -top-1 z-10 text-[7px] font-mono text-atc-danger"
-          style={{ left: `calc(64px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)` }}
-        >
-          NOW
-        </div>
+      <div className="space-y-0.5 relative">
+        {/* NOW line */}
+        <div className="absolute top-0 bottom-0 z-10" style={{ left: `calc(80px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)`, width: '2px', background: 'var(--red)', opacity: 0.9 }} />
+        <div className="absolute -top-3 z-10 font-display text-[7px]" style={{ left: `calc(80px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)`, color: 'var(--red)' }}>NOW</div>
 
-        {timelineRows.map((row) => {
-          const style = TYPE_STYLES[row.type] || TYPE_STYLES.cruise;
-          const leftPct = (row.startMin / TOTAL_MINUTES) * 100;
-          const widthPct = (row.durationMin / TOTAL_MINUTES) * 100;
-
-          return (
-            <div key={row.flight} className="flex items-center gap-0 h-6">
-              <span className="w-16 text-[9px] font-mono font-bold text-atc-text-secondary shrink-0 text-right pr-2">
-                {row.flight}
-              </span>
-              <div className="flex-1 relative h-5 rounded-sm bg-white/[0.02]">
-                <div
-                  className="absolute top-0 h-full rounded-sm flex items-center px-1.5 transition-all"
-                  style={{
-                    left: `${leftPct}%`,
-                    width: `${widthPct}%`,
-                    background: style.bg,
-                    borderLeft: `2px solid ${style.border}`,
-                  }}
-                >
-                  <span className="text-[8px] font-mono truncate" style={{ color: style.text }}>
-                    {row.label}
-                  </span>
-                </div>
-              </div>
+        {timelineRows.map((row) => (
+          <div key={row.flight} className="flex items-center h-[28px]">
+            <span className="w-20 font-display text-[10px] text-right pr-3 shrink-0" style={{ color: 'var(--amber)' }}>{row.flight}</span>
+            <div className="flex-1 relative h-[16px] rounded-sm" style={{ background: 'var(--bg-raised)' }}>
+              {row.bars.map((bar, bi) => {
+                const style = TYPE_STYLES[bar.type] || TYPE_STYLES.cruise;
+                const leftPct = (bar.startMin / TOTAL_MINUTES) * 100;
+                const widthPct = (bar.dur / TOTAL_MINUTES) * 100;
+                return (
+                  <div
+                    key={bi}
+                    className={`absolute top-0 h-full flex items-center px-1.5 rounded-sm ${bar.type === 'conflict' ? 'animate-blink' : ''}`}
+                    style={{ left: `${leftPct}%`, width: `${widthPct}%`, background: style.bg, borderLeft: `2px solid ${style.border}` }}
+                  >
+                    <span className="font-display text-[8px] truncate" style={{ color: style.text }}>{bar.label}</span>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

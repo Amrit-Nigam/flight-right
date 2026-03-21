@@ -1,73 +1,62 @@
 import { runways } from "@/data/mockData";
-import { PlaneTakeoff } from "lucide-react";
 
 const SLOT_STYLES = {
-  land: { bg: "rgba(0,230,118,0.5)", border: "#00e676", text: "#00e676" },
-  take: { bg: "rgba(0,200,255,0.5)", border: "#00c8ff", text: "#00c8ff" },
-  clear: { bg: "rgba(255,255,255,0.03)", border: "rgba(255,255,255,0.06)", text: "transparent" },
-  hold: { bg: "rgba(255,170,0,0.5)", border: "#ffaa00", text: "#ffaa00" },
-  maint: { bg: "rgba(255,59,92,0.25)", border: "#ff3b5c", text: "#ff3b5c" },
+  land: { bg: "rgba(0,229,204,0.5)" },
+  take: { bg: "rgba(245,166,35,0.5)" },
+  clear: { bg: "transparent" },
+  hold: { bg: "rgba(255,221,0,0.4)" },
+  maint: { bg: "repeating-linear-gradient(45deg, rgba(255,45,45,0.3) 0px, rgba(255,45,45,0.3) 4px, transparent 4px, transparent 8px)", border: "1px solid #ff2d2d" },
 };
 
 export default function RunwayStatusPanel() {
   return (
-    <div className="rounded-lg border border-atc-cyan/10 bg-atc-panel/50 p-3">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[10px] font-bold tracking-widest text-atc-text-muted uppercase flex items-center gap-1.5">
-          <PlaneTakeoff className="w-3 h-3 text-atc-cyan" />
-          Runway Status
-        </h3>
-        <span className="text-[8px] font-mono text-atc-text-muted/60">Next 30 min</span>
+    <div className="panel">
+      <div className="panel-header flex items-center justify-between">
+        <h3 className="font-display text-[11px] tracking-wider" style={{ color: 'var(--amber)' }}>⊞ RUNWAY STATUS</h3>
+        <span className="font-display text-[8px]" style={{ color: 'var(--text-muted)' }}>Next 30 min</span>
       </div>
 
-      <div className="space-y-2">
+      <div className="p-3.5 space-y-2">
         {runways.map((rwy) => (
           <div key={rwy.id} className="flex items-center gap-2">
-            <span className="w-16 text-[9px] font-mono text-atc-text-secondary shrink-0 text-right">
-              {rwy.id}
-            </span>
-            <div className="flex-1 h-5 relative rounded-sm bg-white/[0.02] overflow-hidden">
+            <span className="w-16 font-display text-[9px] text-right shrink-0" style={{ color: 'var(--text-secondary)' }}>{rwy.id}</span>
+            <div className="flex-1 h-5 relative overflow-hidden" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border-default)' }}>
               {rwy.slots.map((slot, i) => {
-                const style = SLOT_STYLES[slot.type] || SLOT_STYLES.clear;
+                const s = SLOT_STYLES[slot.type] || SLOT_STYLES.clear;
+                if (slot.type === "clear") return null;
                 return (
                   <div
                     key={i}
-                    className="absolute top-0 h-full flex items-center justify-center group"
+                    className="absolute top-0 h-full flex items-center justify-center"
                     style={{
-                      left: `${slot.startPct}%`,
-                      width: `${slot.widthPct}%`,
-                      background: style.bg,
-                      borderLeft: slot.type !== "clear" ? `1px solid ${style.border}` : "none",
-                      borderRight: slot.type !== "clear" ? `1px solid ${style.border}` : "none",
+                      left: `${slot.pctStart}%`,
+                      width: `${slot.pctW}%`,
+                      background: slot.type === "maint" ? undefined : s.bg,
+                      ...(slot.type === "maint" ? { backgroundImage: s.bg, border: s.border } : {}),
                     }}
                     title={slot.flight || slot.label || ""}
                   >
-                    {slot.type !== "clear" && (
-                      <span className="text-[7px] font-mono font-bold truncate px-0.5" style={{ color: style.text }}>
-                        {slot.flight || slot.label || ""}
-                      </span>
-                    )}
+                    <span className="font-display text-[7px] truncate px-0.5" style={{
+                      color: slot.type === "land" ? "#00e5cc" : slot.type === "take" ? "#f5a623" : slot.type === "maint" ? "#ff2d2d" : "var(--text-muted)"
+                    }}>
+                      {slot.flight || slot.label || ""}
+                    </span>
                   </div>
                 );
               })}
             </div>
           </div>
         ))}
-      </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-3 mt-3 pt-2 border-t border-atc-cyan/5">
-        {[
-          { label: "Landing", color: "#00e676" },
-          { label: "Takeoff", color: "#00c8ff" },
-          { label: "Clear", color: "rgba(255,255,255,0.15)" },
-          { label: "Maint.", color: "#ff3b5c" },
-        ].map((l) => (
-          <div key={l.label} className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-sm" style={{ background: l.color }} />
-            <span className="text-[7px] font-mono text-atc-text-muted uppercase">{l.label}</span>
-          </div>
-        ))}
+        {/* Legend */}
+        <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+          {[{ l: "Landing", c: "#00e5cc" }, { l: "Takeoff", c: "#f5a623" }, { l: "Clear", c: "rgba(255,255,255,0.1)" }, { l: "Maint.", c: "#ff2d2d" }].map((x) => (
+            <div key={x.l} className="flex items-center gap-1">
+              <span className="w-2 h-2" style={{ background: x.c }} />
+              <span className="font-display text-[7px] uppercase" style={{ color: 'var(--text-muted)' }}>{x.l}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -1,69 +1,64 @@
 import { useEffect, useState } from "react";
-import { metrics } from "@/data/mockData";
+import { motion } from "framer-motion";
 
-const colorMap = {
-  cyan: "text-atc-cyan border-atc-cyan/20 bg-atc-cyan/5",
-  green: "text-atc-success border-atc-success/20 bg-atc-success/5",
-  warning: "text-atc-warning border-atc-warning/20 bg-atc-warning/5",
-  accent_green: "text-atc-green border-atc-green/20 bg-atc-green/5",
-  text: "text-atc-text-primary border-atc-text-muted/20 bg-atc-text-muted/5",
-  purple: "text-atc-purple border-atc-purple/20 bg-atc-purple/5",
+const COLOR_MAP = {
+  amber: "var(--amber)", green: "var(--green)", red: "var(--red)",
+  teal: "var(--teal)", text_primary: "var(--text-primary)", yellow: "var(--yellow)",
 };
 
 function useCountUp(target, duration = 1200) {
   const [value, setValue] = useState(0);
-  const numTarget = typeof target === "string" ? parseFloat(target) : target;
-  const isNumber = !isNaN(numTarget);
-
+  const numTarget = parseFloat(target);
+  const isNum = !isNaN(numTarget);
   useEffect(() => {
-    if (!isNumber) { setValue(target); return; }
-    let start = 0;
+    if (!isNum) { setValue(target); return; }
     const startTime = performance.now();
     const step = (now) => {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+      const progress = Math.min((now - startTime) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      start = Math.round(eased * numTarget * 10) / 10;
-      setValue(start);
+      setValue(Math.round(eased * numTarget * 10) / 10);
       if (progress < 1) requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
-  }, [numTarget, duration, isNumber, target]);
-
+  }, [numTarget, duration, isNum, target]);
   return value;
 }
 
 function MetricCard({ metric, index }) {
   const displayVal = useCountUp(metric.value);
-  const classes = colorMap[metric.color] || colorMap.cyan;
-
+  const color = COLOR_MAP[metric.valueColor] || "var(--amber)";
   const formatValue = () => {
-    const raw = typeof metric.value === "string" ? metric.value : "";
+    const raw = metric.value;
     if (raw.includes("%")) return `${displayVal}%`;
     if (raw.includes("kt")) return `${displayVal} kt`;
-    if (raw.includes("m")) return `${typeof displayVal === "number" ? displayVal.toLocaleString() : displayVal} m`;
-    if (raw.includes("min")) return `${displayVal} min`;
+    if (raw.includes("km")) return `${displayVal} km`;
+    if (raw.includes("m")) return `${displayVal}m`;
     return displayVal;
   };
 
   return (
-    <div
-      className={`rounded-lg border p-3 ${classes} animate-fade-in-up`}
-      style={{ animationDelay: `${index * 80}ms` }}
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.06, duration: 0.3 }}
+      className={`p-3 ${metric.pulse ? 'animate-blink' : ''}`}
+      style={{
+        background: 'var(--bg-panel)',
+        border: '1px solid var(--border-default)',
+        clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)',
+      }}
     >
-      <p className="text-[10px] uppercase tracking-wider opacity-70 mb-1 font-medium">{metric.label}</p>
-      <p className="text-xl font-bold font-mono tracking-tight">{formatValue()}</p>
-      <p className={`text-[10px] mt-1 ${metric.deltaType === "up" ? "text-atc-success" : "text-atc-text-muted"}`}>
-        {metric.delta}
-      </p>
-    </div>
+      <p className="font-body text-[9px] uppercase tracking-[2px] mb-1" style={{ color: 'var(--text-muted)' }}>{metric.label}</p>
+      <p className="font-display text-[24px] glow-amber" style={{ color, textShadow: `0 0 12px ${color}60` }}>{formatValue()}</p>
+      <p className="font-body text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{metric.delta}</p>
+    </motion.div>
   );
 }
 
-export default function MetricsRow() {
+export default function MetricsRow({ metricsData }) {
   return (
     <div className="grid grid-cols-4 xl:grid-cols-8 gap-2">
-      {metrics.map((m, i) => (
+      {metricsData.map((m, i) => (
         <MetricCard key={m.id} metric={m} index={i} />
       ))}
     </div>
