@@ -83,8 +83,10 @@ function App() {
     setSelectedFlight(callsign === selectedFlight ? null : callsign);
   };
 
+  const [timelineOpen, setTimelineOpen] = useState(false);
+
   return (
-    <div className="flex flex-col h-screen" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
+    <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
       <TopBar 
         alertCount={alertCount} 
         aiEnabled={aiEnabled} 
@@ -93,26 +95,32 @@ function App() {
         onToggleTheme={toggleTheme}
       />
 
-      <div className="flex-1 grid gap-4 p-4 overflow-hidden" style={{ gridTemplateColumns: '280px 1fr 320px', height: 'calc(100vh - 56px)' }}>
-        {/* LEFT — Flight List */}
-        <FlightListPanel
-          flightsData={flights}
-          selectedFlight={selectedFlight}
-          onSelectFlight={handleSelectFlight}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
+      {/* Global Conflict Banner drops down here if active */}
+      <div className="z-40 w-full relative">
+        <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} />
+      </div>
 
-        {/* CENTER — Main panels */}
-        <div className="flex flex-col gap-4 overflow-auto">
-          <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} />
-          <MetricsRow metricsData={metrics} />
-          <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme} />
-          <TimelinePanel />
+      {/* Main Content Area */}
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden relative">
+        {/* LEFT — Flight List (Slim Strip) */}
+        <div className="w-[280px] shrink-0 h-full">
+          <FlightListPanel
+            flightsData={flights}
+            selectedFlight={selectedFlight}
+            onSelectFlight={handleSelectFlight}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
         </div>
 
-        {/* RIGHT — AI + Runways + Comms */}
-        <div className="flex flex-col gap-4 overflow-auto">
+        {/* CENTER LEFT — Radar Hero */}
+        <div className="w-[55vw] shrink-0 h-full flex flex-col gap-4">
+          <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme} />
+        </div>
+
+        {/* RIGHT — Metrics + Runways + Suggestions + Comms */}
+        <div className="flex-1 h-full overflow-y-auto flex flex-col gap-4 pr-1">
+          <MetricsRow metricsData={metrics} />
           <AISuggestionsPanel
             suggestions={suggestions}
             onAccept={handleAcceptSuggestion}
@@ -122,15 +130,14 @@ function App() {
           />
           <RunwayStatusPanel />
           <NLPCommsPanel />
+          
+          {/* Filler for bottom breathing room */}
+          <div className="h-4 shrink-0" />
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="text-center py-2" style={{ borderTop: '1px solid var(--border-default)' }}>
-        <p className="font-display text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
-          All data is simulated for demonstration. AeroSync AI does not replace human controllers — it assists them.
-        </p>
-      </div>
+      {/* BOTTOM — Timeline Drawer */}
+      <TimelinePanel isOpen={timelineOpen} onToggle={() => setTimelineOpen(!timelineOpen)} />
 
       {/* Modals / Overlays */}
       <ResolveModal

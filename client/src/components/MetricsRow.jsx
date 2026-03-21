@@ -28,7 +28,7 @@ function MetricCard({ metric, index }) {
   const displayVal = useCountUp(metric.value);
   const color = COLOR_MAP[metric.valueColor] || "var(--amber)";
   const formatValue = () => {
-    const raw = metric.value;
+    const raw = metric.value.toString();
     if (raw.includes("%")) return `${displayVal}%`;
     if (raw.includes("kt")) return `${displayVal} kt`;
     if (raw.includes("km")) return `${displayVal} km`;
@@ -38,29 +38,55 @@ function MetricCard({ metric, index }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06, duration: 0.3 }}
-      className={`p-3 ${metric.pulse ? 'animate-blink' : ''}`}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.1, duration: 0.4, type: "spring" }}
+      className={`p-6 flex flex-col items-center justify-center text-center relative overflow-hidden group ${metric.pulse ? 'animate-blink' : ''}`}
       style={{
-        background: 'var(--bg-panel)',
+        background: 'var(--bg-panel-alt)',
         border: '1px solid var(--border-default)',
-        clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)',
+        borderRadius: '6px',
       }}
     >
-      <p className="font-body text-[11px] uppercase tracking-[2px] mb-1" style={{ color: 'var(--text-muted)' }}>{metric.label}</p>
-      <p className="font-display text-[26px] glow-amber" style={{ color, textShadow: `0 0 12px ${color}60` }}>{formatValue()}</p>
-      <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{metric.delta}</p>
+      {/* Background Glow */}
+      <div 
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl"
+        style={{ background: `radial-gradient(circle at center, ${color}30 0%, transparent 70%)` }}
+      />
+      
+      <p 
+        className="font-display text-[36px] tracking-wider leading-none mb-3 relative z-10" 
+        style={{ color, textShadow: `0 0 20px ${color}50` }}
+      >
+        {formatValue()}
+      </p>
+      <p 
+        className="font-body text-[10px] uppercase tracking-[2px] relative z-10" 
+        style={{ color: 'var(--text-muted)' }}
+      >
+        {metric.label}
+      </p>
     </motion.div>
   );
 }
 
 export default function MetricsRow({ metricsData }) {
+  // Take only the top 4 for the 2x2 mission-critical readout
+  const top4 = metricsData.slice(0, 4);
+  
   return (
-    <div className="grid grid-cols-4 xl:grid-cols-8 gap-2">
-      {metricsData.map((m, i) => (
-        <MetricCard key={m.id} metric={m} index={i} />
-      ))}
+    <div className="panel p-5">
+      <div className="flex items-center justify-between mb-4 px-1">
+        <h3 className="font-display text-[13px] tracking-widest" style={{ color: 'var(--text-primary)' }}>
+          CRITICAL METRICS
+        </h3>
+        <span className="w-2 h-2 rounded-full animate-pulse-dot" style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {top4.map((m, i) => (
+          <MetricCard key={m.id} metric={m} index={i} />
+        ))}
+      </div>
     </div>
   );
 }

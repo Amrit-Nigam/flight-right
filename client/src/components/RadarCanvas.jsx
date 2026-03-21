@@ -30,15 +30,26 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
     const bgSolid = isLight ? "#f8fafc" : "#060608";
     const gridOpac = isLight ? "0.3" : "0.06";
 
+    // Track size to handle resizes properly, or simply rely on parent
+    let w = 0, h = 0;
+
     const updateSize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = 420 * dpr;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `420px`;
+      w = rect.width;
+      h = rect.height;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
+    
+    // Initial size
     updateSize();
+
+    // Re-measure periodically to adapt to layout shifts (like drawer opening)
+    const resizeObserver = new ResizeObserver(() => updateSize());
+    resizeObserver.observe(canvas.parentElement);
 
     const drawDiamond = (ctx, x, y, size, color) => {
       ctx.beginPath();
@@ -82,8 +93,6 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
     };
 
     const draw = () => {
-      const w = canvas.width / dpr;
-      const h = canvas.height / dpr;
       const cx = w / 2;
       const cy = h / 2;
       const radius = Math.min(cx, cy) - 20;
@@ -146,6 +155,37 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
 
       // Flight blips
       const fl = flightsRef.current;
+      
+      // Look for conflicts to draw trajectory
+      const conflicts = fl.filter(f => f.status === "conflict");
+      if (conflicts.length >= 2) {
+        const f1 = conflicts[0];
+        const f2 = conflicts[1];
+        const fx1 = cx + (f1.x - 0.5) * radius * 2;
+        const fy1 = cy + (f1.y - 0.5) * radius * 2;
+        const fx2 = cx + (f2.x - 0.5) * radius * 2;
+        const fy2 = cy + (f2.y - 0.5) * radius * 2;
+        
+        // Midpoint predicted collision
+        const mx = (fx1 + fx2) / 2;
+        const my = (fy1 + fy2) / 2;
+
+        ctx.beginPath();
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(fx1, fy1);
+        ctx.lineTo(mx, my);
+        ctx.lineTo(fx2, fy2);
+        ctx.strokeStyle = "rgba(255,45,45,0.8)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.beginPath();
+        ctx.arc(mx, my, 4 + Math.sin(Date.now() / 150) * 2, 0, Math.PI * 2);
+        ctx.fillStyle = "#ff2d2d";
+        ctx.fill();
+      }
+
       for (const f of fl) {
         const fx = cx + (f.x - 0.5) * radius * 2;
         const fy = cy + (f.y - 0.5) * radius * 2;
@@ -227,15 +267,21 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
       animRef.current = requestAnimationFrame(draw);
     };
     draw();
-    return () => cancelAnimationFrame(animRef.current);
+    
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      resizeObserver.disconnect();
+    };
   }, [selectedFlight, isLight, statusColors, theme]);
 
   return (
-    <div className="panel overflow-hidden">
-      <canvas ref={canvasRef} className="w-full" style={{ height: '420px', background: isLight ? 'var(--bg-base)' : '#060608' }} />
-      <div className="flex items-center justify-between px-5 py-3" style={{ borderTop: '1px solid var(--border-default)' }}>
+    <div className="panel overflow-hidden flex flex-col h-full w-full">
+      <div className="flex-1 relative w-full h-full">
+        <canvas ref={canvasRef} className="absolute inset-0 block" style={{ background: isLight ? 'var(--bg-base)' : '#060608' }} />
+      </div>
+      <div className="flex items-center justify-between px-5 py-3 shrink-0" style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border-default)' }}>
         {["28 TRACKS", "6 RWYS", "2 ALERTS", "87% OPT"].map((s) => (
-          <span key={s} className="font-display text-[12px]" style={{ color: 'var(--amber)' }}>{s}</span>
+          <span key={s} className="font-display text-[12px] tracking-wider" style={{ color: 'var(--amber)' }}>{s}</span>
         ))}
       </div>
     </div>
