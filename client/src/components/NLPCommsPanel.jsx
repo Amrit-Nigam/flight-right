@@ -1,48 +1,37 @@
 import { nlpComms } from "@/data/mockData";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Radio, Bot, Mic, Headphones } from "lucide-react";
 
-const TYPE_CONFIG = {
-  atc: { label: "ATC", color: "#00c8ff", icon: Headphones, bg: "bg-atc-cyan/5 border-atc-cyan/15" },
-  pilot: { label: "PILOT", color: "#a855f7", icon: Mic, bg: "bg-atc-purple/5 border-atc-purple/15" },
-  ai: { label: "AI SYSTEM", color: "#00ffc8", icon: Bot, bg: "bg-atc-green/5 border-atc-green/15" },
+const TYPE_BADGE = {
+  ATC: { bg: "rgba(245,166,35,0.12)", border: "var(--amber)", color: "var(--amber)" },
+  PILOT: { bg: "rgba(0,229,204,0.1)", border: "var(--teal)", color: "var(--teal)" },
+  AI: { bg: "rgba(0,255,136,0.1)", border: "var(--green)", color: "var(--green)" },
 };
 
-export default function NLPCommsPanel() {
+export default function NLPCommsPanel({ feed }) {
+  const data = feed || nlpComms;
+
   return (
-    <div className="rounded-lg border border-atc-cyan/10 bg-atc-panel/50 flex flex-col">
-      <div className="p-3 border-b border-atc-cyan/10">
-        <h3 className="text-[10px] font-bold tracking-widest text-atc-text-muted uppercase flex items-center gap-1.5">
-          <Radio className="w-3 h-3 text-atc-cyan" />
-          NLP Comms Feed
-        </h3>
-        <p className="text-[8px] text-atc-text-muted/60 mt-0.5">AI-assisted communication transcript</p>
+    <div className="panel flex flex-col">
+      <div className="panel-header">
+        <h3 className="font-display text-[11px] tracking-wider" style={{ color: 'var(--amber)' }}>◎ NLP COMMS FEED</h3>
+        <p className="font-body text-[8px] mt-0.5" style={{ color: 'var(--text-muted)' }}>AI-assisted transcript</p>
       </div>
 
-      <ScrollArea className="flex-1 max-h-[300px]">
-        <div className="p-2 space-y-1.5">
-          {nlpComms.map((msg, i) => {
-            const cfg = TYPE_CONFIG[msg.type] || TYPE_CONFIG.atc;
-            const Icon = cfg.icon;
-
-            return (
-              <div key={i} className={`rounded-md border p-2.5 ${cfg.bg}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className="w-3 h-3" style={{ color: cfg.color }} />
-                  <span className="text-[8px] font-mono font-bold tracking-wider" style={{ color: cfg.color }}>
-                    {msg.type === "ai" ? cfg.label : `${cfg.label} — ${msg.flight}`}
-                  </span>
-                  <span className="text-[8px] font-mono text-atc-text-muted/50 ml-auto">{msg.time}</span>
-                  {msg.aiTranscribed && (
-                    <span className="text-[7px] font-mono text-atc-green/40 px-1 rounded bg-atc-green/5">AI-T</span>
-                  )}
-                </div>
-                <p className="text-[10px] text-atc-text-secondary leading-relaxed pl-5">{msg.text}</p>
+      <div className="flex-1 overflow-y-auto max-h-[240px]">
+        {data.map((msg, i) => {
+          const badge = TYPE_BADGE[msg.type] || TYPE_BADGE.ATC;
+          return (
+            <div key={i} className="flex gap-2 p-2" style={{ borderBottom: '1px solid var(--border-default)' }}>
+              <span className="font-display text-[9px] shrink-0 pt-0.5" style={{ color: 'var(--text-muted)' }}>{msg.time}</span>
+              <div className="min-w-0">
+                <span className="inline-block font-display text-[9px] px-1.5 py-0.5 mb-1" style={{ background: badge.bg, border: `1px solid ${badge.border}`, color: badge.color }}>
+                  {msg.type} — {msg.flight}
+                </span>
+                <p className="font-body text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{msg.text}</p>
               </div>
-            );
-          })}
-        </div>
-      </ScrollArea>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

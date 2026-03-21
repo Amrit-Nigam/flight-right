@@ -2,43 +2,67 @@ import { useRef, useEffect } from "react";
 import { radarFlights } from "@/data/mockData";
 
 const STATUS_COLORS = {
-  landing: "#00e676",
-  takeoff: "#00c8ff",
-  cruise: "#a855f7",
-  holding: "#ffaa00",
-  conflict: "#ff3b5c",
+  conflict: "#ff2d2d", holding: "#ffdd00", landing: "#00e5cc",
+  takeoff: "#f5a623", cruise: "#8a7d65", approach: "#00e5cc",
 };
 
-const RANGE_LABELS = ["10 NM", "20 NM", "30 NM", "40 NM", "50 NM"];
-
-export default function RadarCanvas() {
+export default function RadarCanvas({ flights, selectedFlight }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const angleRef = useRef(0);
-  const flightsRef = useRef(
-    radarFlights.map((f) => ({
-      ...f,
-      x: (f.xPct / 100),
-      y: (f.yPct / 100),
-    }))
-  );
+  const flightsRef = useRef(radarFlights.map((f) => ({ ...f, x: f.xPct / 100, y: f.yPct / 100 })));
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-
     const dpr = window.devicePixelRatio || 1;
+
     const updateSize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      const size = Math.min(rect.width, rect.height);
-      canvas.width = size * dpr;
-      canvas.height = size * dpr;
-      canvas.style.width = `${size}px`;
-      canvas.style.height = `${size}px`;
+      canvas.width = rect.width * dpr;
+      canvas.height = 420 * dpr;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `420px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     updateSize();
+
+    const drawDiamond = (ctx, x, y, size, color) => {
+      ctx.beginPath();
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x - size, y);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    };
+
+    const drawHexGrid = (ctx, w, h) => {
+      const s = 18;
+      const hexW = s * 2;
+      const hexH = Math.sqrt(3) * s;
+      ctx.strokeStyle = "rgba(245,166,35,0.06)";
+      ctx.lineWidth = 0.5;
+      for (let row = 0; row < h / hexH + 1; row++) {
+        for (let col = 0; col < w / hexW + 1; col++) {
+          const xOff = row % 2 === 0 ? 0 : s;
+          const cx = col * hexW + xOff;
+          const cy = row * hexH;
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 6;
+            const px = cx + s * Math.cos(angle);
+            const py = cy + s * Math.sin(angle);
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+    };
 
     const draw = () => {
       const w = canvas.width / dpr;
@@ -47,70 +71,60 @@ export default function RadarCanvas() {
       const cy = h / 2;
       const radius = Math.min(cx, cy) - 20;
 
-      ctx.clearRect(0, 0, w, h);
+      // Clear + background
+      ctx.fillStyle = "#060608";
+      ctx.fillRect(0, 0, w, h);
 
-      // Background
-      const bgGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      bgGrad.addColorStop(0, "rgba(0, 200, 255, 0.03)");
-      bgGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = bgGrad;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Hex grid
+      drawHexGrid(ctx, w, h);
 
       // Range rings
       for (let i = 1; i <= 5; i++) {
         const r = (radius / 5) * i;
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(0, 200, 255, 0.1)";
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(245,166,35,0.12)";
+        ctx.lineWidth = 0.8;
         ctx.stroke();
-        // Ring label
-        ctx.fillStyle = "rgba(0, 200, 255, 0.4)";
-        ctx.font = "9px 'Space Mono', monospace";
-        ctx.fillText(RANGE_LABELS[i - 1], cx + r - 30, cy - 4);
+        ctx.fillStyle = "rgba(245,166,35,0.35)";
+        ctx.font = "9px 'Share Tech Mono', monospace";
+        const labels = ["10", "20", "30", "40", "50 NM"];
+        ctx.fillText(labels[i - 1], cx + r - 25, cy - 4);
       }
 
       // Crosshairs
       ctx.beginPath();
-      ctx.moveTo(cx - radius, cy);
-      ctx.lineTo(cx + radius, cy);
-      ctx.moveTo(cx, cy - radius);
-      ctx.lineTo(cx, cy + radius);
-      ctx.strokeStyle = "rgba(0, 200, 255, 0.08)";
-      ctx.lineWidth = 1;
+      ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy);
+      ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius);
+      ctx.strokeStyle = "rgba(245,166,35,0.08)";
+      ctx.lineWidth = 0.5;
       ctx.stroke();
 
       // Sweep beam with trail
       const angle = angleRef.current;
-      const trailSteps = [0.5, 0.3, 0.15, 0.05];
-      for (let t = trailSteps.length - 1; t >= 0; t--) {
-        const a = angle - (t + 1) * 8 * (Math.PI / 180);
+      const trailOpacities = [0.5, 0.4, 0.3, 0.2, 0.15, 0.1, 0.06, 0.03];
+      for (let t = trailOpacities.length - 1; t >= 0; t--) {
+        const a1 = angle - (t + 1) * 1.5 * (Math.PI / 180);
+        const a2 = angle - t * 1.5 * (Math.PI / 180);
         ctx.beginPath();
         ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + Math.cos(a) * radius, cy + Math.sin(a) * radius);
-        ctx.strokeStyle = `rgba(0, 200, 100, ${trailSteps[t]})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.arc(cx, cy, radius, a1, a2, false);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(245,166,35,${trailOpacities[t]})`;
+        ctx.fill();
       }
-      // Main beam
+      // Main sweep line
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
-      ctx.strokeStyle = "rgba(0, 200, 100, 0.85)";
+      ctx.strokeStyle = "rgba(245,166,35,0.7)";
       ctx.lineWidth = 2;
       ctx.stroke();
 
-      // Sweep glow wedge
+      // Center dot
       ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, radius, angle - 0.15, angle, false);
-      ctx.closePath();
-      const sweepGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
-      sweepGrad.addColorStop(0, "rgba(0, 200, 100, 0.15)");
-      sweepGrad.addColorStop(1, "rgba(0, 200, 100, 0)");
-      ctx.fillStyle = sweepGrad;
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#f5a623";
       ctx.fill();
 
       // Flight blips
@@ -118,101 +132,91 @@ export default function RadarCanvas() {
       for (const f of fl) {
         const fx = cx + (f.x - 0.5) * radius * 2;
         const fy = cy + (f.y - 0.5) * radius * 2;
-        const color = STATUS_COLORS[f.status] || "#00c8ff";
+        const color = STATUS_COLORS[f.status] || "#f5a623";
+        const headRad = (f.heading - 90) * (Math.PI / 180);
 
         // Velocity vector
-        const headRad = (f.heading - 90) * (Math.PI / 180);
-        const vLen = 20;
         ctx.beginPath();
         ctx.moveTo(fx, fy);
-        ctx.lineTo(fx + Math.cos(headRad) * vLen, fy + Math.sin(headRad) * vLen);
-        ctx.strokeStyle = color;
+        ctx.lineTo(fx + Math.cos(headRad) * 16, fy + Math.sin(headRad) * 16);
+        ctx.strokeStyle = "rgba(245,166,35,0.5)";
         ctx.lineWidth = 1;
-        ctx.globalAlpha = 0.6;
         ctx.stroke();
-        ctx.globalAlpha = 1;
 
-        // Conflict pulse
+        // Conflict pulsing hexagon
         if (f.status === "conflict") {
-          const pulseR = 8 + Math.sin(Date.now() / 200) * 4;
+          const pulseR = 10 + Math.sin(Date.now() / 200) * 4;
           ctx.beginPath();
-          ctx.arc(fx, fy, pulseR, 0, Math.PI * 2);
-          ctx.strokeStyle = "rgba(255, 59, 92, 0.4)";
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            const px = fx + pulseR * Math.cos(a);
+            const py = fy + pulseR * Math.sin(a);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.strokeStyle = "rgba(255,45,45,0.5)";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+
+        // Selected ring
+        if (selectedFlight === f.callsign) {
+          ctx.beginPath();
+          ctx.arc(fx, fy, 14, 0, Math.PI * 2);
+          ctx.strokeStyle = "#f5a623";
           ctx.lineWidth = 2;
           ctx.stroke();
         }
 
-        // Dot
-        ctx.beginPath();
-        ctx.arc(fx, fy, 4, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
+        // Diamond blip
+        drawDiamond(ctx, fx, fy, 5, color);
 
         // Glow
         ctx.beginPath();
-        ctx.arc(fx, fy, 8, 0, Math.PI * 2);
-        const glowGrad = ctx.createRadialGradient(fx, fy, 2, fx, fy, 8);
-        glowGrad.addColorStop(0, color + "40");
-        glowGrad.addColorStop(1, color + "00");
-        ctx.fillStyle = glowGrad;
+        ctx.arc(fx, fy, 10, 0, Math.PI * 2);
+        const glow = ctx.createRadialGradient(fx, fy, 2, fx, fy, 10);
+        glow.addColorStop(0, color + "30");
+        glow.addColorStop(1, color + "00");
+        ctx.fillStyle = glow;
         ctx.fill();
 
-        // Label
+        // Labels
         ctx.fillStyle = color;
-        ctx.font = "bold 8px 'Space Mono', monospace";
-        ctx.fillText(f.callsign, fx + 8, fy - 6);
-        ctx.fillStyle = "rgba(200, 220, 240, 0.5)";
-        ctx.font = "7px 'Space Mono', monospace";
-        ctx.fillText(f.altitude, fx + 8, fy + 4);
+        ctx.font = "bold 9px 'Share Tech Mono', monospace";
+        ctx.fillText(f.callsign, fx + 10, fy - 4);
+        ctx.fillStyle = "rgba(138,125,101,0.6)";
+        ctx.font = "8px 'Share Tech Mono', monospace";
+        ctx.fillText(f.altitude, fx + 10, fy + 7);
 
-        // Move blip
-        const spd = f.speed > 0 ? 0.00015 : 0;
+        // Movement
+        const spd = f.speed > 0 ? 0.0002 : 0;
         f.x += Math.cos(headRad) * spd;
         f.y += Math.sin(headRad) * spd;
-        // Wrap
-        if (f.x < 0) f.x = 1;
-        if (f.x > 1) f.x = 0;
-        if (f.y < 0) f.y = 1;
-        if (f.y > 1) f.y = 0;
+        // Bounce at edges
+        if (f.x < 0.05 || f.x > 0.95) f.x = Math.max(0.05, Math.min(0.95, f.x));
+        if (f.y < 0.05 || f.y > 0.95) f.y = Math.max(0.05, Math.min(0.95, f.y));
       }
 
-      // Update sweep angle
-      angleRef.current += 1.2 * (Math.PI / 180);
+      // Overlay text
+      ctx.fillStyle = "rgba(245,166,35,0.4)";
+      ctx.font = "10px 'Share Tech Mono', monospace";
+      ["MODE: APP/DEP", "RANGE: 50 NM", "SECTOR: 7B-ALPHA", "FILTER: ALL TRAFFIC"].forEach((t, i) => {
+        ctx.fillText(t, 12, 20 + i * 16);
+      });
+
+      angleRef.current += 1.0 * (Math.PI / 180);
       animRef.current = requestAnimationFrame(draw);
     };
-
     draw();
     return () => cancelAnimationFrame(animRef.current);
-  }, []);
+  }, [selectedFlight]);
 
   return (
-    <div className="relative rounded-lg border border-atc-cyan/10 bg-atc-bg overflow-hidden box-glow-cyan">
-      {/* Top-left overlay */}
-      <div className="absolute top-3 left-3 z-10 space-y-0.5">
-        {["MODE: APP/DEP", "RANGE: 50 NM", "SECTOR: 7B-ALPHA", "FILTER: ALL TRAFFIC"].map((t) => (
-          <p key={t} className="text-[9px] font-mono text-atc-cyan/50 tracking-wider">{t}</p>
-        ))}
-      </div>
-
-      {/* Canvas */}
-      <div className="flex items-center justify-center p-2 aspect-square">
-        <canvas ref={canvasRef} className="w-full h-full" />
-      </div>
-
-      {/* Bottom stats */}
-      <div className="flex items-center justify-between px-4 py-2 border-t border-atc-cyan/10 bg-atc-bg-secondary/50">
+    <div className="panel overflow-hidden">
+      <canvas ref={canvasRef} className="w-full" style={{ height: '420px' }} />
+      <div className="flex items-center justify-between px-4 py-2" style={{ borderTop: '1px solid var(--border-default)' }}>
         {["28 TRACKS", "6 RWYS", "2 ALERTS", "87% OPT"].map((s) => (
-          <span key={s} className="text-[9px] font-mono text-atc-text-muted tracking-wider">{s}</span>
-        ))}
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 px-4 py-1.5 border-t border-atc-cyan/5 bg-atc-bg/80">
-        {Object.entries(STATUS_COLORS).map(([st, col]) => (
-          <div key={st} className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: col }} />
-            <span className="text-[8px] font-mono text-atc-text-muted uppercase tracking-wider">{st}</span>
-          </div>
+          <span key={s} className="font-display text-[10px]" style={{ color: 'rgba(245,166,35,0.6)' }}>{s}</span>
         ))}
       </div>
     </div>
