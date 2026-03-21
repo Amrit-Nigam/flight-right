@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import TopBar from "@/components/TopBar";
 import MetricsRow from "@/components/MetricsRow";
 import ConflictBanner from "@/components/ConflictBanner";
@@ -25,6 +25,21 @@ function App() {
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("ALL");
   const [acceptedCount, setAcceptedCount] = useState(0);
+  
+  // ===== THEME STATE =====
+  const [theme, setTheme] = useState("dark");
+
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(t => t === "dark" ? "light" : "dark");
+  };
 
   const alertCount = conflict ? (flights.filter((f) => f.status === "CONFLICT" || f.status === "HOLDING").length > 0 ? 1 : 0) : 0;
 
@@ -70,9 +85,15 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <TopBar alertCount={alertCount} aiEnabled={aiEnabled} onToggleAI={() => setAiEnabled(!aiEnabled)} />
+      <TopBar 
+        alertCount={alertCount} 
+        aiEnabled={aiEnabled} 
+        onToggleAI={() => setAiEnabled(!aiEnabled)} 
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
 
-      <div className="flex-1 grid gap-3 p-3 overflow-hidden" style={{ gridTemplateColumns: '260px 1fr 300px', height: 'calc(100vh - 56px)' }}>
+      <div className="flex-1 grid gap-4 p-4 overflow-hidden" style={{ gridTemplateColumns: '280px 1fr 320px', height: 'calc(100vh - 56px)' }}>
         {/* LEFT — Flight List */}
         <FlightListPanel
           flightsData={flights}
@@ -83,15 +104,15 @@ function App() {
         />
 
         {/* CENTER — Main panels */}
-        <div className="flex flex-col gap-3 overflow-auto">
+        <div className="flex flex-col gap-4 overflow-auto">
           <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} />
           <MetricsRow metricsData={metrics} />
-          <RadarCanvas flights={flights} selectedFlight={selectedFlight} />
+          <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme} />
           <TimelinePanel />
         </div>
 
         {/* RIGHT — AI + Runways + Comms */}
-        <div className="flex flex-col gap-3 overflow-auto">
+        <div className="flex flex-col gap-4 overflow-auto">
           <AISuggestionsPanel
             suggestions={suggestions}
             onAccept={handleAcceptSuggestion}
@@ -105,8 +126,8 @@ function App() {
       </div>
 
       {/* Footer */}
-      <div className="text-center py-1.5" style={{ borderTop: '1px solid var(--border-default)' }}>
-        <p className="font-display text-[7px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-center py-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+        <p className="font-display text-[9px] tracking-wider" style={{ color: 'var(--text-muted)' }}>
           All data is simulated for demonstration. AeroSync AI does not replace human controllers — it assists them.
         </p>
       </div>

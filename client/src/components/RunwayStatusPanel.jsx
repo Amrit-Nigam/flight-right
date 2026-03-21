@@ -12,15 +12,15 @@ export default function RunwayStatusPanel() {
   return (
     <div className="panel">
       <div className="panel-header flex items-center justify-between">
-        <h3 className="font-display text-[11px] tracking-wider" style={{ color: 'var(--amber)' }}>⊞ RUNWAY STATUS</h3>
-        <span className="font-display text-[8px]" style={{ color: 'var(--text-muted)' }}>Next 30 min</span>
+        <h3 className="font-display text-[13px] tracking-wider" style={{ color: 'var(--amber)' }}>⊞ RUNWAY STATUS</h3>
+        <span className="font-display text-[10px]" style={{ color: 'var(--text-muted)' }}>Next 30 min</span>
       </div>
 
-      <div className="p-3.5 space-y-2">
+      <div className="p-3.5 space-y-2.5">
         {runways.map((rwy) => (
           <div key={rwy.id} className="flex items-center gap-2">
-            <span className="w-16 font-display text-[9px] text-right shrink-0" style={{ color: 'var(--text-secondary)' }}>{rwy.id}</span>
-            <div className="flex-1 h-5 relative overflow-hidden" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border-default)' }}>
+            <span className="w-[68px] font-display text-[11px] text-right shrink-0" style={{ color: 'var(--text-secondary)' }}>{rwy.id}</span>
+            <div className="flex-1 h-6 relative overflow-hidden" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border-default)' }}>
               {rwy.slots.map((slot, i) => {
                 const s = SLOT_STYLES[slot.type] || SLOT_STYLES.clear;
                 if (slot.type === "clear") return null;
@@ -36,7 +36,7 @@ export default function RunwayStatusPanel() {
                     }}
                     title={slot.flight || slot.label || ""}
                   >
-                    <span className="font-display text-[7px] truncate px-0.5" style={{
+                    <span className="font-display text-[9px] truncate px-0.5" style={{
                       color: slot.type === "land" ? "#00e5cc" : slot.type === "take" ? "#f5a623" : slot.type === "maint" ? "#ff2d2d" : "var(--text-muted)"
                     }}>
                       {slot.flight || slot.label || ""}
@@ -49,11 +49,11 @@ export default function RunwayStatusPanel() {
         ))}
 
         {/* Legend */}
-        <div className="flex items-center gap-3 mt-2 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
+        <div className="flex items-center gap-4 mt-2 pt-2" style={{ borderTop: '1px solid var(--border-default)' }}>
           {[{ l: "Landing", c: "#00e5cc" }, { l: "Takeoff", c: "#f5a623" }, { l: "Clear", c: "rgba(255,255,255,0.1)" }, { l: "Maint.", c: "#ff2d2d" }].map((x) => (
-            <div key={x.l} className="flex items-center gap-1">
-              <span className="w-2 h-2" style={{ background: x.c }} />
-              <span className="font-display text-[7px] uppercase" style={{ color: 'var(--text-muted)' }}>{x.l}</span>
+            <div key={x.l} className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5" style={{ background: x.c }} />
+              <span className="font-display text-[10px] uppercase" style={{ color: 'var(--text-muted)' }}>{x.l}</span>
             </div>
           ))}
         </div>

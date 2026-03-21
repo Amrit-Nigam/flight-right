@@ -16,17 +16,17 @@ export default function TimelinePanel() {
   const ticks = Array.from({ length: 25 }, (_, i) => i * 5);
 
   return (
-    <div className="panel p-3.5 overflow-hidden">
+    <div className="panel p-4 overflow-hidden">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-display text-[10px] tracking-wider" style={{ color: 'var(--text-muted)' }}>FLIGHT TIMELINE</h3>
-        <span className="font-display text-[9px]" style={{ color: 'var(--text-muted)' }}>13:00 — 15:00 UTC</span>
+        <h3 className="font-display text-[12px] tracking-wider" style={{ color: 'var(--text-muted)' }}>FLIGHT TIMELINE</h3>
+        <span className="font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>13:00 — 15:00 UTC</span>
       </div>
 
       {/* Time ticks */}
       <div className="ml-20">
         <div className="flex justify-between mb-1">
           {ticks.filter((_, i) => i % 3 === 0).map((t) => (
-            <span key={t} className="font-display text-[8px]" style={{ color: 'var(--text-muted)' }}>
+            <span key={t} className="font-display text-[10px]" style={{ color: 'var(--text-muted)' }}>
               {`${13 + Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`}
             </span>
           ))}
@@ -35,14 +35,13 @@ export default function TimelinePanel() {
 
       {/* Rows */}
       <div className="space-y-0.5 relative">
-        {/* NOW line */}
         <div className="absolute top-0 bottom-0 z-10" style={{ left: `calc(80px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)`, width: '2px', background: 'var(--red)', opacity: 0.9 }} />
-        <div className="absolute -top-3 z-10 font-display text-[7px]" style={{ left: `calc(80px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)`, color: 'var(--red)' }}>NOW</div>
+        <div className="absolute -top-3 z-10 font-display text-[9px]" style={{ left: `calc(80px + ${(NOW_MINUTE / TOTAL_MINUTES) * 100}%)`, color: 'var(--red)' }}>NOW</div>
 
         {timelineRows.map((row) => (
           <div key={row.flight} className="flex items-center h-[28px]">
-            <span className="w-20 font-display text-[10px] text-right pr-3 shrink-0" style={{ color: 'var(--amber)' }}>{row.flight}</span>
-            <div className="flex-1 relative h-[16px] rounded-sm" style={{ background: 'var(--bg-raised)' }}>
+            <span className="w-20 font-display text-[11px] text-right pr-3 shrink-0" style={{ color: 'var(--amber)' }}>{row.flight}</span>
+            <div className="flex-1 relative h-[18px] rounded-sm" style={{ background: 'var(--bg-raised)' }}>
               {row.bars.map((bar, bi) => {
                 const style = TYPE_STYLES[bar.type] || TYPE_STYLES.cruise;
                 const leftPct = (bar.startMin / TOTAL_MINUTES) * 100;
@@ -53,7 +52,7 @@ export default function TimelinePanel() {
                     className={`absolute top-0 h-full flex items-center px-1.5 rounded-sm ${bar.type === 'conflict' ? 'animate-blink' : ''}`}
                     style={{ left: `${leftPct}%`, width: `${widthPct}%`, background: style.bg, borderLeft: `2px solid ${style.border}` }}
                   >
-                    <span className="font-display text-[8px] truncate" style={{ color: style.text }}>{bar.label}</span>
+                    <span className="font-display text-[10px] truncate" style={{ color: style.text }}>{bar.label}</span>
                   </div>
                 );
               })}

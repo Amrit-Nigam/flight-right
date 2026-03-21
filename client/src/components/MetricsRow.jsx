@@ -48,9 +48,9 @@ function MetricCard({ metric, index }) {
         clipPath: 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%)',
       }}
     >
-      <p className="font-body text-[9px] uppercase tracking-[2px] mb-1" style={{ color: 'var(--text-muted)' }}>{metric.label}</p>
-      <p className="font-display text-[24px] glow-amber" style={{ color, textShadow: `0 0 12px ${color}60` }}>{formatValue()}</p>
-      <p className="font-body text-[10px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{metric.delta}</p>
+      <p className="font-body text-[11px] uppercase tracking-[2px] mb-1" style={{ color: 'var(--text-muted)' }}>{metric.label}</p>
+      <p className="font-display text-[26px] glow-amber" style={{ color, textShadow: `0 0 12px ${color}60` }}>{formatValue()}</p>
+      <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{metric.delta}</p>
     </motion.div>
   );
 }
