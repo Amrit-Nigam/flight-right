@@ -148,6 +148,7 @@ function App() {
                   flights={flights}
                   selectedFlight={selectedFlight}
                   onSelectFlight={handleSelectFlight}
+                  theme={theme}
                 />
               </Suspense>
             </div>
