@@ -67,7 +67,7 @@ function makeAircraftIcon(color, heading, size, pulse) {
   const pulseHtml = pulse
     ? `<div style="position:absolute;top:50%;left:50%;width:${size}px;height:${size}px;margin-left:-${size/2}px;margin-top:-${size/2}px;border-radius:50%;border:2px solid #ff2d2d;animation:frm-pulse 1s ease-out infinite;pointer-events:none;"></div>`
     : "";
-  const html = `<div style="width:${size}px;height:${size}px;transform:rotate(${heading}deg);position:relative;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 5px ${color});">${pulseHtml}<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}"><path d="M12 2L4 14h5v7l3-1 3 1v-7h5L12 2z"/></svg></div>`;
+  const html = `<div style="width:${size}px;height:${size}px;transform:rotate(${heading}deg);position:relative;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 0 5px ${color});">${pulseHtml}<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}"><path d="M21,16v-2l-8-5V3.5c0-0.83-0.67-1.5-1.5-1.5S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z"/></svg></div>`;
   return L.divIcon({ className: "", html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
@@ -106,7 +106,7 @@ function Pill({ label, active, color, onClick }) {
 }
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
-export default function FlightRadarMap({ flights: propFlights, selectedFlight, onSelectFlight }) {
+export default function FlightRadarMap({ flights: propFlights, selectedFlight, onSelectFlight, theme }) {
   const mapRef    = useRef(null);
   const markersRef = useRef({});
   const overlaysRef = useRef([]);
@@ -268,12 +268,17 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
     });
   }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight]);
 
+  const isLight = theme === "light";
+  const bgColor = isLight ? "#f8fafc" : "#060608";
+  
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#060608" }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: bgColor }}>
       {/* Leaflet CSS overrides */}
       <style>{`
-        .leaflet-container { background: #060608 !important; }
-        .leaflet-tile { filter: brightness(0.82) saturate(0.65); }
+        .leaflet-container { background: ${bgColor} !important; }
+        .leaflet-pane { z-index: 10 !important; }
+        .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
+        .leaflet-tile { filter: ${isLight ? 'brightness(1.1) grayscale(0.8) contrast(0.9) invert(1)' : 'brightness(0.82) saturate(0.65)'}; }
         .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
         @keyframes frm-pulse {
           0%   { transform: scale(1); opacity: 0.9; }
@@ -297,7 +302,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
 
       {/* Controls overlay */}
-      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 1000, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
         {/* Sector info bar */}
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "rgba(245,166,35,0.55)", letterSpacing: "0.1em", padding: "4px 10px", background: "rgba(6,6,8,0.75)" }}>
           MODE: APP/DEP &nbsp;|&nbsp; RANGE: TMA 80NM &nbsp;|&nbsp; SECTOR: 7B-ALPHA
