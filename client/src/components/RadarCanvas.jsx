@@ -5,16 +5,20 @@ const STATUS_COLORS_DARK = {
   conflict: "#ff2d2d", holding: "#ffdd00", landing: "#00e5cc",
   takeoff: "#f5a623", cruise: "#8a7d65", approach: "#00e5cc",
 };
-
 const STATUS_COLORS_LIGHT = {
   conflict: "#dc2626", holding: "#ca8a04", landing: "#0d9488",
   takeoff: "#d97706", cruise: "#64748b", approach: "#0d9488",
 };
 
+// How far ahead (in canvas-px) to draw the trajectory line
+const TRAJ_PX = 55; // roughly 60s look-ahead at average scale
+// 5 NM ring radius in canvas-px (approx at 50NM range with radius ~40% of canvas min dimension)
+const SEP_RING_PX_RATIO = 0.10; // 5NM as fraction of the 50NM radius
+
 export default function RadarCanvas({ flights, selectedFlight, theme }) {
   const canvasRef = useRef(null);
-  const animRef = useRef(null);
-  const angleRef = useRef(0);
+  const animRef   = useRef(null);
+  const angleRef  = useRef(0);
   const flightsRef = useRef(radarFlights.map((f) => ({ ...f, x: f.xPct / 100, y: f.yPct / 100 })));
 
   const isLight = theme === "light";
@@ -26,82 +30,60 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
 
-    const baseColor = isLight ? "#0f172a" : "#f5a623";
-    const bgSolid = isLight ? "#f8fafc" : "#060608";
-    const gridOpac = isLight ? "0.3" : "0.06";
+    const baseColor   = isLight ? "#0f172a" : "#f5a623";
+    const bgSolid     = isLight ? "#f8fafc" : "#060608";
+    const gridOpac    = isLight ? "0.3" : "0.06";
+    const hexBaseRGB  = isLight ? "148,163,184" : "245,166,35";
+    const textPrimary = isLight ? "#0f172a"  : "#f5a623";
+    const textMuted   = isLight ? "#64748b"  : "rgba(138,125,101,0.8)";
+    const sweepBaseRGB = isLight ? "217,119,6" : "245,166,35";
 
-    // Track size to handle resizes properly, or simply rely on parent
     let w = 0, h = 0;
 
     const updateSize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      w = rect.width;
-      h = rect.height;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      canvas.style.width = `${w}px`;
-      canvas.style.height = `${h}px`;
+      w = rect.width; h = rect.height;
+      canvas.width  = w * dpr; canvas.height = h * dpr;
+      canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
-    
-    // Initial size
     updateSize();
-
-    // Re-measure periodically to adapt to layout shifts (like drawer opening)
-    const resizeObserver = new ResizeObserver(() => updateSize());
-    resizeObserver.observe(canvas.parentElement);
+    const ro = new ResizeObserver(() => updateSize());
+    ro.observe(canvas.parentElement);
 
     const drawDiamond = (ctx, x, y, size, color) => {
       ctx.beginPath();
-      ctx.moveTo(x, y - size);
-      ctx.lineTo(x + size, y);
-      ctx.lineTo(x, y + size);
-      ctx.lineTo(x - size, y);
+      ctx.moveTo(x, y - size); ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size); ctx.lineTo(x - size, y);
       ctx.closePath();
-      ctx.fillStyle = color;
-      ctx.fill();
+      ctx.fillStyle = color; ctx.fill();
     };
 
-    const hexBaseRGB = isLight ? "148,163,184" : "245,166,35";
-    const textPrimary = isLight ? "#0f172a" : "#f5a623";
-    const textMuted = isLight ? "#64748b" : "rgba(138,125,101,0.8)";
-    const sweepBaseRGB = isLight ? "217,119,6" : "245,166,35";
-
     const drawHexGrid = (ctx, w, h) => {
-      const s = 18;
-      const hexW = s * 2;
-      const hexH = Math.sqrt(3) * s;
+      const s = 18, hexW = s * 2, hexH = Math.sqrt(3) * s;
       ctx.strokeStyle = `rgba(${hexBaseRGB},${gridOpac})`;
       ctx.lineWidth = 0.5;
       for (let row = 0; row < h / hexH + 1; row++) {
         for (let col = 0; col < w / hexW + 1; col++) {
           const xOff = row % 2 === 0 ? 0 : s;
-          const cx = col * hexW + xOff;
-          const cy = row * hexH;
+          const cx = col * hexW + xOff, cy = row * hexH;
           ctx.beginPath();
           for (let i = 0; i < 6; i++) {
             const angle = (Math.PI / 3) * i - Math.PI / 6;
-            const px = cx + s * Math.cos(angle);
-            const py = cy + s * Math.sin(angle);
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
+            const px = cx + s * Math.cos(angle), py = cy + s * Math.sin(angle);
+            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
           }
-          ctx.closePath();
-          ctx.stroke();
+          ctx.closePath(); ctx.stroke();
         }
       }
     };
 
     const draw = () => {
-      const cx = w / 2;
-      const cy = h / 2;
-      const radius = Math.max(0, Math.min(cx, cy) - 20); // Clamp to prevent negative radius error
+      const cx = w / 2, cy = h / 2;
+      const radius = Math.max(0, Math.min(cx, cy) - 20);
 
-      // Clear + background
       ctx.fillStyle = bgSolid;
       ctx.fillRect(0, 0, w, h);
-
-      // Hex grid
       drawHexGrid(ctx, w, h);
 
       // Range rings
@@ -110,12 +92,10 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(${hexBaseRGB},${isLight ? '0.4' : '0.15'})`;
-        ctx.lineWidth = 0.8;
-        ctx.stroke();
+        ctx.lineWidth = 0.8; ctx.stroke();
         ctx.fillStyle = isLight ? `rgba(${hexBaseRGB},1)` : `rgba(${hexBaseRGB},0.5)`;
         ctx.font = "11px 'Share Tech Mono', monospace";
-        const labels = ["10", "20", "30", "40", "50 NM"];
-        ctx.fillText(labels[i - 1], cx + r - 30, cy - 4);
+        ctx.fillText(["10", "20", "30", "40", "50 NM"][i - 1], cx + r - 30, cy - 4);
       }
 
       // Crosshairs
@@ -123,82 +103,123 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
       ctx.moveTo(cx - radius, cy); ctx.lineTo(cx + radius, cy);
       ctx.moveTo(cx, cy - radius); ctx.lineTo(cx, cy + radius);
       ctx.strokeStyle = `rgba(${hexBaseRGB},${isLight ? '0.3' : '0.1'})`;
-      ctx.lineWidth = 0.5;
-      ctx.stroke();
+      ctx.lineWidth = 0.5; ctx.stroke();
 
       // Sweep beam with trail
       const angle = angleRef.current;
-      const trailOpacities = isLight ? [0.3, 0.2, 0.15, 0.1, 0.08, 0.05, 0.03, 0.01] : [0.5, 0.4, 0.3, 0.2, 0.15, 0.1, 0.06, 0.03];
+      const trailOpacities = isLight
+        ? [0.3,0.2,0.15,0.1,0.08,0.05,0.03,0.01]
+        : [0.5,0.4,0.3,0.2,0.15,0.1,0.06,0.03];
       for (let t = trailOpacities.length - 1; t >= 0; t--) {
         const a1 = angle - (t + 1) * 1.5 * (Math.PI / 180);
         const a2 = angle - t * 1.5 * (Math.PI / 180);
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.arc(cx, cy, radius, a1, a2, false);
-        ctx.closePath();
-        ctx.fillStyle = `rgba(${sweepBaseRGB},${trailOpacities[t]})`;
-        ctx.fill();
+        ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, a1, a2, false); ctx.closePath();
+        ctx.fillStyle = `rgba(${sweepBaseRGB},${trailOpacities[t]})`; ctx.fill();
       }
-      // Main sweep line
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
+      ctx.beginPath(); ctx.moveTo(cx, cy);
       ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
-      ctx.strokeStyle = `rgba(${sweepBaseRGB},0.8)`;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.strokeStyle = `rgba(${sweepBaseRGB},0.8)`; ctx.lineWidth = 2; ctx.stroke();
 
       // Center dot
-      ctx.beginPath();
-      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-      ctx.fillStyle = textPrimary;
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = textPrimary; ctx.fill();
 
-      // Flight blips
       const fl = flightsRef.current;
-      
-      // Look for conflicts to draw trajectory
       const conflicts = fl.filter(f => f.status === "conflict");
+
+      // ── TRAJECTORY PREDICTION LINES (all aircraft) ───────────────────────
+      for (const f of fl) {
+        const fx = cx + (f.x - 0.5) * radius * 2;
+        const fy = cy + (f.y - 0.5) * radius * 2;
+        const headRad = (f.heading - 90) * (Math.PI / 180);
+        const color   = statusColors[f.status] || baseColor;
+        const endX    = fx + Math.cos(headRad) * TRAJ_PX;
+        const endY    = fy + Math.sin(headRad) * TRAJ_PX;
+
+        // Conflicts glow red/amber; others dim
+        let trajColor;
+        if (f.status === "conflict") {
+          trajColor = `rgba(255,${Math.round(45 + 80 * Math.abs(Math.sin(Date.now() / 300)))},45,0.85)`;
+        } else if (f.status === "holding") {
+          trajColor = "rgba(255,221,0,0.45)";
+        } else {
+          trajColor = `${color}40`;
+        }
+
+        ctx.beginPath();
+        ctx.setLineDash([4, 6]);
+        ctx.moveTo(fx, fy);
+        ctx.lineTo(endX, endY);
+        ctx.strokeStyle = trajColor;
+        ctx.lineWidth = f.status === "conflict" ? 1.8 : 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Arrowhead at end of trajectory
+        ctx.beginPath();
+        ctx.arc(endX, endY, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = trajColor.replace(/,[^,]+\)$/, ",0.9)");
+        ctx.fill();
+      }
+
+      // ── 5NM SEPARATION RINGS around conflicting aircraft ─────────────────
+      const ringR = radius * SEP_RING_PX_RATIO;
+      for (const f of conflicts) {
+        const fx = cx + (f.x - 0.5) * radius * 2;
+        const fy = cy + (f.y - 0.5) * radius * 2;
+        const pulse = 1 + 0.08 * Math.sin(Date.now() / 250);
+
+        ctx.beginPath();
+        ctx.arc(fx, fy, ringR * pulse, 0, Math.PI * 2);
+        ctx.setLineDash([6, 5]);
+        ctx.strokeStyle = "rgba(255,45,45,0.6)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label ring
+        ctx.fillStyle = "rgba(255,45,45,0.55)";
+        ctx.font = "9px 'Share Tech Mono', monospace";
+        ctx.fillText("5NM", fx + ringR + 2, fy - 4);
+      }
+
+      // ── CONFLICT CONVERGENCE LINE (midpoint CPA marker) ──────────────────
       if (conflicts.length >= 2) {
-        const f1 = conflicts[0];
-        const f2 = conflicts[1];
+        const f1 = conflicts[0], f2 = conflicts[1];
         const fx1 = cx + (f1.x - 0.5) * radius * 2;
         const fy1 = cy + (f1.y - 0.5) * radius * 2;
         const fx2 = cx + (f2.x - 0.5) * radius * 2;
         const fy2 = cy + (f2.y - 0.5) * radius * 2;
-        
-        // Midpoint predicted collision
-        const mx = (fx1 + fx2) / 2;
-        const my = (fy1 + fy2) / 2;
+        const mx = (fx1 + fx2) / 2, my = (fy1 + fy2) / 2;
 
-        ctx.beginPath();
-        ctx.setLineDash([4, 4]);
-        ctx.moveTo(fx1, fy1);
-        ctx.lineTo(mx, my);
-        ctx.lineTo(fx2, fy2);
-        ctx.strokeStyle = "rgba(255,45,45,0.8)";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx.beginPath(); ctx.setLineDash([3, 3]);
+        ctx.moveTo(fx1, fy1); ctx.lineTo(mx, my); ctx.lineTo(fx2, fy2);
+        ctx.strokeStyle = "rgba(255,45,45,0.6)"; ctx.lineWidth = 1.2; ctx.stroke();
         ctx.setLineDash([]);
-        
+
+        // CPA pulsing marker
         ctx.beginPath();
         ctx.arc(mx, my, 4 + Math.sin(Date.now() / 150) * 2, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff2d2d";
-        ctx.fill();
+        ctx.fillStyle = "#ff2d2d"; ctx.fill();
+        ctx.fillStyle = "rgba(255,45,45,0.7)";
+        ctx.font = "bold 9px 'Share Tech Mono', monospace";
+        ctx.fillText("CPA", mx + 6, my - 4);
       }
 
+      // ── FLIGHT BLIPS ─────────────────────────────────────────────────────
       for (const f of fl) {
         const fx = cx + (f.x - 0.5) * radius * 2;
         const fy = cy + (f.y - 0.5) * radius * 2;
-        const color = statusColors[f.status] || baseColor;
+        const color   = statusColors[f.status] || baseColor;
         const headRad = (f.heading - 90) * (Math.PI / 180);
 
-        // Velocity vector
+        // Short velocity vector
         ctx.beginPath();
         ctx.moveTo(fx, fy);
         ctx.lineTo(fx + Math.cos(headRad) * 16, fy + Math.sin(headRad) * 16);
         ctx.strokeStyle = isLight ? `rgba(${hexBaseRGB},0.8)` : `rgba(${hexBaseRGB},0.6)`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx.lineWidth = 1; ctx.stroke();
 
         // Conflict pulsing hexagon
         if (f.status === "conflict") {
@@ -206,37 +227,27 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
           ctx.beginPath();
           for (let i = 0; i < 6; i++) {
             const a = (Math.PI / 3) * i - Math.PI / 6;
-            const px = fx + pulseR * Math.cos(a);
-            const py = fy + pulseR * Math.sin(a);
+            const px = fx + pulseR * Math.cos(a), py = fy + pulseR * Math.sin(a);
             if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
           }
           ctx.closePath();
           ctx.strokeStyle = isLight ? "rgba(220,38,38,0.6)" : "rgba(255,45,45,0.7)";
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
+          ctx.lineWidth = 1.5; ctx.stroke();
         }
 
         // Selected ring
         if (selectedFlight === f.callsign) {
-          ctx.beginPath();
-          ctx.arc(fx, fy, 16, 0, Math.PI * 2);
-          ctx.strokeStyle = baseColor;
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
+          ctx.beginPath(); ctx.arc(fx, fy, 16, 0, Math.PI * 2);
+          ctx.strokeStyle = baseColor; ctx.lineWidth = 2.5; ctx.stroke();
         }
 
-        // Diamond blip
+        // Diamond blip + glow
         drawDiamond(ctx, fx, fy, 6, color);
-
-        // Glow (only on dark mode)
         if (!isLight) {
-          ctx.beginPath();
-          ctx.arc(fx, fy, 10, 0, Math.PI * 2);
+          ctx.beginPath(); ctx.arc(fx, fy, 10, 0, Math.PI * 2);
           const glow = ctx.createRadialGradient(fx, fy, 2, fx, fy, 10);
-          glow.addColorStop(0, color + "40");
-          glow.addColorStop(1, color + "00");
-          ctx.fillStyle = glow;
-          ctx.fill();
+          glow.addColorStop(0, color + "40"); glow.addColorStop(1, color + "00");
+          ctx.fillStyle = glow; ctx.fill();
         }
 
         // Labels
@@ -251,7 +262,6 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
         const spd = f.speed > 0 ? 0.0002 : 0;
         f.x += Math.cos(headRad) * spd;
         f.y += Math.sin(headRad) * spd;
-        // Bounce at edges
         if (f.x < 0.05 || f.x > 0.95) f.x = Math.max(0.05, Math.min(0.95, f.x));
         if (f.y < 0.05 || f.y > 0.95) f.y = Math.max(0.05, Math.min(0.95, f.y));
       }
@@ -267,10 +277,10 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
       animRef.current = requestAnimationFrame(draw);
     };
     draw();
-    
+
     return () => {
       cancelAnimationFrame(animRef.current);
-      resizeObserver.disconnect();
+      ro.disconnect();
     };
   }, [selectedFlight, isLight, statusColors, theme]);
 
@@ -283,6 +293,12 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
         {["28 TRACKS", "6 RWYS", "2 ALERTS", "87% OPT"].map((s) => (
           <span key={s} className="font-display text-[12px] tracking-wider" style={{ color: 'var(--amber)' }}>{s}</span>
         ))}
+        <span className="font-display text-[10px] tracking-wider" style={{ color: 'rgba(255,45,45,0.6)' }}>
+          ─── 5NM SEP RING
+        </span>
+        <span className="font-display text-[10px] tracking-wider" style={{ color: 'rgba(245,166,35,0.5)' }}>
+          ╌╌ TRAJECTORY
+        </span>
       </div>
     </div>
   );

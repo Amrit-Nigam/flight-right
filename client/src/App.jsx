@@ -5,6 +5,7 @@ import ConflictBanner from "@/components/ConflictBanner";
 import ResolveModal from "@/components/ResolveModal";
 import SuccessToast from "@/components/SuccessToast";
 import RadarCanvas from "@/components/RadarCanvas";
+import AIAuditTrail from "@/components/AIAuditTrail";
 const FlightRadarMap = lazy(() => import("@/components/FlightRadarMap"));
 import TimelinePanel from "@/components/TimelinePanel";
 import FlightListPanel from "@/components/FlightListPanel";
@@ -26,40 +27,42 @@ function App() {
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("ALL");
   const [acceptedCount, setAcceptedCount] = useState(0);
-  
-  // ===== THEME STATE =====
+
+  // ===== THEME =====
   const [theme, setTheme] = useState("dark");
-
   useEffect(() => {
-    if (theme === "light") {
-      document.documentElement.classList.add("light");
-    } else {
-      document.documentElement.classList.remove("light");
-    }
+    if (theme === "light") document.documentElement.classList.add("light");
+    else document.documentElement.classList.remove("light");
   }, [theme]);
+  const toggleTheme = () => setTheme(t => t === "dark" ? "light" : "dark");
 
-  const toggleTheme = () => {
-    setTheme(t => t === "dark" ? "light" : "dark");
-  };
+  // ===== COMPUTED =====
+  const alertCount = conflict
+    ? (flights.filter(f => f.status === "CONFLICT" || f.status === "HOLDING").length > 0 ? 1 : 0)
+    : 0;
 
-  const alertCount = conflict ? (flights.filter((f) => f.status === "CONFLICT" || f.status === "HOLDING").length > 0 ? 1 : 0) : 0;
-
-  // ===== TOAST HELPER =====
+  // ===== TOAST =====
   const showToast = useCallback((message) => {
     setToast({ message, type: "success" });
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  // ===== CONFLICT RESOLUTION FLOW =====
+  useEffect(() => {
+    const handleToastEvent = (e) => showToast(e.detail);
+    window.addEventListener("show-toast", handleToastEvent);
+    return () => window.removeEventListener("show-toast", handleToastEvent);
+  }, [showToast]);
+
+  // ===== CONFLICT RESOLUTION =====
   const handleResolveClick = () => setResolveModalOpen(true);
 
   const handleApplyResolution = () => {
     setResolveModalOpen(false);
     setConflict(null);
-    setFlights((prev) =>
-      prev.map((f) =>
+    setFlights(prev =>
+      prev.map(f =>
         f.callsign === "AI6302" || f.callsign === "SG881"
-          ? { ...f, status: "ENROUTE" }
+          ? { ...f, status: "ENROUTE", cpaPair: undefined, cpaSeconds: undefined }
           : f
       )
     );
@@ -68,43 +71,45 @@ function App() {
 
   const handleCancelResolution = () => setResolveModalOpen(false);
 
-  // ===== SUGGESTION FLOW =====
+  // ===== SUGGESTIONS =====
   const handleAcceptSuggestion = (suggestion) => {
-    setSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
-    setAcceptedCount((c) => c + 1);
+    setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+    setAcceptedCount(c => c + 1);
     showToast(`Applied: ${suggestion.type} — ${suggestion.flights.join(", ")}`);
   };
-
-  const handleDismissSuggestion = (id) => {
-    setSuggestions((prev) => prev.filter((s) => s.id !== id));
-  };
+  const handleDismissSuggestion = (id) => setSuggestions(prev => prev.filter(s => s.id !== id));
 
   // ===== FLIGHT SELECT =====
-  const handleSelectFlight = (callsign) => {
+  const handleSelectFlight = (callsign) =>
     setSelectedFlight(callsign === selectedFlight ? null : callsign);
-  };
 
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const [mapView, setMapView] = useState("map"); // "map" | "radar"
+  // ===== PANEL TOGGLES =====
+  const [timelineOpen, setTimelineOpen]   = useState(false);
+  const [auditTrailOpen, setAuditTrailOpen] = useState(false);
+  const [mapView, setMapView]             = useState("map"); // "map" | "radar"
+  const [weatherOn, setWeatherOn]         = useState(false);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden" style={{ background: 'var(--bg-base)', color: 'var(--text-primary)' }}>
-      <TopBar 
-        alertCount={alertCount} 
-        aiEnabled={aiEnabled} 
-        onToggleAI={() => setAiEnabled(!aiEnabled)} 
+      <TopBar
+        alertCount={alertCount}
+        aiEnabled={aiEnabled}
+        onToggleAI={() => setAiEnabled(!aiEnabled)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        conflict={conflict}
+        weatherOn={weatherOn}
+        onWeatherToggle={() => setWeatherOn(w => !w)}
       />
 
-      {/* Global Conflict Banner drops down here if active */}
+      {/* Conflict Banner */}
       <div className="z-40 w-full relative">
         <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} />
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="flex-1 flex gap-4 p-4 overflow-hidden relative">
-        {/* LEFT — Flight List (Slim Strip) */}
+        {/* LEFT — Flight List */}
         <div className="w-[280px] shrink-0 h-full">
           <FlightListPanel
             flightsData={flights}
@@ -115,9 +120,9 @@ function App() {
           />
         </div>
 
-        {/* CENTER LEFT — Radar Hero */}
-        <div className="w-[55vw] shrink-0 h-full flex flex-col gap-4">
-          {/* Toggle row */}
+        {/* CENTER — Radar Hero */}
+        <div className="w-[55vw] shrink-0 h-full flex flex-col gap-2">
+          {/* View toggle row */}
           <div className="flex items-center gap-0 shrink-0" style={{ height: 30 }}>
             {[{ key: "map", label: "MAP VIEW" }, { key: "radar", label: "RADAR SWEEP" }].map(({ key, label }) => (
               <button
@@ -134,9 +139,27 @@ function App() {
                 {label}
               </button>
             ))}
+
+            {/* WEATHER first-class toggle */}
+            <button
+              onClick={() => setWeatherOn(w => !w)}
+              className="font-display text-[11px] tracking-widest px-4 py-1.5 transition-all ml-2"
+              style={{
+                background: weatherOn ? "var(--teal)" : "transparent",
+                color:      weatherOn ? "#0a0b0e"     : "var(--teal)",
+                border:     "1px solid var(--teal)",
+              }}
+            >
+              ☁ WEATHER
+            </button>
+
+            {/* AI Audit Trail toggle */}
+            <div className="ml-auto relative" style={{ zIndex: 40 }}>
+              <AIAuditTrail isOpen={auditTrailOpen} onToggle={() => setAuditTrailOpen(o => !o)} />
+            </div>
           </div>
 
-          {/* Both panels mounted, CSS-toggled so animations don't reset */}
+          {/* Map / Radar panels */}
           <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
             <div style={{ position: "absolute", inset: 0, display: mapView === "map" ? "block" : "none" }}>
               <Suspense fallback={
@@ -158,7 +181,7 @@ function App() {
           </div>
         </div>
 
-        {/* RIGHT — Metrics + Runways + Suggestions + Comms */}
+        {/* RIGHT — Panels */}
         <div className="flex-1 h-full overflow-y-auto flex flex-col gap-4 pr-1">
           <MetricsRow metricsData={metrics} />
           <AISuggestionsPanel
@@ -170,8 +193,6 @@ function App() {
           />
           <RunwayStatusPanel />
           <NLPCommsPanel />
-          
-          {/* Filler for bottom breathing room */}
           <div className="h-4 shrink-0" />
         </div>
       </div>
@@ -179,7 +200,7 @@ function App() {
       {/* BOTTOM — Timeline Drawer */}
       <TimelinePanel isOpen={timelineOpen} onToggle={() => setTimelineOpen(!timelineOpen)} />
 
-      {/* Modals / Overlays */}
+      {/* Modals */}
       <ResolveModal
         open={resolveModalOpen}
         conflict={conflict}
