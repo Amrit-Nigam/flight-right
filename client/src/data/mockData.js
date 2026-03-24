@@ -14,7 +14,7 @@ export const initialFlights = [
   { callsign: "LD501",  route: "BOM→PNQ", status: "TAKEOFF",  altitude: "2400ft", speed: "210 kt", eta: "NOW", aircraft: "ATR72",heading: 95,  squawk: "4413", fuel: "3.1h", waypoint: "RWY 09R" },
 ];
 
-// ========== RADAR FLIGHTS ==========
+// ========== RADAR FLIGHTS & ENVIRONMENT ==========
 export const radarFlights = [
   { callsign: "AI6302", xPct: 62, yPct: 38, heading: 45,  status: "conflict", altitude: "FL280", speed: 420 },
   { callsign: "SG881",  xPct: 55, yPct: 42, heading: 320, status: "holding",  altitude: "FL270", speed: 210 },
@@ -29,6 +29,22 @@ export const radarFlights = [
   { callsign: "IX304",  xPct: 44, yPct: 62, heading: 270, status: "landing",  altitude: "3100ft", speed: 155 },
   { callsign: "LD501",  xPct: 52, yPct: 48, heading: 95,  status: "takeoff",  altitude: "2400ft", speed: 210 },
 ];
+
+export const weatherCell = [
+  { xPct: 20, yPct: 20 },
+  { xPct: 32, yPct: 22 },
+  { xPct: 35, yPct: 30 },
+  { xPct: 25, yPct: 38 },
+  { xPct: 15, yPct: 32 },
+];
+
+export const deviationRoutes = {
+  "BA118": [
+    { xPct: 25, yPct: 25 },
+    { xPct: 38, yPct: 18 },
+    { xPct: 45, yPct: 30 },
+  ]
+};
 
 // ========== METRICS ==========
 export const metrics = [
@@ -116,10 +132,10 @@ export const timelineRows = [
 
 // ========== AI SUGGESTIONS ==========
 export const initialSuggestions = [
-  { id: "s1", type: "CONFLICT",  typeColor: "#ff2d2d", priority: "CRITICAL", confidence: "97.4%", flights: ["AI6302", "SG881"], text: "Descend AI6302 to FL260 immediately. Issue heading 020° to SG881. Separation increases to 4.2 NM. Resolves in 2 min 40 sec.", autoApplicable: false },
-  { id: "s2", type: "OPTIMIZE",  typeColor: "#00e5cc", priority: "HIGH",     confidence: "91.2%", flights: ["EK512", "IX304"],   text: "Sequence EK512 before IX304 on RWY 27L. EK512 is heavier (B777 vs A320). Saves 3.2 min total delay.", autoApplicable: true },
-  { id: "s3", type: "WEATHER",   typeColor: "#ffdd00", priority: "MEDIUM",   confidence: "84.0%", flights: ["BA118"],            text: "Wind shift expected in 22 min (250° → 300°). Issue updated QNH to BA118 on approach. Pre-brief crew.", autoApplicable: false },
-  { id: "s4", type: "SEQUENCE",  typeColor: "#f5a623", priority: "MEDIUM",   confidence: "88.7%", flights: ["G8423", "6E741", "AA258"], text: "AI resequenced landing queue: 6E741 → EK512 → AA258 → G8423. Reduces total holding fuel burn by 340 kg.", autoApplicable: true },
+  { id: "s1", type: "CONFLICT",  typeColor: "#ff2d2d", priority: "CRITICAL", confidence: "97.4%", flights: ["AI6302", "SG881"], text: "Descend AI6302 to FL260 immediately. Issue heading 020° to SG881. Separation increases to 4.2 NM. Resolves in 2 min 40 sec.", autoApplicable: false, actionToast: "Separation maneuver executed for AI6302 & SG881" },
+  { id: "s2", type: "MEDICAL",   typeColor: "#ff2d2d", priority: "CRITICAL", confidence: "99.1%", flights: ["IX304"],           text: "MEDICAL EMERGENCY declared. Recommend clearing RWY 27L of all departures. Vector IX304 directly to final approach fix. Priority auto-granted.", autoApplicable: true, actionToast: "Medical Priority granted to IX304. RWY 27L cleared." },
+  { id: "s3", type: "WEATHER",   typeColor: "#ffdd00", priority: "HIGH",     confidence: "92.0%", flights: ["BA118"],           text: "Severe thunderstorm cell developing at 25NM NW. Recommend 20-degree right deviation for BA118.", autoApplicable: true, actionToast: "Weather deviation approved for BA118 via datalink." },
+  { id: "s4", type: "SEQUENCE",  typeColor: "#f5a623", priority: "MEDIUM",   confidence: "88.7%", flights: ["G8423", "6E741", "AA258"], text: "AI resequenced landing queue: 6E741 → EK512 → AA258 → G8423. Reduces total holding fuel burn by 340 kg.", autoApplicable: true, actionToast: "Resequencing applied to arrival flow." },
 ];
 
 // ========== AI AUDIT LOG ==========
@@ -133,12 +149,28 @@ export const aiAuditLog = [
 
 // ========== RUNWAYS ==========
 export const runways = [
-  { id: "RWY 27L", type: "LAND", slots: [{type:"land",pctStart:5,pctW:12,flight:"EK512"},{type:"clear",pctStart:17,pctW:14},{type:"land",pctStart:31,pctW:10,flight:"IX304"},{type:"clear",pctStart:41,pctW:11},{type:"land",pctStart:52,pctW:14,flight:"AA258"},{type:"clear",pctStart:66,pctW:34}] },
-  { id: "RWY 27R", type: "LAND", slots: [{type:"clear",pctStart:0,pctW:10},{type:"land",pctStart:10,pctW:11,flight:"6E741"},{type:"clear",pctStart:21,pctW:20},{type:"land",pctStart:41,pctW:10,flight:"G8423"},{type:"clear",pctStart:51,pctW:49}] },
-  { id: "RWY 09L", type: "DEP",  slots: [{type:"clear",pctStart:0,pctW:18},{type:"take",pctStart:18,pctW:8,flight:"QR552"},{type:"clear",pctStart:26,pctW:74}] },
-  { id: "RWY 09R", type: "DEP",  slots: [{type:"take",pctStart:0,pctW:7,flight:"9W445"},{type:"clear",pctStart:7,pctW:18},{type:"take",pctStart:25,pctW:6,flight:"LD501"},{type:"clear",pctStart:31,pctW:69}] },
-  { id: "RWY 32L", type: "MAINT",slots: [{type:"maint",pctStart:0,pctW:30,label:"MAINTENANCE"},{type:"clear",pctStart:30,pctW:70}] },
-  { id: "RWY 32R", type: "LAND", slots: [{type:"clear",pctStart:0,pctW:40},{type:"land",pctStart:40,pctW:15,flight:"BA118"},{type:"clear",pctStart:55,pctW:45}] },
+  { 
+    id: "RWY 27L", type: "LAND", 
+    slots: [{type:"land",pctStart:5,pctW:12,flight:"EK512"},{type:"clear",pctStart:17,pctW:14},{type:"land",pctStart:31,pctW:10,flight:"IX304"},{type:"clear",pctStart:41,pctW:11},{type:"land",pctStart:52,pctW:14,flight:"AA258"},{type:"clear",pctStart:66,pctW:34}],
+    balancedSlots: [{type:"land",pctStart:5,pctW:12,flight:"EK512"},{type:"clear",pctStart:17,pctW:35},{type:"land",pctStart:52,pctW:14,flight:"AA258"},{type:"clear",pctStart:66,pctW:34}]
+  },
+  { 
+    id: "RWY 27R", type: "LAND", 
+    slots: [{type:"clear",pctStart:0,pctW:10},{type:"land",pctStart:10,pctW:11,flight:"6E741"},{type:"clear",pctStart:21,pctW:20},{type:"land",pctStart:41,pctW:10,flight:"G8423"},{type:"clear",pctStart:51,pctW:49}],
+    balancedSlots: [{type:"clear",pctStart:0,pctW:10},{type:"land",pctStart:10,pctW:11,flight:"6E741"},{type:"clear",pctStart:21,pctW:10}, {type:"land",pctStart:31,pctW:10,flight:"IX304"}, {type:"clear",pctStart:41,pctW:15}, {type:"land",pctStart:56,pctW:10,flight:"G8423"}]
+  },
+  { 
+    id: "RWY 09L", type: "DEP",  
+    slots: [{type:"clear",pctStart:0,pctW:18},{type:"take",pctStart:18,pctW:8,flight:"QR552"},{type:"clear",pctStart:26,pctW:74}],
+    balancedSlots: [{type:"clear",pctStart:0,pctW:18},{type:"take",pctStart:18,pctW:8,flight:"QR552"},{type:"clear",pctStart:26,pctW:10},{type:"take",pctStart:36,pctW:7,flight:"9W445"},{type:"clear",pctStart:43,pctW:57}]
+  },
+  { 
+    id: "RWY 09R", type: "DEP",  
+    slots: [{type:"take",pctStart:0,pctW:7,flight:"9W445"},{type:"clear",pctStart:7,pctW:18},{type:"take",pctStart:25,pctW:6,flight:"LD501"},{type:"clear",pctStart:31,pctW:69}],
+    balancedSlots: [{type:"clear",pctStart:0,pctW:25},{type:"take",pctStart:25,pctW:6,flight:"LD501"},{type:"clear",pctStart:31,pctW:69}]
+  },
+  { id: "RWY 32L", type: "MAINT", slots: [{type:"maint",pctStart:0,pctW:30,label:"MAINTENANCE"},{type:"clear",pctStart:30,pctW:70}], balancedSlots: [{type:"maint",pctStart:0,pctW:30,label:"MAINTENANCE"},{type:"clear",pctStart:30,pctW:70}] },
+  { id: "RWY 32R", type: "LAND", slots: [{type:"clear",pctStart:0,pctW:40},{type:"land",pctStart:40,pctW:15,flight:"BA118"},{type:"clear",pctStart:55,pctW:45}], balancedSlots: [{type:"clear",pctStart:0,pctW:40},{type:"land",pctStart:40,pctW:15,flight:"BA118"},{type:"clear",pctStart:55,pctW:45}] },
 ];
 
 // ========== NLP COMMS ==========
@@ -147,7 +179,12 @@ export const nlpComms = [
   { time: "14:34:28", type: "PILOT", flight: "EK512",  text: "Descend maintain four thousand, reduce one-six-zero, cleared ILS two-seven-left, Emirates five-one-two." },
   { time: "14:35:01", type: "AI",    flight: "SYSTEM", text: "⚡ Conflict detected. Suggested: 'Air India six-three-zero-two, turn left heading zero-two-zero, descend flight level two-six-zero immediately.'" },
   { time: "14:35:44", type: "ATC",   flight: "SG881",  text: "SpiceJet eight-eight-one, enter holding at DEGAN, maintain flight level two-seven-zero, expect further clearance at one-five-zero-zero." },
-  { time: "14:36:55", type: "AI",    flight: "SYSTEM", text: "✦ Sequence optimized: EK512 → IX304 → AA258 on RWY 27L. Delay savings: 3.2 min. Fuel saved: 180 kg." },
+  { time: "14:36:20", type: "PILOT", flight: "UK965",  text: "AeroSync, Vistara nine-six-five requesting clearance direct to ARSIN." },
+  { 
+    time: "14:36:22", type: "AI DRAFT", flight: "UK965", 
+    text: "DIRECT TO ARSIN APPROVED. MAINTAIN FL350.", 
+    interactive: true, datalink: true 
+  },
   { time: "14:37:08", type: "ATC",   flight: "QR552",  text: "Qatar five-five-two, pushback and startup approved, QNH one-zero-one-two, ATIS Kilo." },
 ];
 

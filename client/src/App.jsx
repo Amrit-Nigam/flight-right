@@ -27,6 +27,7 @@ function App() {
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("ALL");
   const [acceptedCount, setAcceptedCount] = useState(0);
+  const [acceptedIds, setAcceptedIds] = useState(new Set());
 
   // ===== THEME =====
   const [theme, setTheme] = useState("dark");
@@ -75,7 +76,8 @@ function App() {
   const handleAcceptSuggestion = (suggestion) => {
     setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
     setAcceptedCount(c => c + 1);
-    showToast(`Applied: ${suggestion.type} — ${suggestion.flights.join(", ")}`);
+    setAcceptedIds(prev => new Set([...prev, suggestion.id]));
+    showToast(suggestion.actionToast || `Applied: ${suggestion.type} — ${suggestion.flights.join(", ")}`);
   };
   const handleDismissSuggestion = (id) => setSuggestions(prev => prev.filter(s => s.id !== id));
 
@@ -176,7 +178,13 @@ function App() {
               </Suspense>
             </div>
             <div style={{ position: "absolute", inset: 0, display: mapView === "radar" ? "block" : "none" }}>
-              <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme} />
+              <RadarCanvas 
+                flights={flights} 
+                selectedFlight={selectedFlight} 
+                theme={theme} 
+                weatherOn={weatherOn}
+                weatherDevAccepted={acceptedIds.has("s3")}
+              />
             </div>
           </div>
         </div>

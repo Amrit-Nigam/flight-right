@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { radarFlights } from "@/data/mockData";
+import { radarFlights, weatherCell, deviationRoutes } from "@/data/mockData";
 
 const STATUS_COLORS_DARK = {
   conflict: "#ff2d2d", holding: "#ffdd00", landing: "#00e5cc",
@@ -15,7 +15,7 @@ const TRAJ_PX = 55; // roughly 60s look-ahead at average scale
 // 5 NM ring radius in canvas-px (approx at 50NM range with radius ~40% of canvas min dimension)
 const SEP_RING_PX_RATIO = 0.10; // 5NM as fraction of the 50NM radius
 
-export default function RadarCanvas({ flights, selectedFlight, theme }) {
+export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn, weatherDevAccepted }) {
   const canvasRef = useRef(null);
   const animRef   = useRef(null);
   const angleRef  = useRef(0);
@@ -127,6 +127,67 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
 
       const fl = flightsRef.current;
       const conflicts = fl.filter(f => f.status === "conflict");
+
+      // ── WEATHER CELL ─────────────────────────────────────────────────────
+      if (weatherOn && weatherCell?.length > 0) {
+        ctx.beginPath();
+        for (let i = 0; i < weatherCell.length; i++) {
+          const pt = weatherCell[i];
+          const px = cx + (pt.xPct / 100 - 0.5) * radius * 2;
+          const py = cy + (pt.yPct / 100 - 0.5) * radius * 2;
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        
+        ctx.fillStyle = `rgba(255, 60, 0, ${0.1 + Math.sin(Date.now() / 400) * 0.05})`;
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255, 60, 0, 0.4)";
+        ctx.lineWidth = 1; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+        
+        const pt0 = weatherCell[0];
+        const lblX = cx + (pt0.xPct / 100 - 0.5) * radius * 2;
+        const lblY = cy + (pt0.yPct / 100 - 0.5) * radius * 2;
+        ctx.fillStyle = "rgba(255, 60, 0, 0.8)";
+        ctx.font = "bold 10px 'Share Tech Mono', monospace";
+        ctx.fillText("SEVERE WX", lblX, lblY);
+      }
+
+      // ── DEVIATION ROUTES ─────────────────────────────────────────────────
+      if (weatherOn && deviationRoutes) {
+        Object.entries(deviationRoutes).forEach(([callsign, pts]) => {
+          const isAccepted = weatherDevAccepted;
+          const color = isAccepted ? "rgba(0, 229, 204, 0.8)" : "rgba(245, 166, 35, 0.8)";
+          
+          const f = fl.find(x => x.callsign === callsign);
+          if (f) {
+            const fx = cx + (f.x - 0.5) * radius * 2;
+            const fy = cy + (f.y - 0.5) * radius * 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(fx, fy);
+            pts.forEach(pt => {
+              const px = cx + (pt.xPct / 100 - 0.5) * radius * 2;
+              const py = cy + (pt.yPct / 100 - 0.5) * radius * 2;
+              ctx.lineTo(px, py);
+            });
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            if (pts.length > 0) {
+              const lastPt = pts[pts.length - 1];
+              const lx = cx + (lastPt.xPct / 100 - 0.5) * radius * 2;
+              const ly = cy + (lastPt.yPct / 100 - 0.5) * radius * 2;
+              ctx.fillStyle = color;
+              ctx.font = "9px 'Share Tech Mono', monospace";
+              ctx.fillText(isAccepted ? "DEV APPROVED" : "DEV PROP", lx + 4, ly);
+            }
+          }
+        });
+      }
 
       // ── TRAJECTORY PREDICTION LINES (all aircraft) ───────────────────────
       for (const f of fl) {
@@ -282,7 +343,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme }) {
       cancelAnimationFrame(animRef.current);
       ro.disconnect();
     };
-  }, [selectedFlight, isLight, statusColors, theme]);
+  }, [selectedFlight, isLight, statusColors, theme, weatherOn, weatherDevAccepted]);
 
   return (
     <div className="panel overflow-hidden flex flex-col h-full w-full">

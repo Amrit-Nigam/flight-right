@@ -55,13 +55,13 @@ function MetricCard({ metric, index }) {
       />
       
       <p 
-        className="font-display text-[36px] tracking-wider leading-none mb-3 relative z-10" 
+        className="font-display text-[36px] tracking-tight leading-none mb-2 relative z-10" 
         style={{ color, textShadow: `0 0 20px ${color}50` }}
       >
         {formatValue()}
       </p>
       <p 
-        className="font-body text-[10px] uppercase tracking-[2px] relative z-10" 
+        className="font-body text-[10px] uppercase tracking-widest relative z-10" 
         style={{ color: 'var(--text-muted)' }}
       >
         {metric.label}
