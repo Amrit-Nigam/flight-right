@@ -37,8 +37,11 @@ function BarTooltip({ bar, onUndo, anchorRef }) {
           <p className="font-display text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--green)' }}>AI Action — Explanation</p>
           <p style={{ color: 'var(--text-secondary)' }}>{bar.xaiDetail}</p>
           <button
-            onClick={onUndo}
-            className="mt-2 flex items-center gap-1 font-display text-[10px] tracking-widest px-2 py-1 rounded"
+            onClick={() => {
+              onUndo();
+              window.dispatchEvent(new CustomEvent("show-toast", { detail: "Resequence reverted to manual." }));
+            }}
+            className="mt-2 flex items-center gap-1 font-display text-[10px] tracking-widest px-2 py-1 rounded transition-colors hover:bg-white/10 active:scale-95"
             style={{ border: '1px solid var(--red)', color: 'var(--red)', background: 'rgba(255,45,45,0.08)' }}
           >
             <RotateCcw className="w-3 h-3" /> Undo resequence

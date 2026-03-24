@@ -123,7 +123,7 @@ function App() {
         {/* CENTER — Radar Hero */}
         <div className="w-[55vw] shrink-0 h-full flex flex-col gap-2">
           {/* View toggle row */}
-          <div className="flex items-center gap-0 shrink-0" style={{ height: 30 }}>
+          <div className="flex items-center gap-0 shrink-0 relative" style={{ height: 30, zIndex: 900 }}>
             {[{ key: "map", label: "MAP VIEW" }, { key: "radar", label: "RADAR SWEEP" }].map(({ key, label }) => (
               <button
                 key={key}
@@ -154,7 +154,7 @@ function App() {
             </button>
 
             {/* AI Audit Trail toggle */}
-            <div className="ml-auto relative" style={{ zIndex: 40 }}>
+            <div className="ml-auto relative" style={{ zIndex: 950 }}>
               <AIAuditTrail isOpen={auditTrailOpen} onToggle={() => setAuditTrailOpen(o => !o)} />
             </div>
           </div>

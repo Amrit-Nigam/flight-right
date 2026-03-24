@@ -15,6 +15,7 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
 
   const handleUndo = (idx) => {
     setUndoneIds(p => new Set([...p, idx]));
+    window.dispatchEvent(new CustomEvent("show-toast", { detail: "AI Action reverted to manual controller state." }));
   };
 
   return (
@@ -32,7 +33,7 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
       >
         <History className="w-3.5 h-3.5" />
         AI LOG
-        {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+        {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
       </button>
 
       {/* Drawer */}
