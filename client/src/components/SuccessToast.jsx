@@ -9,7 +9,7 @@ export default function SuccessToast({ toast }) {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: "100%", opacity: 0 }}
           transition={{ type: "spring", damping: 20 }}
-          className="fixed top-20 right-4 z-50 px-5 py-3 max-w-sm"
+          className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] px-5 py-3 w-max shadow-2xl rounded-sm"
           style={{
             background: 'var(--bg-panel)',
             borderLeft: '4px solid var(--green)',

@@ -1,13 +1,32 @@
+import { useState } from "react";
 import { runways } from "@/data/mockData";
+import { Sparkles } from "lucide-react";
 
 export default function RunwayStatusPanel() {
+  const [isBalanced, setIsBalanced] = useState(false);
   return (
     <div className="panel p-5">
       <div className="flex items-center justify-between mb-6">
         <h3 className="font-display text-[13px] tracking-widest text-[var(--text-primary)]">
           RUNWAY UTILIZATION
         </h3>
-        <span className="font-display text-[10px] text-[var(--text-muted)] uppercase">Next 30 min</span>
+        <div className="flex items-center gap-3">
+          {!isBalanced && (
+            <button 
+              onClick={() => {
+                setIsBalanced(true);
+                window.dispatchEvent(new CustomEvent("show-toast", { detail: "Runway loads auto-balanced. Saved 14 minutes total delay." }));
+              }}
+              className="group flex items-center gap-1.5 px-3 py-1 bg-[rgba(0,229,204,0.05)] text-[var(--teal)] font-display text-[10px] tracking-widest border border-[var(--teal)] transition-all hover:bg-[var(--teal)] hover:text-[#050508]"
+            >
+              <Sparkles className="w-3 h-3 group-hover:animate-pulse" />
+              AI AUTO-BALANCE
+            </button>
+          )}
+          {isBalanced && (
+            <span className="font-display text-[10px] text-[var(--green)] border border-[var(--green)] px-2 py-0.5">OPTIMIZED</span>
+          )}
+        </div>
       </div>
 
       <div className="relative pt-4 pb-2">
@@ -31,7 +50,7 @@ export default function RunwayStatusPanel() {
                 <div className="absolute top-1/2 w-full h-[1px] -translate-y-1/2" style={{ background: 'repeating-linear-gradient(90deg, transparent, transparent 10px, var(--border-bright) 10px, var(--border-bright) 24px)' }} />
                 
                 {/* Slots */}
-                {rwy.slots.map((slot, i) => {
+                {(isBalanced ? (rwy.balancedSlots || rwy.slots) : rwy.slots).map((slot, i) => {
                   if (slot.type === "clear") return null;
 
                   let bgColor, color, borderColor;
