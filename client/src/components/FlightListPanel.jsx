@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { statusColors, statusIcons, weather } from "@/data/mockData";
+import { statusColors, statusIcons, weather, sortByUrgency, getAltBandCounts } from "@/data/mockData";
 import { X, Cloud } from "lucide-react";
-
-const TABS = ["ALL", "LANDING", "TAKEOFF", "ALERTS"];
-
-const filterMap = {
-  ALL: () => true,
-  LANDING: (f) => f.status === "LANDING" || f.status === "APPROACH",
-  TAKEOFF: (f) => f.status === "TAKEOFF" || f.status === "DEPARTING",
-  ALERTS: (f) => f.status === "CONFLICT" || f.status === "HOLDING",
-};
 
 // Full-width Detail Drawer that sits at the bottom of the viewport
 export function FlightDetailDrawer({ flight, onClose }) {
@@ -18,8 +9,7 @@ export function FlightDetailDrawer({ flight, onClose }) {
   const fields = [
     ["Route", flight.route], ["Altitude", flight.altitude], ["Speed", flight.speed],
     ["Heading", `${flight.heading}°`], ["Aircraft", flight.aircraft],
-    ["ETA", flight.eta], ["Squawk", flight.squawk],
-    ["Fuel", flight.fuel]
+    ["ETA", flight.eta], ["Squawk", flight.squawk], ["Fuel", flight.fuel],
   ];
 
   return (
@@ -56,7 +46,15 @@ export function FlightDetailDrawer({ flight, onClose }) {
 
       <div className="flex gap-4">
         {[{ label: "ISSUE CLEARANCE", color: "var(--amber)" }, { label: "ADD TO SEQUENCE", color: "var(--teal)" }, { label: "ASSIGN HOLDING", color: "var(--yellow)" }].map((a) => (
-          <button key={a.label} className="px-8 py-3 font-display text-[12px] tracking-widest transition-colors hover:bg-white/5" style={{ border: `1px solid ${a.color}`, color: a.color, background: 'transparent' }}>
+          <button 
+            key={a.label} 
+            onClick={() => {
+              const ce = new CustomEvent("show-toast", { detail: `${a.label} action logged for ${flight.callsign}` });
+              window.dispatchEvent(ce);
+            }}
+            className="px-8 py-3 font-display text-[12px] tracking-widest transition-colors hover:bg-white/5 active:scale-95" 
+            style={{ border: `1px solid ${a.color}`, color: a.color, background: 'transparent' }}
+          >
             {a.label}
           </button>
         ))}
@@ -65,9 +63,54 @@ export function FlightDetailDrawer({ flight, onClose }) {
   );
 }
 
+// ── CPA Badge ──────────────────────────────────────────────────────────────
+function CpaBadge({ cpaSeconds }) {
+  if (!cpaSeconds) return null;
+  const min = Math.floor(cpaSeconds / 60);
+  const sec = cpaSeconds % 60;
+  const label = `CPA ${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  const color = cpaSeconds < 300 ? "var(--red)" : cpaSeconds < 600 ? "#f5a623" : "rgba(0,229,204,0.8)";
+  return (
+    <span
+      className="font-display text-[9px] tracking-wide px-1.5 py-0.5 rounded-sm"
+      style={{ border: `1px solid ${color}`, color, background: `${color}15` }}
+    >
+      {label}
+    </span>
+  );
+}
+
+const STATUS_PRIORITY = { CONFLICT: 0, HOLDING: 1, APPROACH: 2, LANDING: 2, TAKEOFF: 3, DEPARTING: 3, CRUISE: 4, ENROUTE: 5 };
+
 export default function FlightListPanel({ flightsData, selectedFlight, onSelectFlight, activeTab, onTabChange }) {
   const [showWeather, setShowWeather] = useState(false);
-  const filtered = flightsData.filter(filterMap[activeTab] || filterMap.ALL);
+  const bands = getAltBandCounts(flightsData);
+
+  // Tabs: ALL, <FL100, FL100-250, >FL250, ALERTS
+  const TABS = [
+    { key: "ALL",      label: "ALL",        count: flightsData.length },
+    { key: "LOW",      label: "<FL100",     count: bands.under100 },
+    { key: "MID",      label: "FL100-250",  count: bands.band100250 },
+    { key: "HIGH",     label: ">FL250",     count: bands.over250 },
+    { key: "ALERTS",   label: "ALERTS",     count: flightsData.filter(f => f.status === "CONFLICT" || f.status === "HOLDING").length },
+  ];
+
+  function parseFL(alt) {
+    if (!alt || alt === "GND") return 0;
+    if (alt.startsWith("FL")) return parseInt(alt.slice(2), 10);
+    const ft = parseInt(alt.replace(/[^0-9]/g, ""), 10);
+    return Math.round(ft / 100);
+  }
+
+  const filterMap = {
+    ALL:    () => true,
+    LOW:    (f) => parseFL(f.altitude) < 100,
+    MID:    (f) => { const fl = parseFL(f.altitude); return fl >= 100 && fl <= 250; },
+    HIGH:   (f) => parseFL(f.altitude) > 250,
+    ALERTS: (f) => f.status === "CONFLICT" || f.status === "HOLDING",
+  };
+
+  const filtered = sortByUrgency(flightsData.filter(filterMap[activeTab] || filterMap.ALL));
 
   return (
     <div className="panel flex flex-col h-full relative overflow-hidden">
@@ -77,12 +120,16 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
           FLIGHTS
         </h3>
         <span className="px-2 py-0.5 font-display text-[11px]" style={{ background: 'var(--bg-raised)', color: 'var(--text-secondary)' }}>
-          {filtered.length} TOTAL
+          {filtered.length}/{flightsData.length}
         </span>
       </div>
 
       {/* Weather Header (Collapsible) */}
-      <div className="px-4 py-2 flex items-center justify-between cursor-pointer transition-colors hover:bg-white/5" style={{ borderBottom: '1px solid var(--border-default)' }} onClick={() => setShowWeather(!showWeather)}>
+      <div
+        className="px-4 py-2 flex items-center justify-between cursor-pointer transition-colors hover:bg-white/5"
+        style={{ borderBottom: '1px solid var(--border-default)' }}
+        onClick={() => setShowWeather(!showWeather)}
+      >
         <span className="font-display text-[11px] uppercase" style={{ color: 'var(--text-muted)' }}>Weather & ATIS</span>
         <Cloud className="w-4 h-4" style={{ color: showWeather ? 'var(--teal)' : 'var(--text-muted)' }} />
       </div>
@@ -98,29 +145,34 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
         )}
       </AnimatePresence>
 
-      {/* Tabs */}
-      <div className="flex" style={{ borderBottom: '1px solid var(--border-default)' }}>
-        {TABS.map((t) => (
+      {/* Tabs — with live counts */}
+      <div className="flex overflow-x-auto no-scrollbar" style={{ borderBottom: '1px solid var(--border-default)' }}>
+        {TABS.map(({ key, label, count }) => (
           <button
-            key={t}
-            onClick={() => onTabChange(t)}
-            className="flex-1 py-2 font-display text-[10px] tracking-wider transition-colors"
+            key={key}
+            onClick={() => onTabChange(key)}
+            className="flex-shrink-0 px-2 py-2 font-display text-[9px] tracking-wider transition-colors flex flex-col items-center gap-0.5"
             style={{
-              color: activeTab === t ? 'var(--amber)' : 'var(--text-muted)',
-              borderBottom: activeTab === t ? '2px solid var(--amber)' : '2px solid transparent',
+              color: activeTab === key ? 'var(--amber)' : 'var(--text-muted)',
+              borderBottom: activeTab === key ? '2px solid var(--amber)' : '2px solid transparent',
+              minWidth: 52,
             }}
           >
-            {t}
+            <span>{label}</span>
+            <span style={{ fontSize: 10, color: activeTab === key ? 'var(--amber)' : 'var(--text-secondary)', fontWeight: 600 }}>
+              {count}
+            </span>
           </button>
         ))}
       </div>
 
-      {/* Flight list - Slim Strip */}
+      {/* Flight list - Slim Strip, sorted by urgency */}
       <div className="flex-1 overflow-y-auto w-full no-scrollbar pb-10">
         {filtered.map((flight) => {
           const color = statusColors[flight.status] || "var(--text-muted)";
           const isSelected = selectedFlight === flight.callsign;
           const isConflict = flight.status === "CONFLICT";
+          const isHolding = flight.status === "HOLDING";
 
           return (
             <button
@@ -129,23 +181,33 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
               className="w-full flex items-center justify-between px-4 py-2.5 transition-colors group"
               style={{
                 borderBottom: '1px solid var(--border-default)',
-                borderLeft: isConflict ? `3px solid var(--red)` : isSelected ? `3px solid ${color}` : '3px solid transparent',
+                borderLeft: isConflict ? `3px solid var(--red)` : isHolding ? `3px solid var(--yellow)` : isSelected ? `3px solid ${color}` : '3px solid transparent',
                 background: isSelected ? 'var(--bg-raised)' : isConflict ? 'rgba(255,45,45,0.08)' : 'transparent',
-                boxShadow: isConflict ? 'inset 0 0 12px rgba(255,45,45,0.1)' : 'none'
+                boxShadow: isConflict ? 'inset 0 0 12px rgba(255,45,45,0.1)' : 'none',
               }}
             >
-              <div className="flex items-center gap-3">
-                <span 
-                  className={`w-2 h-2 rounded-full ${isConflict ? 'animate-blink' : ''}`} 
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${isConflict ? 'animate-blink' : ''}`}
                   style={{ background: color, boxShadow: `0 0 6px ${color}` }}
                 />
-                <span className="font-display text-[13px] tracking-wider" style={{ color: isSelected || isConflict ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                  {flight.callsign}
-                </span>
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="font-display text-[13px] tracking-wider truncate" style={{ color: isSelected || isConflict ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {flight.callsign}
+                  </span>
+                  {(isConflict || isHolding) && flight.cpaPair && (
+                    <span className="font-display text-[9px]" style={{ color: 'var(--text-muted)' }}>
+                      vs {flight.cpaPair}
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className="font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                {flight.altitude}
-              </span>
+              <div className="flex flex-col items-end gap-0.5 shrink-0 ml-2">
+                <span className="font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {flight.altitude}
+                </span>
+                {flight.cpaSeconds && <CpaBadge cpaSeconds={flight.cpaSeconds} />}
+              </div>
             </button>
           );
         })}
