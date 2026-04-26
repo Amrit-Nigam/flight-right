@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { logActivity, logAudit } from "@/lib/siteLogger";
 
 export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, aiEnabled, acceptedCount }) {
   const [showMedium, setShowMedium] = useState(false);
@@ -55,13 +56,21 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
 
         <div className="flex gap-2">
           <button
-            onClick={() => onAccept(s)}
+            type="button"
+            onClick={() => {
+              logAudit("ai:suggestions:ui", "ACCEPT control on suggestion card", { id: s.id, type: s.type });
+              onAccept(s);
+            }}
             className="flex-1 font-display text-[11px] py-1.5 transition-all hover:bg-white/5 bg-[rgba(0,255,136,0.05)] border border-[var(--green)] text-[var(--green)]"
           >
             ✓ ACCEPT
           </button>
           <button
-            onClick={() => onDismiss(s.id)}
+            type="button"
+            onClick={() => {
+              logAudit("ai:suggestions:ui", "DISMISS control on suggestion card", { id: s.id, type: s.type });
+              onDismiss(s.id);
+            }}
             className="flex-1 font-display text-[11px] py-1.5 transition-all hover:bg-white/5 border border-[var(--border-default)] text-[var(--text-muted)]"
           >
             ✕ DISMISS
@@ -116,7 +125,19 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
         {medium.length > 0 && (
           <div className="mt-4 border-t border-[var(--border-default)] pt-4 pb-4">
             <button 
-              onClick={() => setShowMedium(!showMedium)}
+              onClick={() =>
+                setShowMedium((v) => {
+                  const next = !v;
+                  logAudit("ai:suggestions:ui", "Medium-priority queue disclosure toggled", {
+                    expanded: next,
+                    count: medium.length,
+                  });
+                  logActivity("ai:suggestions", `Medium-priority queue ${next ? "expanded" : "collapsed"}`, {
+                    count: medium.length,
+                  });
+                  return next;
+                })
+              }
               className="w-full flex items-center justify-between px-3 py-2 border border-[var(--border-default)] bg-[var(--bg-raised)] transition-colors hover:bg-white/5"
             >
               <span className="font-display text-[11px] text-[var(--text-muted)] tracking-widest">

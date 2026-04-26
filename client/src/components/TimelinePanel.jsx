@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { timelineRows } from "@/data/mockData";
+import { logAudit } from "@/lib/siteLogger";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
 
@@ -17,7 +18,7 @@ const NOW_MINUTE    = 37;
 const LOOKAHEAD_MIN = 15; // AI predictive zone width
 
 // ── Tooltip component ──────────────────────────────────────────────────────
-function BarTooltip({ bar, onUndo, anchorRef }) {
+function BarTooltip({ bar, rowFlight, barIndex, onUndo }) {
   if (!bar.xaiDetail && !bar.holdExit) return null;
   return (
     <div
@@ -37,7 +38,13 @@ function BarTooltip({ bar, onUndo, anchorRef }) {
           <p className="font-display text-[10px] uppercase tracking-widest mb-1" style={{ color: 'var(--green)' }}>AI Action — Explanation</p>
           <p style={{ color: 'var(--text-secondary)' }}>{bar.xaiDetail}</p>
           <button
+            type="button"
             onClick={() => {
+              logAudit("timeline:undo", "Undo resequence from timeline tooltip", {
+                flight: rowFlight,
+                barIndex,
+                barLabel: bar.label,
+              });
               onUndo();
               window.dispatchEvent(new CustomEvent("show-toast", { detail: "Resequence reverted to manual." }));
             }}
@@ -66,7 +73,11 @@ export default function TimelinePanel({ isOpen, onToggle }) {
     <div className="w-full shrink-0 flex flex-col items-center relative" style={{ zIndex: 50 }}>
       {/* Timeline Tab button */}
       <button
-        onClick={onToggle}
+        type="button"
+        onClick={() => {
+          logAudit("timeline:panel", `System timeline tab ${isOpen ? "collapse" : "expand"} requested`);
+          onToggle();
+        }}
         className="flex items-center gap-3 px-8 py-2 rounded-t-md transition-colors"
         style={{
           background: 'var(--bg-panel)',
@@ -221,7 +232,12 @@ export default function TimelinePanel({ isOpen, onToggle }) {
 
                             {/* Hover tooltip */}
                             {showTip && (
-                              <BarTooltip bar={bar} onUndo={() => setTooltip(null)} />
+                              <BarTooltip
+                                bar={bar}
+                                rowFlight={row.flight}
+                                barIndex={bi}
+                                onUndo={() => setTooltip(null)}
+                              />
                             )}
                           </div>
                         );

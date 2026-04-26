@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { runways } from "@/data/mockData";
+import { logActivity, logAudit } from "@/lib/siteLogger";
 import { Sparkles } from "lucide-react";
 
 export default function RunwayStatusPanel() {
@@ -14,6 +15,12 @@ export default function RunwayStatusPanel() {
           {!isBalanced && (
             <button 
               onClick={() => {
+                logAudit("runway:balance", "AI AUTO-BALANCE control activated on runway panel", {
+                  runways: runways.map((r) => r.id),
+                });
+                logActivity("runway:balance", "Triggered mock AI runway auto-balance", {
+                  runways: runways.map((r) => r.id),
+                });
                 setIsBalanced(true);
                 window.dispatchEvent(new CustomEvent("show-toast", { detail: "Runway loads auto-balanced. Saved 14 minutes total delay." }));
               }}

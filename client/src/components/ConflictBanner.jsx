@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { logAudit } from "@/lib/siteLogger";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function ConflictBanner({ conflict, onResolve, onResolveClick, theme = "dark" }) {
@@ -83,7 +84,14 @@ export default function ConflictBanner({ conflict, onResolve, onResolveClick, th
             </div>
 
             <button
-              onClick={resolveHandler}
+              onClick={() => {
+                logAudit("banner:conflict", "RESOLVE NOW clicked on loss-of-separation banner", {
+                  flight1: conflict?.flight1,
+                  flight2: conflict?.flight2,
+                  secondsRemaining: seconds,
+                });
+                resolveHandler?.();
+              }}
               className="font-display text-[14px] tracking-widest px-8 py-4 font-bold transition-all shadow-lg active:scale-95 hover:scale-105 rounded-sm"
               style={{ 
                 background: "#ffffff",

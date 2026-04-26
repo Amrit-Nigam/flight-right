@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { nlpComms } from "@/data/mockData";
+import { logActivity, logAudit } from "@/lib/siteLogger";
 
 export default function NLPCommsPanel({ feed }) {
   const comms = feed || nlpComms;
@@ -60,6 +61,14 @@ export default function NLPCommsPanel({ feed }) {
                 {isInteractive && !isApproved && (
                   <button 
                     onClick={() => {
+                      logAudit("comms:datalink", "APPROVE & TRANSMIT control activated on transcript line", {
+                        flight: comm.flight,
+                        commId: comm.id ?? idx,
+                      });
+                      logActivity("comms:datalink", "Approved mock datalink clearance (transcript)", {
+                        flight: comm.flight,
+                        commId: comm.id ?? idx,
+                      });
                       setApprovedIds(prev => new Set([...prev, comm.id || idx]));
                       window.dispatchEvent(new CustomEvent("show-toast", { detail: `Datalink clearance transmitted to ${comm.flight}` }));
                     }}
