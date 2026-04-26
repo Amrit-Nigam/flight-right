@@ -13,6 +13,11 @@ dist-ssr
 *.local
 .env
 
+# Model training data/artifacts are generated from OpenSky locally.
+modeltraining/data/*.jsonl
+modeltraining/data/*.csv
+modeltraining/artifacts/*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

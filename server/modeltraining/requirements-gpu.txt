@@ -1,0 +1,7 @@
+# Windows/NVIDIA RTX 4060 training environment.
+# Install PyTorch separately using the command in README.md so the CUDA wheel matches your laptop.
+numpy
+pandas
+scikit-learn
+joblib
+tqdm
