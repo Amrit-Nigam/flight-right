@@ -73,16 +73,19 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
 
   return (
     <div className="panel flex flex-col h-full relative overflow-hidden">
-      <div className="panel-header py-3 px-4 flex items-center justify-between">
+      <div className="panel-header py-3 px-4 flex items-center justify-between gap-3">
         <h3 className="font-display text-[13px] tracking-widest text-[var(--amber)]">
-          ✦ AI ENGINE QUEUE
+          ✦ AI suggestions queue
         </h3>
         {acceptedCount > 0 && (
-          <span className="font-display text-[10px] text-[var(--green)] px-2 border border-[var(--green)] bg-[rgba(0,255,136,0.1)]">
+          <span className="font-display text-[10px] text-[var(--green)] px-2 border border-[var(--green)] bg-[rgba(0,255,136,0.1)] shrink-0">
             {acceptedCount} RESOLVED
           </span>
         )}
       </div>
+      <p className="font-body text-[11px] text-[var(--text-muted)] leading-snug px-4 py-2 border-b border-[var(--border-default)] bg-[var(--bg-base)]">
+        Proposed actions only — review each suggestion before accepting. Nothing here applies to live traffic.
+      </p>
 
       {!aiEnabled && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[var(--bg-base)] bg-opacity-95 backdrop-blur-sm">

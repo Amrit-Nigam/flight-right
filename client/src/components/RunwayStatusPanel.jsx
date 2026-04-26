@@ -17,7 +17,7 @@ export default function RunwayStatusPanel() {
                 setIsBalanced(true);
                 window.dispatchEvent(new CustomEvent("show-toast", { detail: "Runway loads auto-balanced. Saved 14 minutes total delay." }));
               }}
-              className="group flex items-center gap-1.5 px-3 py-1 bg-[rgba(0,229,204,0.05)] text-[var(--teal)] font-display text-[10px] tracking-widest border border-[var(--teal)] transition-all hover:bg-[var(--teal)] hover:text-[#050508]"
+              className="group flex items-center gap-1.5 px-3 py-1 bg-[var(--teal-glow)] text-[var(--teal)] font-display text-[10px] tracking-widest border border-[var(--teal)] transition-all hover:bg-[var(--teal)] hover:text-white"
             >
               <Sparkles className="w-3 h-3 group-hover:animate-pulse" />
               AI AUTO-BALANCE

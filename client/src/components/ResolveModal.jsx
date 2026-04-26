@@ -66,11 +66,11 @@ function MiniRadar({ conflict }) {
 
       // Label
       ctx.fillStyle = color;
-      ctx.font = "bold 9px 'Share Tech Mono', monospace";
+      ctx.font = "bold 9px 'Geist Variable', system-ui, sans-serif";
       ctx.fillText(f.label || f.callsign, fx + 7, fy - 4);
       if (f.altitude) {
         ctx.fillStyle = "rgba(180,180,180,0.7)";
-        ctx.font = "8px 'Share Tech Mono', monospace";
+        ctx.font = "8px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText(f.altitude, fx + 7, fy + 7);
       }
     };
@@ -89,7 +89,7 @@ function MiniRadar({ conflict }) {
     ctx.moveTo(mx + crossSize, my - crossSize); ctx.lineTo(mx - crossSize, my + crossSize);
     ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.fillStyle = "rgba(255,45,45,0.8)";
-    ctx.font = "bold 8px 'Share Tech Mono', monospace";
+    ctx.font = "bold 8px 'Geist Variable', system-ui, sans-serif";
     ctx.fillText("CPA", mx + 7, my - 3);
   }, [conflict]);
 

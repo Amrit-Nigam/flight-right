@@ -23,11 +23,17 @@ const INITIAL_FLIGHTS = [
   { callsign: "SJ302",  lat: 17.50, lng: 74.20, heading: 135, speed: 460, altitude: "FL370", status: "cruise"  },
 ];
 
-const STATUS_COLORS = {
+const STATUS_COLORS_DARK = {
   landing: "#00e5cc", approach: "#00e5cc",
   takeoff: "#f5a623", cruise: "#f5a623", departing: "#f5a623",
   holding: "#ffdd00",
   conflict: "#ff2d2d",
+};
+const STATUS_COLORS_LIGHT = {
+  landing: "#0f766e", approach: "#0f766e",
+  takeoff: "#b45309", cruise: "#64748b", departing: "#b45309",
+  holding: "#a16207",
+  conflict: "#b91c1c",
 };
 
 const WAYPOINTS = [
@@ -71,33 +77,42 @@ function makeAircraftIcon(color, heading, size, pulse) {
   return L.divIcon({ className: "", html, iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
 }
 
-function makeWaypointIcon(name) {
-  const html = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;"><svg viewBox="0 0 10 10" width="10" height="10" fill="#00e5cc"><polygon points="5,0 10,5 5,10 0,5"/></svg><span style="position:absolute;top:14px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;font-size:9px;color:#00e5cc;white-space:nowrap;opacity:0.75;text-shadow:0 0 6px #00e5cc;">${name}</span></div>`;
+function makeWaypointIcon(name, isLight) {
+  const fill = isLight ? "#0f766e" : "#00e5cc";
+  const label = isLight ? "#115e59" : "#00e5cc";
+  const shadow = isLight ? "none" : "0 0 6px #00e5cc";
+  const html = `<div style="position:relative;display:flex;flex-direction:column;align-items:center;"><svg viewBox="0 0 10 10" width="10" height="10" fill="${fill}"><polygon points="5,0 10,5 5,10 0,5"/></svg><span style="position:absolute;top:14px;left:50%;transform:translateX(-50%);font-family:'Geist Variable',system-ui,sans-serif;font-size:10px;color:${label};white-space:nowrap;font-weight:600;text-shadow:${shadow};">${name}</span></div>`;
   return L.divIcon({ className: "", html, iconSize: [10, 10], iconAnchor: [5, 5] });
 }
 
-function makeAirportIcon() {
-  const html = `<div style="position:relative;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="24" height="24" fill="#f5a623"><rect x="11" y="2" width="2" height="20" rx="1"/><rect x="2" y="11" width="20" height="2" rx="1"/></svg><span style="position:absolute;top:26px;left:50%;transform:translateX(-50%);font-family:'Share Tech Mono',monospace;font-size:9px;color:#f5a623;white-space:nowrap;font-weight:700;text-shadow:0 0 8px #f5a623;">VABB</span></div>`;
+function makeAirportIcon(isLight) {
+  const fill = isLight ? "#b45309" : "#f5a623";
+  const label = isLight ? "#92400e" : "#f5a623";
+  const shadow = isLight ? "none" : "0 0 8px #f5a623";
+  const html = `<div style="position:relative;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="24" height="24" fill="${fill}"><rect x="11" y="2" width="2" height="20" rx="1"/><rect x="2" y="11" width="20" height="2" rx="1"/></svg><span style="position:absolute;top:26px;left:50%;transform:translateX(-50%);font-family:'Geist Variable',system-ui,sans-serif;font-size:10px;color:${label};white-space:nowrap;font-weight:700;text-shadow:${shadow};">VABB</span></div>`;
   return L.divIcon({ className: "", html, iconSize: [24, 24], iconAnchor: [12, 12] });
 }
 
 // Pill button
-function Pill({ label, active, color, onClick }) {
+function Pill({ label, active, color, onClick, isLight }) {
+  const inactiveBg = isLight ? "rgba(255,255,255,0.96)" : "rgba(6,6,8,0.85)";
+  const inactiveColor = isLight ? "#292524" : color;
   return (
     <button
       onClick={onClick}
       style={{
-        fontFamily: "'Share Tech Mono', monospace",
-        fontSize: 10,
-        padding: "3px 10px",
-        background: active ? color : "rgba(6,6,8,0.85)",
-        color: active ? "#0a0b0e" : color,
+        fontFamily: "'Geist Variable', system-ui, sans-serif",
+        fontSize: 11,
+        padding: "4px 10px",
+        background: active ? color : inactiveBg,
+        color: active ? "#0a0b0e" : inactiveColor,
         border: `1px solid ${color}`,
-        opacity: active ? 1 : 0.75,
+        opacity: active ? 1 : 1,
         cursor: "pointer",
-        letterSpacing: "0.08em",
+        letterSpacing: "0.06em",
         transition: "all 0.15s",
         marginLeft: -1,
+        boxShadow: isLight && !active ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
       }}
     >
       {label}
@@ -143,9 +158,17 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
     return () => clearInterval(id);
   }, []);
 
-  // ── Init Leaflet map imperatively (avoids react-leaflet dependency chain) ──
+  const isLight = theme === "light";
+
+  // ── Init Leaflet map (rebuild when theme changes so basemap matches) ──
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (!containerRef.current) return;
+
+    if (mapRef.current) {
+      mapRef.current.remove();
+      mapRef.current = null;
+      markersRef.current = {};
+    }
 
     const map = L.map(containerRef.current, {
       center: [VABB_LAT, VABB_LNG],
@@ -158,32 +181,31 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       maxBoundsViscosity: 1.0,
     });
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd",
-    }).addTo(map);
+    const tileUrl = isLight
+      ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    L.tileLayer(tileUrl, { subdomains: "abcd" }).addTo(map);
 
-    // FIR boundary polygon
+    const strokeAmber = isLight ? "#b45309" : "#f5a623";
+    const strokeTeal = isLight ? "#0f766e" : "#00e5cc";
+
     L.polygon(FIR_COORDS, {
-      color: "#f5a623", weight: 1.5, opacity: 0.45, dashArray: "6 4", fillOpacity: 0,
+      color: strokeAmber, weight: isLight ? 2 : 1.5, opacity: isLight ? 0.85 : 0.45, dashArray: "6 4", fillOpacity: 0,
     }).addTo(map);
 
-    // TMA circle (80 km)
     L.circle([VABB_LAT, VABB_LNG], {
       radius: 80000,
-      color: "#00e5cc", weight: 1, opacity: 0.35, dashArray: "4 4", fillColor: "#00e5cc", fillOpacity: 0.03,
+      color: strokeTeal, weight: isLight ? 1.25 : 1, opacity: isLight ? 0.55 : 0.35, dashArray: "4 4", fillColor: strokeTeal, fillOpacity: isLight ? 0.06 : 0.03,
     }).addTo(map);
 
-    // ILS approach corridors
     APPROACH_PATHS.forEach(ap => {
-      L.polyline(ap.latlngs, { color: "#f5a623", weight: 1.5, opacity: 0.3, dashArray: "3 6" }).addTo(map);
+      L.polyline(ap.latlngs, { color: strokeAmber, weight: 1.5, opacity: isLight ? 0.55 : 0.3, dashArray: "3 6" }).addTo(map);
     });
 
-    // Airport marker
-    L.marker([VABB_LAT, VABB_LNG], { icon: makeAirportIcon() }).addTo(map);
+    L.marker([VABB_LAT, VABB_LNG], { icon: makeAirportIcon(isLight) }).addTo(map);
 
-    // Waypoints
     WAYPOINTS.forEach(wp => {
-      L.marker([wp.lat, wp.lng], { icon: makeWaypointIcon(wp.name) }).addTo(map);
+      L.marker([wp.lat, wp.lng], { icon: makeWaypointIcon(wp.name, isLight) }).addTo(map);
     });
 
     mapRef.current = map;
@@ -193,7 +215,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       mapRef.current = null;
       markersRef.current = {};
     };
-  }, []);
+  }, [isLight]);
 
   // ── Compute visible set ──
   const visibleCallsigns = useMemo(() => {
@@ -210,15 +232,22 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
     return set;
   }, [liveFlights, statusFilter, altFilter]);
 
+  const statusColors = useMemo(
+    () => (isLight ? STATUS_COLORS_LIGHT : STATUS_COLORS_DARK),
+    [isLight]
+  );
+
   // ── Update markers imperatively as liveFlights change ──
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
+    const selectedColor = isLight ? "#0c0a09" : "#ffffff";
+
     liveFlights.forEach(f => {
       const isSelected = selectedFlight === f.callsign;
       const isDimmed   = !visibleCallsigns.has(f.callsign);
-      const color      = isSelected ? "#ffffff" : (STATUS_COLORS[f.status] || "#f5a623");
+      const color      = isSelected ? selectedColor : (statusColors[f.status] || (isLight ? "#b45309" : "#f5a623"));
       const size       = f.status === "conflict" ? 32 : 28;
 
       if (markersRef.current[f.callsign]) {
@@ -266,10 +295,9 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         markersRef.current[f.callsign] = marker;
       }
     });
-  }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight]);
+  }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight, statusColors, isLight]);
 
-  const isLight = theme === "light";
-  const bgColor = isLight ? "#f8fafc" : "#060608";
+  const bgColor = isLight ? "var(--bg-base)" : "#060608";
   
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: bgColor }}>
@@ -278,22 +306,22 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         .leaflet-container { background: ${bgColor} !important; }
         .leaflet-pane { z-index: 10 !important; }
         .leaflet-top, .leaflet-bottom { z-index: 10 !important; }
-        .leaflet-tile { filter: ${isLight ? 'brightness(1.1) grayscale(0.8) contrast(0.9) invert(1)' : 'brightness(0.82) saturate(0.65)'}; }
+        .leaflet-tile { filter: ${isLight ? 'none' : 'brightness(0.82) saturate(0.65)'}; }
         .leaflet-control-attribution, .leaflet-control-zoom { display: none !important; }
         @keyframes frm-pulse {
           0%   { transform: scale(1); opacity: 0.9; }
           100% { transform: scale(2.5); opacity: 0; }
         }
         .frm-tooltip {
-          background: #0a0b0e !important;
-          border: 1px solid #f5a623 !important;
-          color: #f5a623 !important;
-          font-family: 'Share Tech Mono', monospace !important;
-          font-size: 10px !important;
-          padding: 4px 8px !important;
-          border-radius: 0 !important;
+          background: ${isLight ? "#ffffff" : "#0a0b0e"} !important;
+          border: 1px solid ${isLight ? "#b45309" : "#f5a623"} !important;
+          color: ${isLight ? "#0c0a09" : "#f5a623"} !important;
+          font-family: 'Geist Variable', system-ui, sans-serif !important;
+          font-size: 11px !important;
+          padding: 5px 9px !important;
+          border-radius: 2px !important;
           white-space: nowrap !important;
-          box-shadow: 0 0 10px rgba(245,166,35,0.25);
+          box-shadow: ${isLight ? "0 2px 8px rgba(0,0,0,0.12)" : "0 0 10px rgba(245,166,35,0.25)"};
         }
         .frm-tooltip::before { display: none !important; }
       `}</style>
@@ -304,21 +332,30 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       {/* Controls overlay */}
       <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, display: "flex", flexDirection: "column", gap: 8, pointerEvents: "none" }}>
         {/* Sector info bar */}
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: "rgba(245,166,35,0.55)", letterSpacing: "0.1em", padding: "4px 10px", background: "rgba(6,6,8,0.75)" }}>
+        <div style={{
+          fontFamily: "'Geist Variable', system-ui, sans-serif",
+          fontSize: 10,
+          color: isLight ? "#44403c" : "rgba(245,166,35,0.85)",
+          letterSpacing: "0.06em",
+          padding: "5px 11px",
+          background: isLight ? "var(--overlay-strong)" : "rgba(6,6,8,0.75)",
+          border: isLight ? "1px solid var(--border-default)" : "1px solid transparent",
+          borderRadius: 2,
+        }}>
           MODE: APP/DEP &nbsp;|&nbsp; RANGE: TMA 80NM &nbsp;|&nbsp; SECTOR: 7B-ALPHA
         </div>
 
         {/* Status filter */}
         <div style={{ display: "flex", pointerEvents: "all" }}>
           {FILTER_OPTS.map(opt => (
-            <Pill key={opt} label={opt} active={statusFilter === opt} color="#f5a623" onClick={() => setStatusFilter(opt)} />
+            <Pill key={opt} label={opt} active={statusFilter === opt} color={isLight ? "#b45309" : "#f5a623"} isLight={isLight} onClick={() => setStatusFilter(opt)} />
           ))}
         </div>
 
         {/* Altitude filter */}
         <div style={{ display: "flex", pointerEvents: "all" }}>
           {ALT_OPTS.map(opt => (
-            <Pill key={opt} label={opt} active={altFilter === opt} color="#00e5cc" onClick={() => setAltFilter(opt)} />
+            <Pill key={opt} label={opt} active={altFilter === opt} color={isLight ? "#0f766e" : "#00e5cc"} isLight={isLight} onClick={() => setAltFilter(opt)} />
           ))}
         </div>
       </div>

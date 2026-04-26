@@ -31,7 +31,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
     const dpr = window.devicePixelRatio || 1;
 
     const baseColor   = isLight ? "#0f172a" : "#f5a623";
-    const bgSolid     = isLight ? "#f8fafc" : "#060608";
+    const bgSolid     = isLight ? "#eceae6" : "#060608";
     const gridOpac    = isLight ? "0.3" : "0.06";
     const hexBaseRGB  = isLight ? "148,163,184" : "245,166,35";
     const textPrimary = isLight ? "#0f172a"  : "#f5a623";
@@ -94,7 +94,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         ctx.strokeStyle = `rgba(${hexBaseRGB},${isLight ? '0.4' : '0.15'})`;
         ctx.lineWidth = 0.8; ctx.stroke();
         ctx.fillStyle = isLight ? `rgba(${hexBaseRGB},1)` : `rgba(${hexBaseRGB},0.5)`;
-        ctx.font = "11px 'Share Tech Mono', monospace";
+        ctx.font = "11px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText(["10", "20", "30", "40", "50 NM"][i - 1], cx + r - 30, cy - 4);
       }
 
@@ -148,7 +148,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         const lblX = cx + (pt0.xPct / 100 - 0.5) * radius * 2;
         const lblY = cy + (pt0.yPct / 100 - 0.5) * radius * 2;
         ctx.fillStyle = "rgba(255, 60, 0, 0.8)";
-        ctx.font = "bold 10px 'Share Tech Mono', monospace";
+        ctx.font = "bold 10px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText("SEVERE WX", lblX, lblY);
       }
 
@@ -182,7 +182,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
               const lx = cx + (lastPt.xPct / 100 - 0.5) * radius * 2;
               const ly = cy + (lastPt.yPct / 100 - 0.5) * radius * 2;
               ctx.fillStyle = color;
-              ctx.font = "9px 'Share Tech Mono', monospace";
+              ctx.font = "9px 'Geist Variable', system-ui, sans-serif";
               ctx.fillText(isAccepted ? "DEV APPROVED" : "DEV PROP", lx + 4, ly);
             }
           }
@@ -241,7 +241,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
 
         // Label ring
         ctx.fillStyle = "rgba(255,45,45,0.55)";
-        ctx.font = "9px 'Share Tech Mono', monospace";
+        ctx.font = "9px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText("5NM", fx + ringR + 2, fy - 4);
       }
 
@@ -264,7 +264,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         ctx.arc(mx, my, 4 + Math.sin(Date.now() / 150) * 2, 0, Math.PI * 2);
         ctx.fillStyle = "#ff2d2d"; ctx.fill();
         ctx.fillStyle = "rgba(255,45,45,0.7)";
-        ctx.font = "bold 9px 'Share Tech Mono', monospace";
+        ctx.font = "bold 9px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText("CPA", mx + 6, my - 4);
       }
 
@@ -313,10 +313,10 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
 
         // Labels
         ctx.fillStyle = color;
-        ctx.font = "bold 11px 'Share Tech Mono', monospace";
+        ctx.font = "bold 11px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText(f.callsign, fx + 12, fy - 6);
         ctx.fillStyle = textMuted;
-        ctx.font = "10px 'Share Tech Mono', monospace";
+        ctx.font = "10px 'Geist Variable', system-ui, sans-serif";
         ctx.fillText(f.altitude, fx + 12, fy + 7);
 
         // Movement
@@ -329,7 +329,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
 
       // Overlay text
       ctx.fillStyle = isLight ? `rgba(${hexBaseRGB},0.8)` : `rgba(${hexBaseRGB},0.5)`;
-      ctx.font = "11px 'Share Tech Mono', monospace";
+      ctx.font = "11px 'Geist Variable', system-ui, sans-serif";
       ["MODE: APP/DEP", "RANGE: 50 NM", "SECTOR: 7B-ALPHA", "FILTER: ALL TRAFFIC"].forEach((t, i) => {
         ctx.fillText(t, 16, 24 + i * 18);
       });

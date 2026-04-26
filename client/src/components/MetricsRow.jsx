@@ -56,7 +56,7 @@ function MetricCard({ metric, index }) {
       
       <p 
         className="font-display text-[36px] tracking-tight leading-none mb-2 relative z-10" 
-        style={{ color, textShadow: `0 0 20px ${color}50` }}
+        style={{ color, textShadow: `0 0 12px ${color}28` }}
       >
         {formatValue()}
       </p>
@@ -77,9 +77,12 @@ export default function MetricsRow({ metricsData }) {
   return (
     <div className="panel p-5">
       <div className="flex items-center justify-between mb-4 px-1">
-        <h3 className="font-display text-[13px] tracking-widest" style={{ color: 'var(--text-primary)' }}>
-          CRITICAL METRICS
-        </h3>
+        <div>
+          <h3 className="font-display text-[13px] tracking-widest" style={{ color: 'var(--text-primary)' }}>
+            Sector metrics
+          </h3>
+          <p className="font-body text-[10px] text-[var(--text-muted)] mt-0.5">Snapshot from mock scenario data</p>
+        </div>
         <span className="w-2 h-2 rounded-full animate-pulse-dot" style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
       </div>
       <div className="grid grid-cols-2 gap-3">

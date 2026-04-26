@@ -12,6 +12,7 @@ import FlightListPanel from "@/components/FlightListPanel";
 import AISuggestionsPanel from "@/components/AISuggestionsPanel";
 import RunwayStatusPanel from "@/components/RunwayStatusPanel";
 import NLPCommsPanel from "@/components/NLPCommsPanel";
+import { BlurFade } from "@/components/ui/blur-fade";
 
 import { initialFlights, metrics, initialConflict, initialSuggestions } from "@/data/mockData";
 
@@ -30,7 +31,7 @@ function App() {
   const [acceptedIds, setAcceptedIds] = useState(new Set());
 
   // ===== THEME =====
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("light");
   useEffect(() => {
     if (theme === "light") document.documentElement.classList.add("light");
     else document.documentElement.classList.remove("light");
@@ -106,24 +107,25 @@ function App() {
 
       {/* Conflict Banner */}
       <div className="z-40 w-full relative">
-        <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} />
+        <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} theme={theme} />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex gap-4 p-4 overflow-hidden relative">
         {/* LEFT — Flight List */}
-        <div className="w-[280px] shrink-0 h-full">
+        <BlurFade delay={0} direction="right" offset={10} className="flex min-h-0 w-[280px] shrink-0 flex-col h-full">
           <FlightListPanel
             flightsData={flights}
             selectedFlight={selectedFlight}
             onSelectFlight={handleSelectFlight}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            theme={theme}
           />
-        </div>
+        </BlurFade>
 
         {/* CENTER — Radar Hero */}
-        <div className="w-[55vw] shrink-0 h-full flex flex-col gap-2">
+        <BlurFade delay={0.06} direction="down" offset={12} className="w-[55vw] shrink-0 h-full flex flex-col gap-2">
           {/* View toggle row */}
           <div className="flex items-center gap-0 shrink-0 relative" style={{ height: 30, zIndex: 900 }}>
             {[{ key: "map", label: "MAP VIEW" }, { key: "radar", label: "RADAR SWEEP" }].map(({ key, label }) => (
@@ -165,8 +167,8 @@ function App() {
           <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
             <div style={{ position: "absolute", inset: 0, display: mapView === "map" ? "block" : "none" }}>
               <Suspense fallback={
-                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#060608" }}>
-                  <span style={{ fontFamily: "'Share Tech Mono',monospace", fontSize: 12, color: "var(--text-muted)", letterSpacing: "0.2em" }}>LOADING RADAR MAP…</span>
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)" }}>
+                  <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 12, color: "var(--text-muted)", letterSpacing: "0.2em" }}>LOADING RADAR MAP…</span>
                 </div>
               }>
                 <FlightRadarMap
@@ -187,10 +189,10 @@ function App() {
               />
             </div>
           </div>
-        </div>
+        </BlurFade>
 
         {/* RIGHT — Panels */}
-        <div className="flex-1 h-full overflow-y-auto flex flex-col gap-4 pr-1">
+        <BlurFade delay={0.12} direction="left" offset={10} className="flex-1 h-full overflow-y-auto flex flex-col gap-4 pr-1 min-h-0">
           <MetricsRow metricsData={metrics} />
           <AISuggestionsPanel
             suggestions={suggestions}
@@ -202,7 +204,7 @@ function App() {
           <RunwayStatusPanel />
           <NLPCommsPanel />
           <div className="h-4 shrink-0" />
-        </div>
+        </BlurFade>
       </div>
 
       {/* BOTTOM — Timeline Drawer */}
