@@ -2,7 +2,8 @@ const { getOpenSkyAircraft } = require("./openskyProvider");
 const { getReplayAircraft } = require("./replayProvider");
 
 const SOURCE = (process.env.AIRCRAFT_SOURCE || "replay").toLowerCase();
-const POLL_MS = Number(process.env.AIRCRAFT_POLL_MS || 10000);
+const configuredPollMs = Number(process.env.AIRCRAFT_POLL_MS || 10000);
+const POLL_MS = Math.max(Number.isFinite(configuredPollMs) ? configuredPollMs : 10000, 10000);
 
 let cache = {
   flights: [],
