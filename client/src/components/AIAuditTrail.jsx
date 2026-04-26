@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { aiAuditLog } from "@/data/mockData";
+import { logActivity, logAudit } from "@/lib/siteLogger";
 import { History, ChevronDown, ChevronUp, RotateCcw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 
 const OUTCOME_STYLES = {
@@ -14,6 +15,17 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
   const [undoneIds, setUndoneIds] = useState(new Set());
 
   const handleUndo = (idx) => {
+    const entry = aiAuditLog[idx];
+    logAudit("ai:audit", "AI audit list UNDO control activated", {
+      index: idx,
+      flight: entry?.flight,
+      outcome: entry?.outcome,
+    });
+    logActivity("ai:audit", "Undo mock AI audit entry (session UI only)", {
+      index: idx,
+      flight: entry?.flight,
+      actionSnippet: entry?.action?.slice(0, 80),
+    });
     setUndoneIds(p => new Set([...p, idx]));
     window.dispatchEvent(new CustomEvent("show-toast", { detail: "AI Action reverted to manual controller state." }));
   };
@@ -22,7 +34,11 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
     <div className="relative z-30">
       {/* Toggle button */}
       <button
-        onClick={onToggle}
+        type="button"
+        onClick={() => {
+          logAudit("ai:audit", `AI LOG chrome ${isOpen ? "close" : "open"}`, { drawer: "audit-trail" });
+          onToggle();
+        }}
         className="flex items-center gap-2 px-4 py-2 rounded transition-all font-display text-[11px] tracking-widest"
         style={{
           background: isOpen ? 'rgba(0,229,204,0.12)' : 'var(--bg-panel-alt)',

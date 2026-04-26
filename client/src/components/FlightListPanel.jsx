@@ -1,67 +1,8 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { statusColors, statusColorsLight, statusIcons, weather, sortByUrgency, getAltBandCounts } from "@/data/mockData";
-import { X, Cloud } from "lucide-react";
-
-// Full-width Detail Drawer that sits at the bottom of the viewport
-export function FlightDetailDrawer({ flight, onClose, palette = statusColors }) {
-  if (!flight) return null;
-  const fields = [
-    ["Route", flight.route], ["Altitude", flight.altitude], ["Speed", flight.speed],
-    ["Heading", `${flight.heading}°`], ["Aircraft", flight.aircraft],
-    ["ETA", flight.eta], ["Squawk", flight.squawk], ["Fuel", flight.fuel],
-  ];
-
-  return (
-    <motion.div
-      initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-      transition={{ type: "spring", damping: 25 }}
-      className="fixed bottom-0 left-0 right-0 z-50 p-6 shadow-2xl"
-      style={{ background: 'var(--bg-panel-alt)', borderTop: `2px solid ${palette[flight.status] || 'var(--amber)'}` }}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 flex items-center justify-center font-display text-[24px]" style={{ background: 'var(--bg-base)', color: palette[flight.status] || 'var(--text-primary)', border: '1px solid var(--border-default)' }}>
-            {statusIcons[flight.status] || "✈"}
-          </div>
-          <div>
-            <div className="flex items-center gap-3">
-              <span className="font-display text-[24px] tracking-wider" style={{ color: palette[flight.status] || 'var(--amber)' }}>{flight.callsign}</span>
-              <span className="status-badge" style={{ borderColor: palette[flight.status], color: palette[flight.status], background: 'transparent' }}>{flight.status}</span>
-            </div>
-            <span className="font-display text-[14px]" style={{ color: 'var(--text-muted)' }}>Waypoint: {flight.waypoint}</span>
-          </div>
-        </div>
-        <button onClick={onClose} className="p-2 transition-colors hover:bg-white/5 rounded"><X className="w-6 h-6" style={{ color: 'var(--text-muted)' }} /></button>
-      </div>
-
-      <div className="grid grid-cols-4 md:grid-cols-8 gap-4 mb-6">
-        {fields.map(([label, val]) => (
-          <div key={label} className="p-3" style={{ background: 'var(--bg-base)', border: '1px solid var(--border-default)' }}>
-            <p className="font-body text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
-            <p className="font-display text-[16px]" style={{ color: 'var(--text-primary)' }}>{val}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex gap-4">
-        {[{ label: "ISSUE CLEARANCE", color: "var(--amber)" }, { label: "ADD TO SEQUENCE", color: "var(--teal)" }, { label: "ASSIGN HOLDING", color: "var(--yellow)" }].map((a) => (
-          <button 
-            key={a.label} 
-            onClick={() => {
-              const ce = new CustomEvent("show-toast", { detail: `${a.label} action logged for ${flight.callsign}` });
-              window.dispatchEvent(ce);
-            }}
-            className="px-8 py-3 font-display text-[12px] tracking-widest transition-colors hover:bg-white/5 active:scale-95" 
-            style={{ border: `1px solid ${a.color}`, color: a.color, background: 'transparent' }}
-          >
-            {a.label}
-          </button>
-        ))}
-      </div>
-    </motion.div>
-  );
-}
+import { logActivity, logAudit } from "@/lib/siteLogger";
+import { Cloud } from "lucide-react";
 
 // ── CPA Badge ──────────────────────────────────────────────────────────────
 function CpaBadge({ cpaSeconds }) {
@@ -127,7 +68,18 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
       <div
         className="px-4 py-2 flex items-center justify-between cursor-pointer transition-colors hover:bg-white/5"
         style={{ borderBottom: '1px solid var(--border-default)' }}
-        onClick={() => setShowWeather(!showWeather)}
+        onClick={() =>
+          setShowWeather((w) => {
+            const next = !w;
+            logAudit("flights:weather-strip", "METAR/ATIS strip header toggled", { expanded: next });
+            logActivity(
+              "flights:weather-strip",
+              `Mock METAR/ATIS strip ${next ? "expanded" : "collapsed"}`,
+              next ? { metar: weather.metar, atis: weather.atis } : undefined
+            );
+            return next;
+          })
+        }
       >
         <span className="font-display text-[11px] uppercase" style={{ color: 'var(--text-muted)' }}>Weather & ATIS</span>
         <Cloud className="w-4 h-4" style={{ color: showWeather ? 'var(--teal)' : 'var(--text-muted)' }} />
@@ -149,7 +101,10 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
         {TABS.map(({ key, label, count }) => (
           <button
             key={key}
-            onClick={() => onTabChange(key)}
+            onClick={() => {
+              logAudit("flights:tabs", "Flight list altitude/status tab selected", { tab: key, label });
+              onTabChange(key);
+            }}
             className="flex-shrink-0 px-2 py-2.5 font-display text-[10px] tracking-wide transition-colors flex flex-col items-center gap-0.5"
             style={{
               color: activeTab === key ? 'var(--amber)' : 'var(--text-secondary)',
@@ -176,7 +131,11 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
           return (
             <button
               key={flight.callsign}
-              onClick={() => onSelectFlight(isSelected ? null : flight.callsign)}
+              onClick={() =>
+                onSelectFlight(isSelected ? null : flight.callsign, {
+                  surface: isSelected ? "flight-list-row-deselect" : "flight-list-row",
+                })
+              }
               className="w-full flex items-center justify-between px-4 py-2.5 transition-colors group"
               style={{
                 borderBottom: '1px solid var(--border-default)',
@@ -212,16 +171,6 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
         })}
       </div>
 
-      {/* Detail Drawer (Fixed at bottom) */}
-      <AnimatePresence>
-        {selectedFlight && (
-          <FlightDetailDrawer
-            flight={flightsData.find((f) => f.callsign === selectedFlight)}
-            onClose={() => onSelectFlight(null)}
-            palette={palette}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

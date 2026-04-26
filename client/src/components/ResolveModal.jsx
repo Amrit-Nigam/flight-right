@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { resolveOptions } from "@/data/mockData";
+import { logActivity, logAudit } from "@/lib/siteLogger";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 
 // ── Mini trajectory diagram ────────────────────────────────────────────────
@@ -109,7 +110,13 @@ function XaiReason({ reason }) {
   return (
     <div className="mt-2">
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() =>
+          setOpen((o) => {
+            const next = !o;
+            logAudit("resolve:xai", next ? "Expanded XAI rationale" : "Collapsed XAI rationale", { chars: reason?.length });
+            return next;
+          })
+        }
         className="flex items-center gap-1 font-display text-[10px] tracking-widest"
         style={{ color: 'var(--green)' }}
       >
@@ -200,7 +207,15 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
                 >
                   {secs > 0 ? timeStr : "CRITICAL"}
                 </p>
-                <button onClick={onCancel} className="p-1 mt-1" style={{ color: 'var(--text-muted)' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logAudit("resolve:modal", "Modal header close (X) clicked");
+                    onCancel();
+                  }}
+                  className="p-1 mt-1"
+                  style={{ color: 'var(--text-muted)' }}
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -220,7 +235,14 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
                 return (
                   <button
                     key={opt.id}
-                    onClick={() => onSelectOption(opt.id)}
+                    onClick={() => {
+                      logAudit("resolve:option", "Resolution strategy row selected", { optionId: opt.id, recommended: !!opt.recommended });
+                      logActivity("conflict:option", `Selected mock resolution ${opt.id}`, {
+                        recommended: !!opt.recommended,
+                        label: opt.label,
+                      });
+                      onSelectOption(opt.id);
+                    }}
                     className="w-full text-left p-4 transition-all relative"
                     style={{
                       border: selected ? '2px solid var(--green)' : '1px solid var(--border-default)',
@@ -260,7 +282,11 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
             {/* ── FOOTER ACTIONS (equal weight) ── */}
             <div className="p-5 flex gap-3" style={{ borderTop: '1px solid var(--border-default)' }}>
               <button
-                onClick={onApply}
+                type="button"
+                onClick={() => {
+                  logAudit("resolve:modal", "APPLY RESOLUTION button clicked", { selectedOption });
+                  onApply();
+                }}
                 disabled={!selectedOption}
                 className="flex-1 py-3 font-display text-[14px] tracking-wider transition-colors disabled:opacity-30"
                 style={{ background: 'var(--amber)', color: 'black' }}
@@ -268,7 +294,11 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
                 APPLY RESOLUTION
               </button>
               <button
-                onClick={onCancel}
+                type="button"
+                onClick={() => {
+                  logAudit("resolve:modal", "CANCEL — HANDLE MANUALLY button clicked", { selectedOption });
+                  onCancel();
+                }}
                 className="flex-1 py-3 font-display text-[14px] tracking-wider transition-all hover:bg-white/5"
                 style={{ border: '2px solid var(--red)', color: 'var(--red)', background: 'transparent' }}
               >

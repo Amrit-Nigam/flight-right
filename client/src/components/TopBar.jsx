@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-import { Bell, Sun, Moon, Mic } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Bell, Sun, Moon, Mic, ScrollText } from "lucide-react";
+import { logAudit } from "@/lib/siteLogger";
 
 export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onToggleTheme, conflict, onWeatherToggle, weatherOn }) {
   const [time, setTime] = useState(new Date());
@@ -97,7 +99,13 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
       {/* RIGHT ZONE: AI Status, Mic, Controller, Notifications, Theme */}
       <div className="flex-1 flex items-center justify-end px-6 gap-5">
         {/* AI Engine Status with workload */}
-        <button onClick={onToggleAI} className="flex flex-col items-end text-right transition-colors">
+        <button
+          onClick={() => {
+            logAudit("topbar:ai", "AI assist control clicked", { priorEnabled: aiEnabled });
+            onToggleAI();
+          }}
+          className="flex flex-col items-end text-right transition-colors"
+        >
           <span className="font-body text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
             AI Engine
           </span>
@@ -124,6 +132,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
         {/* Mic stub — voice commands coming soon */}
         <button
           onClick={() => {
+            logAudit("topbar:mic", "Voice mic control activated (stub — module offline)", { controller: "A. SHARMA" });
             const ce = new CustomEvent("show-toast", { detail: "Mic initialization pending — voice NLP module offline" });
             window.dispatchEvent(ce);
           }}
@@ -147,10 +156,26 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
 
         <div className="w-[1px] h-8" style={{ background: 'var(--border-default)' }} />
 
+        <Link
+          to="/logs"
+          onClick={() => logAudit("topbar:nav", "User opened Session logs from header", { to: "/logs" })}
+          className="inline-flex items-center gap-1 rounded px-2 py-1 text-[9px] font-semibold uppercase tracking-wider transition-colors hover:bg-white/5 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-widest"
+          style={{ color: 'var(--text-muted)' }}
+          title="Session logs (console & toasts)"
+        >
+          <ScrollText className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+          <span className="max-[380px]:sr-only">Logs</span>
+        </Link>
+
+        <div className="w-px h-8 shrink-0" style={{ background: 'var(--border-default)' }} />
+
         {/* Action icons */}
         <div className="flex items-center gap-3">
           <button
-            onClick={onToggleTheme}
+            onClick={() => {
+              logAudit("topbar:theme", "Theme toggle control clicked", { priorTheme: theme });
+              onToggleTheme();
+            }}
             className="p-1 transition-colors rounded hover:bg-white/5 active:scale-95"
             style={{ color: 'var(--text-muted)' }}
             title="Toggle Theme"
@@ -161,6 +186,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
           <button 
             className="relative flex items-center justify-center p-1 hover:bg-white/5 rounded transition-colors active:scale-95"
             onClick={() => {
+              logAudit("topbar:notifications", "Notifications bell opened", { alertCount, hasAlerts });
               const ce = new CustomEvent("show-toast", { detail: "No new system notifications." });
               window.dispatchEvent(ce);
             }}

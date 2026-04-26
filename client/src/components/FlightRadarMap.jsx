@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
+import { logActivity, logAudit } from "@/lib/siteLogger";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -279,7 +280,11 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
           });
         }
 
-        marker.on("click", () => onSelectFlight && onSelectFlight(f.callsign));
+        marker.on("click", () => {
+          if (!onSelectFlight) return;
+          logAudit("map:marker", "Aircraft marker clicked on Leaflet map", { callsign: f.callsign });
+          onSelectFlight(f.callsign, { surface: "map-marker" });
+        });
         marker.on("mouseover", () => {
           if (f.status !== "conflict" && !isSelected) {
             marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
@@ -348,14 +353,36 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         {/* Status filter */}
         <div style={{ display: "flex", pointerEvents: "all" }}>
           {FILTER_OPTS.map(opt => (
-            <Pill key={opt} label={opt} active={statusFilter === opt} color={isLight ? "#b45309" : "#f5a623"} isLight={isLight} onClick={() => setStatusFilter(opt)} />
+            <Pill
+              key={opt}
+              label={opt}
+              active={statusFilter === opt}
+              color={isLight ? "#b45309" : "#f5a623"}
+              isLight={isLight}
+              onClick={() => {
+                logAudit("map:filter", "Map status filter pill activated", { value: opt });
+                logActivity("map:filter", `Mock map status filter → ${opt}`, { kind: "status", value: opt });
+                setStatusFilter(opt);
+              }}
+            />
           ))}
         </div>
 
         {/* Altitude filter */}
         <div style={{ display: "flex", pointerEvents: "all" }}>
           {ALT_OPTS.map(opt => (
-            <Pill key={opt} label={opt} active={altFilter === opt} color={isLight ? "#0f766e" : "#00e5cc"} isLight={isLight} onClick={() => setAltFilter(opt)} />
+            <Pill
+              key={opt}
+              label={opt}
+              active={altFilter === opt}
+              color={isLight ? "#0f766e" : "#00e5cc"}
+              isLight={isLight}
+              onClick={() => {
+                logAudit("map:filter", "Map altitude filter pill activated", { value: opt });
+                logActivity("map:filter", `Mock map altitude band → ${opt}`, { kind: "altitude", value: opt });
+                setAltFilter(opt);
+              }}
+            />
           ))}
         </div>
       </div>
