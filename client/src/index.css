@@ -51,49 +51,58 @@
     --border: 30 5% 18%;
     --input: 30 5% 18%;
     --ring: 36 91% 55%;
+    --status-nominal-bg: rgba(0, 255, 136, 0.06);
+    --status-alert-bg: var(--red-glow);
+    --overlay-strong: rgba(6, 6, 8, 0.85);
+    --overlay-ink: #e8e3dc;
   }
 
-  /* ========== LIGHT MODE ========== */
+  /* ========== LIGHT MODE (higher contrast for readability) ========== */
   .light {
-    --bg-base: #f5f4f2;
+    --bg-base: #eceae6;
     --bg-panel: #ffffff;
-    --bg-panel-alt: #faf9f7;
-    --bg-raised: #f0ebe1;
-    --amber: #d97706;
-    --amber-dim: #b45309;
-    --amber-glow: rgba(217,119,6,0.1);
-    --teal: #0d9488;
-    --teal-dim: #0f766e;
-    --teal-glow: rgba(13,148,136,0.08);
-    --red: #dc2626;
-    --red-dim: #b91c1c;
-    --red-glow: rgba(220,38,38,0.08);
-    --green: #16a34a;
-    --green-dim: #15803d;
-    --yellow: #ca8a04;
-    --text-primary: #1c1a17;
-    --text-secondary: #57534e;
-    --text-muted: #78716c;
-    --border-default: #d6d3d1;
-    --border-bright: #a8a29e;
-    --border-teal: rgba(13,148,136,0.3);
-    --border-red: rgba(220,38,38,0.3);
+    --bg-panel-alt: #f4f2ef;
+    --bg-raised: #e8e4de;
+    --amber: #b45309;
+    --amber-dim: #92400e;
+    --amber-glow: rgba(180, 83, 9, 0.12);
+    --teal: #0f766e;
+    --teal-dim: #115e59;
+    --teal-glow: rgba(15, 118, 110, 0.12);
+    --red: #b91c1c;
+    --red-dim: #991b1b;
+    --red-glow: rgba(185, 28, 28, 0.12);
+    --green: #15803d;
+    --green-dim: #166534;
+    --yellow: #a16207;
+    --text-primary: #0c0a09;
+    --text-secondary: #44403c;
+    --text-muted: #57534e;
+    --border-default: #c4bfba;
+    --border-bright: #a6a09a;
+    --border-teal: rgba(15, 118, 110, 0.35);
+    --border-red: rgba(185, 28, 28, 0.35);
     --scanline-opacity: 0;
+    /* Status chips (TopBar etc.) */
+    --status-nominal-bg: rgba(21, 128, 61, 0.12);
+    --status-alert-bg: rgba(185, 28, 28, 0.1);
+    --overlay-strong: rgba(255, 255, 255, 0.94);
+    --overlay-ink: #0c0a09;
 
-    --background: 40 15% 96%;
-    --foreground: 30 10% 10%;
+    --background: 40 12% 93%;
+    --foreground: 24 10% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 30 10% 10%;
+    --card-foreground: 24 10% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 30 10% 10%;
-    --primary: 38 92% 50%;
+    --popover-foreground: 24 10% 10%;
+    --primary: 28 85% 38%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 40 20% 90%;
-    --secondary-foreground: 30 10% 10%;
-    --muted: 40 20% 90%;
-    --muted-foreground: 30 5% 45%;
-    --border: 30 15% 84%;
-    --input: 30 15% 84%;
+    --secondary: 40 12% 90%;
+    --secondary-foreground: 24 10% 12%;
+    --muted: 40 10% 88%;
+    --muted-foreground: 24 6% 38%;
+    --border: 30 8% 72%;
+    --input: 30 8% 72%;
   }
 }
 
@@ -101,12 +110,20 @@
   * {
     @apply border-border;
   }
+  html {
+    font-family: "Geist Variable", system-ui, sans-serif;
+  }
   body {
     background: var(--bg-base);
     color: var(--text-primary);
-    font-family: "Inter", sans-serif;
+    font-family: "Geist Variable", system-ui, sans-serif;
     font-size: 14px;
     line-height: 1.5;
+  }
+  .light body {
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
@@ -125,10 +142,17 @@ body::after {
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: rgba(245,166,35,0.2); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(245,166,35,0.4); }
+.light ::-webkit-scrollbar-thumb { background: rgba(68, 64, 60, 0.35); }
+.light ::-webkit-scrollbar-thumb:hover { background: rgba(68, 64, 60, 0.55); }
 
-/* ========== FONTS ========== */
-.font-display { font-family: "Share Tech Mono", monospace; }
-.font-body { font-family: "Inter", sans-serif; }
+/* ========== FONTS (Geist Variable everywhere) ========== */
+.font-display { font-family: "Geist Variable", system-ui, sans-serif; }
+.font-body { font-family: "Geist Variable", system-ui, sans-serif; }
+
+.leaflet-container,
+.leaflet-popup-content {
+  font-family: "Geist Variable", system-ui, sans-serif !important;
+}
 
 /* ========== GLOW EFFECTS ========== */
 .glow-amber { text-shadow: 0 0 12px rgba(245,166,35,0.6); }
@@ -186,6 +210,13 @@ body::after {
 }
 .animate-header-pulse { animation: header-pulse 1.5s ease-in-out infinite; }
 
+@keyframes header-pulse-light {
+  0% { border-bottom-color: rgba(185,28,28,1); box-shadow: 0 3px 18px rgba(185,28,28,0.35); }
+  50% { border-bottom-color: rgba(185,28,28,0.45); box-shadow: 0 2px 10px rgba(185,28,28,0.12); }
+  100% { border-bottom-color: rgba(185,28,28,1); box-shadow: 0 3px 18px rgba(185,28,28,0.35); }
+}
+.light .animate-header-pulse { animation: header-pulse-light 1.5s ease-in-out infinite; }
+
 @keyframes bar-fill { from { width: 0%; } }
 .animate-bar-fill { animation: bar-fill 1.2s ease-out forwards; }
 
@@ -203,7 +234,7 @@ body::after {
 
 /* ========== STATUS BADGES ========== */
 .status-badge {
-  font-family: "Share Tech Mono", monospace;
+  font-family: "Geist Variable", system-ui, sans-serif;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1.5px;

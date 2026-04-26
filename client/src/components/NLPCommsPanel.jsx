@@ -14,10 +14,10 @@ export default function NLPCommsPanel({ feed }) {
   }, [comms]);
 
   return (
-    <div className="panel flex flex-col h-full overflow-hidden bg-[#0a0a0e]" style={{ border: '1px solid var(--border-default)' }}>
+    <div className="panel flex flex-col h-full overflow-hidden" style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)" }}>
       {/* Transcript Header */}
-      <div className="py-2.5 px-4 flex items-center justify-between border-b border-[var(--border-default)] bg-[#050508]">
-        <h3 className="font-display text-[11px] tracking-[0.2em] text-[var(--text-muted)] uppercase">
+      <div className="py-2.5 px-4 flex items-center justify-between border-b border-[var(--border-default)]" style={{ background: "var(--bg-panel-alt)" }}>
+        <h3 className="font-display text-[11px] tracking-[0.2em] text-[var(--text-secondary)] uppercase">
           VHF / DATALINK TRANSCRIPT
         </h3>
         <span className="font-display text-[9px] text-[var(--teal)] animate-pulse flex items-center gap-1.5 tracking-widest">
@@ -39,8 +39,8 @@ export default function NLPCommsPanel({ feed }) {
           const textColor = (isSystem && !isInteractive) ? 'var(--green)' : 'var(--text-primary)';
 
           return (
-            <div key={comm.id || idx} className={`flex flex-col gap-1 group hover:bg-white/[0.02] p-1.5 -mx-1.5 rounded transition-colors border-l-2 ${isInteractive ? 'border-[var(--teal)] bg-[rgba(0,229,204,0.03)]' : 'border-transparent hover:border-[var(--border-bright)]'}`}>
-              <div className="flex items-center justify-between opacity-60 group-hover:opacity-100 transition-opacity">
+            <div key={comm.id || idx} className={`flex flex-col gap-1 group p-1.5 -mx-1.5 rounded transition-colors border-l-2 ${isInteractive ? "border-[var(--teal)] bg-[var(--teal-glow)]" : "border-transparent hover:border-[var(--border-bright)] hover:bg-[var(--bg-raised)]"}`}>
+              <div className="flex items-center justify-between opacity-80 group-hover:opacity-100 transition-opacity">
                 <div className="flex items-center gap-2.5">
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: dotColor }} />
                   <span className="text-[10px] text-[var(--text-muted)]">121.500</span>
@@ -52,7 +52,7 @@ export default function NLPCommsPanel({ feed }) {
                 )}
               </div>
               <div className="pl-4 leading-relaxed" style={{ color: textColor }}>
-                {comm.flight && <span className="text-white font-bold mr-2 tracking-wider">{comm.flight}</span>}
+                {comm.flight && <span className="font-bold mr-2 tracking-wider text-[var(--text-primary)]">{comm.flight}</span>}
                 <span className={(isSystem && !isInteractive) ? "text-[12px] text-[var(--green)] bg-[rgba(0,255,136,0.05)] px-1 py-0.5 rounded shadow-[inset_0_0_10px_rgba(0,255,136,0.1)]" : "opacity-90"}>
                   {comm.text}
                 </span>

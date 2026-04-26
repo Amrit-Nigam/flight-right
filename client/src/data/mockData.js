@@ -212,6 +212,18 @@ export const statusColors = {
   ENROUTE:   "#8a7d65",
 };
 
+/** Darker / WCAG-friendlier on light panels */
+export const statusColorsLight = {
+  CONFLICT:  "#b91c1c",
+  HOLDING:   "#a16207",
+  LANDING:   "#0f766e",
+  TAKEOFF:   "#b45309",
+  CRUISE:    "#57534e",
+  APPROACH:  "#0f766e",
+  DEPARTING: "#b45309",
+  ENROUTE:   "#57534e",
+};
+
 export const statusIcons = {
   LANDING:   "↘",
   TAKEOFF:   "↗",

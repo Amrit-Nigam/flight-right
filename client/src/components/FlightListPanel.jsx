@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { statusColors, statusIcons, weather, sortByUrgency, getAltBandCounts } from "@/data/mockData";
+import { statusColors, statusColorsLight, statusIcons, weather, sortByUrgency, getAltBandCounts } from "@/data/mockData";
 import { X, Cloud } from "lucide-react";
 
 // Full-width Detail Drawer that sits at the bottom of the viewport
-export function FlightDetailDrawer({ flight, onClose }) {
+export function FlightDetailDrawer({ flight, onClose, palette = statusColors }) {
   if (!flight) return null;
   const fields = [
     ["Route", flight.route], ["Altitude", flight.altitude], ["Speed", flight.speed],
@@ -17,17 +17,17 @@ export function FlightDetailDrawer({ flight, onClose }) {
       initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
       transition={{ type: "spring", damping: 25 }}
       className="fixed bottom-0 left-0 right-0 z-50 p-6 shadow-2xl"
-      style={{ background: 'var(--bg-panel-alt)', borderTop: `2px solid ${statusColors[flight.status] || 'var(--amber)'}` }}
+      style={{ background: 'var(--bg-panel-alt)', borderTop: `2px solid ${palette[flight.status] || 'var(--amber)'}` }}
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 flex items-center justify-center font-display text-[24px]" style={{ background: 'var(--bg-base)', color: statusColors[flight.status] || 'var(--text-primary)', border: '1px solid var(--border-default)' }}>
+          <div className="w-12 h-12 flex items-center justify-center font-display text-[24px]" style={{ background: 'var(--bg-base)', color: palette[flight.status] || 'var(--text-primary)', border: '1px solid var(--border-default)' }}>
             {statusIcons[flight.status] || "✈"}
           </div>
           <div>
             <div className="flex items-center gap-3">
-              <span className="font-display text-[24px] tracking-wider" style={{ color: statusColors[flight.status] || 'var(--amber)' }}>{flight.callsign}</span>
-              <span className="status-badge" style={{ borderColor: statusColors[flight.status], color: statusColors[flight.status], background: 'transparent' }}>{flight.status}</span>
+              <span className="font-display text-[24px] tracking-wider" style={{ color: palette[flight.status] || 'var(--amber)' }}>{flight.callsign}</span>
+              <span className="status-badge" style={{ borderColor: palette[flight.status], color: palette[flight.status], background: 'transparent' }}>{flight.status}</span>
             </div>
             <span className="font-display text-[14px]" style={{ color: 'var(--text-muted)' }}>Waypoint: {flight.waypoint}</span>
           </div>
@@ -69,7 +69,7 @@ function CpaBadge({ cpaSeconds }) {
   const min = Math.floor(cpaSeconds / 60);
   const sec = cpaSeconds % 60;
   const label = `CPA ${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-  const color = cpaSeconds < 300 ? "var(--red)" : cpaSeconds < 600 ? "#f5a623" : "rgba(0,229,204,0.8)";
+  const color = cpaSeconds < 300 ? "var(--red)" : cpaSeconds < 600 ? "var(--amber)" : "var(--teal)";
   return (
     <span
       className="font-display text-[9px] tracking-wide px-1.5 py-0.5 rounded-sm"
@@ -80,11 +80,10 @@ function CpaBadge({ cpaSeconds }) {
   );
 }
 
-const STATUS_PRIORITY = { CONFLICT: 0, HOLDING: 1, APPROACH: 2, LANDING: 2, TAKEOFF: 3, DEPARTING: 3, CRUISE: 4, ENROUTE: 5 };
-
-export default function FlightListPanel({ flightsData, selectedFlight, onSelectFlight, activeTab, onTabChange }) {
+export default function FlightListPanel({ flightsData, selectedFlight, onSelectFlight, activeTab, onTabChange, theme = "dark" }) {
   const [showWeather, setShowWeather] = useState(false);
   const bands = getAltBandCounts(flightsData);
+  const palette = theme === "light" ? statusColorsLight : statusColors;
 
   // Tabs: ALL, <FL100, FL100-250, >FL250, ALERTS
   const TABS = [
@@ -151,15 +150,15 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
           <button
             key={key}
             onClick={() => onTabChange(key)}
-            className="flex-shrink-0 px-2 py-2 font-display text-[9px] tracking-wider transition-colors flex flex-col items-center gap-0.5"
+            className="flex-shrink-0 px-2 py-2.5 font-display text-[10px] tracking-wide transition-colors flex flex-col items-center gap-0.5"
             style={{
-              color: activeTab === key ? 'var(--amber)' : 'var(--text-muted)',
+              color: activeTab === key ? 'var(--amber)' : 'var(--text-secondary)',
               borderBottom: activeTab === key ? '2px solid var(--amber)' : '2px solid transparent',
-              minWidth: 52,
+              minWidth: 56,
             }}
           >
             <span>{label}</span>
-            <span style={{ fontSize: 10, color: activeTab === key ? 'var(--amber)' : 'var(--text-secondary)', fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: activeTab === key ? 'var(--amber)' : 'var(--text-muted)', fontWeight: 600 }}>
               {count}
             </span>
           </button>
@@ -169,7 +168,7 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
       {/* Flight list - Slim Strip, sorted by urgency */}
       <div className="flex-1 overflow-y-auto w-full no-scrollbar pb-10">
         {filtered.map((flight) => {
-          const color = statusColors[flight.status] || "var(--text-muted)";
+          const color = palette[flight.status] || "var(--text-muted)";
           const isSelected = selectedFlight === flight.callsign;
           const isConflict = flight.status === "CONFLICT";
           const isHolding = flight.status === "HOLDING";
@@ -219,6 +218,7 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
           <FlightDetailDrawer
             flight={flightsData.find((f) => f.callsign === selectedFlight)}
             onClose={() => onSelectFlight(null)}
+            palette={palette}
           />
         )}
       </AnimatePresence>

@@ -10,9 +10,9 @@ export default {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['Share Tech Mono', 'monospace'],
-        display: ['Share Tech Mono', 'monospace'],
+        sans: ['"Geist Variable"', 'system-ui', 'sans-serif'],
+        mono: ['"Geist Variable"', 'system-ui', 'sans-serif'],
+        display: ['"Geist Variable"', 'system-ui', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',

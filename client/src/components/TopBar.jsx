@@ -29,7 +29,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
   const cpaSec = cpaSeconds % 60;
   const cpaStr = `${String(cpaMin).padStart(2, "0")}:${String(cpaSec).padStart(2, "0")}`;
   // red below 3min, amber 3–8 min
-  const cpaColor = cpaSeconds < 180 ? "var(--red)" : cpaSeconds < 480 ? "#f5a623" : "var(--green)";
+  const cpaColor = cpaSeconds < 180 ? "var(--red)" : cpaSeconds < 480 ? "var(--amber)" : "var(--green)";
 
   // Simulated AI workload
   const aiManagedCount = 4;
@@ -38,10 +38,12 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
   return (
     <header
       className={`sticky top-0 z-50 flex items-stretch justify-between h-[80px] ${hasAlerts ? 'animate-header-pulse' : ''}`}
-      style={{
+        style={{
         background: 'var(--bg-panel-alt)',
         borderBottom: hasAlerts ? '2px solid var(--red)' : '2px solid var(--amber)',
-        boxShadow: hasAlerts ? '0 4px 24px rgba(255,45,45,0.5)' : '0 4px 20px rgba(245,166,35,0.15)',
+        boxShadow: hasAlerts
+          ? (theme === 'light' ? '0 3px 16px rgba(185,28,28,0.22)' : '0 4px 24px rgba(255,45,45,0.5)')
+          : (theme === 'light' ? '0 1px 0 rgba(180,83,9,0.2)' : '0 4px 20px rgba(245,166,35,0.15)'),
         transition: 'all 0.3s ease-in-out',
       }}
     >
@@ -64,12 +66,12 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
 
       {/* CENTER ZONE: Live Clock, Status & CPA Chip */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 gap-1" style={{ borderRight: '1px solid var(--border-default)' }}>
-        <div className="font-display tabular-nums text-[40px] tracking-widest leading-none" style={{ color: 'var(--amber)', textShadow: '0 0 16px rgba(245,166,35,0.4)', fontVariantNumeric: 'tabular-nums' }}>
+        <div className="font-display tabular-nums text-[40px] tracking-widest leading-none" style={{ color: 'var(--amber)', textShadow: '0 0 10px rgba(245,166,35,0.22)', fontVariantNumeric: 'tabular-nums' }}>
           {utc}
         </div>
         <div className="flex items-center gap-2">
           {/* System status */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm" style={{ border: `1px solid ${hasAlerts ? 'var(--red)' : 'var(--green)'}`, background: hasAlerts ? 'var(--red-glow)' : 'rgba(0,255,136,0.05)' }}>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm" style={{ border: `1px solid ${hasAlerts ? 'var(--red)' : 'var(--green)'}`, background: hasAlerts ? 'var(--status-alert-bg)' : 'var(--status-nominal-bg)' }}>
             <span className={`w-1.5 h-1.5 rounded-full ${hasAlerts ? 'animate-blink' : 'animate-pulse-dot'}`} style={{ background: hasAlerts ? 'var(--red)' : 'var(--green)' }} />
             <span className="font-display text-[9px] tracking-widest uppercase" style={{ color: hasAlerts ? 'var(--red)' : 'var(--green)' }}>
               {hasAlerts ? 'ATC ALERT' : 'NOMINAL'}
