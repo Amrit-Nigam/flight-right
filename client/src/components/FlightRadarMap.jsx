@@ -70,6 +70,12 @@ function flightAltBand(alt) {
   return ft < 10000 ? "< FL100" : "FL100-250";
 }
 
+function displaySpeed(speed) {
+  if (typeof speed === "string") return speed;
+  const kt = Number(speed);
+  return `${Number.isFinite(kt) ? Math.round(kt) : 0} kt`;
+}
+
 function makeAircraftIcon(color, heading, size, pulse) {
   const pulseHtml = pulse
     ? `<div style="position:absolute;top:50%;left:50%;width:${size}px;height:${size}px;margin-left:-${size/2}px;margin-top:-${size/2}px;border-radius:50%;border:2px solid #ff2d2d;animation:frm-pulse 1s ease-out infinite;pointer-events:none;"></div>`
@@ -131,21 +137,41 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [altFilter, setAltFilter]       = useState("ALL ALT");
   const containerRef = useRef(null);
+  const hasPropPositions = useMemo(
+    () => Array.isArray(propFlights) && propFlights.some((f) => Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lng))),
+    [propFlights]
+  );
 
-  // ── Sync propFlights status into liveFlights ──
+  // ── Sync backend/replay aircraft into map state when coordinates are available ──
   useEffect(() => {
     if (!propFlights?.length) return;
-    setLiveFlights(prev =>
-      prev.map(lf => {
-        const pf = propFlights.find(p => p.callsign === lf.callsign);
-        if (!pf) return lf;
-        return { ...lf, status: (pf.status || lf.status).toLowerCase(), altitude: pf.altitude || lf.altitude, speed: parseInt(pf.speed, 10) || lf.speed, heading: pf.heading ?? lf.heading };
-      })
-    );
+    setLiveFlights((prev) => {
+      const previousByCallsign = new Map(prev.map((f) => [f.callsign, f]));
+      return propFlights
+        .map((pf) => {
+          const old = previousByCallsign.get(pf.callsign) || {};
+          const lat = Number(pf.lat ?? old.lat);
+          const lng = Number(pf.lng ?? old.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          const speedKt = Number((pf.speedKt ?? parseInt(pf.speed || old.speed || "0", 10)) || 0);
+          return {
+            ...old,
+            callsign: pf.callsign,
+            lat,
+            lng,
+            status: String(pf.status || old.status || "cruise").toLowerCase(),
+            altitude: pf.altitude || old.altitude || "GND",
+            speed: speedKt,
+            heading: Number(pf.heading ?? old.heading ?? 0),
+          };
+        })
+        .filter(Boolean);
+    });
   }, [propFlights]);
 
-  // ── Move aircraft every 2s ──
+  // ── Move local fallback aircraft every 2s; backend/replay coordinates are authoritative when present ──
   useEffect(() => {
+    if (hasPropPositions) return undefined;
     const id = setInterval(() => {
       setLiveFlights(prev =>
         prev.map(f => {
@@ -157,7 +183,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       );
     }, 2000);
     return () => clearInterval(id);
-  }, []);
+  }, [hasPropPositions]);
 
   const isLight = theme === "light";
 
@@ -244,6 +270,14 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
     if (!map) return;
 
     const selectedColor = isLight ? "#0c0a09" : "#ffffff";
+    const liveCallsigns = new Set(liveFlights.map((f) => f.callsign));
+
+    Object.entries(markersRef.current).forEach(([callsign, marker]) => {
+      if (!liveCallsigns.has(callsign)) {
+        marker.remove();
+        delete markersRef.current[callsign];
+      }
+    });
 
     liveFlights.forEach(f => {
       const isSelected = selectedFlight === f.callsign;
@@ -261,7 +295,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         // Show permanent tooltip for conflict or selected
         const showLabel = f.status === "conflict" || isSelected;
         if (showLabel && !marker.getTooltip()) {
-          marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
+          marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${displaySpeed(f.speed)}`, {
             permanent: true, direction: "top", offset: [0, -size / 2 - 2], className: "frm-tooltip",
           });
         } else if (!showLabel && marker.getTooltip()?.options?.permanent) {
@@ -275,7 +309,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         });
 
         if (f.status === "conflict" || isSelected) {
-          marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
+          marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${displaySpeed(f.speed)}`, {
             permanent: true, direction: "top", offset: [0, -size / 2 - 2], className: "frm-tooltip",
           });
         }
@@ -287,7 +321,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         });
         marker.on("mouseover", () => {
           if (f.status !== "conflict" && !isSelected) {
-            marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
+            marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${displaySpeed(f.speed)}`, {
               permanent: false, direction: "top", offset: [0, -size / 2 - 2], className: "frm-tooltip",
             }).openTooltip();
           }
