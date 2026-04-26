@@ -1,3 +1,5 @@
+import { postAuditLog } from "@/lib/api";
+
 const STORAGE_KEY = "flight-right-site-logs-v1";
 const BOOT_FLAG_KEY = "flight-right-logger-boot-v1";
 const MAX_ENTRIES = 2500;
@@ -50,6 +52,11 @@ export function appendSiteLog({ level = "info", source = "app", message, detail 
     const next = [...readStore(), entry];
     writeStore(next);
     window.dispatchEvent(new CustomEvent("site-log", { detail: entry }));
+    if (entry.level === "audit") {
+      postAuditLog(entry).catch(() => {
+        /* backend audit is best-effort; session logs remain local */
+      });
+    }
   } catch {
     /* ignore */
   }

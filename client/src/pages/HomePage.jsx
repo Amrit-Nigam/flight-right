@@ -14,12 +14,14 @@ import AISuggestionsPanel from "@/components/AISuggestionsPanel";
 import RunwayStatusPanel from "@/components/RunwayStatusPanel";
 import NLPCommsPanel from "@/components/NLPCommsPanel";
 import { BlurFade } from "@/components/ui/blur-fade";
+import { useAircraftFeed } from "@/hooks/useAircraftFeed";
 
 import { initialFlights, metrics, initialConflict, initialSuggestions } from "@/data/mockData";
 import { logActivity, logAudit } from "@/lib/siteLogger";
 
 export default function HomePage() {
-  const [flights, setFlights] = useState(initialFlights);
+  const { flights: feedFlights, source: aircraftSource, status: feedStatus, error: feedError } = useAircraftFeed();
+  const [flightOverrides, setFlightOverrides] = useState({});
   const [conflict, setConflict] = useState(initialConflict);
   const [suggestions, setSuggestions] = useState(initialSuggestions);
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
@@ -32,6 +34,7 @@ export default function HomePage() {
   const [acceptedIds, setAcceptedIds] = useState(new Set());
 
   const [theme, setTheme] = useState("light");
+  const flights = feedFlights.map((flight) => ({ ...flight, ...(flightOverrides[flight.callsign] || {}) }));
   useEffect(() => {
     if (theme === "light") document.documentElement.classList.add("light");
     else document.documentElement.classList.remove("light");
@@ -83,13 +86,11 @@ export default function HomePage() {
     });
     setResolveModalOpen(false);
     setConflict(null);
-    setFlights((prev) =>
-      prev.map((f) =>
-        f.callsign === "AI6302" || f.callsign === "SG881"
-          ? { ...f, status: "ENROUTE", cpaPair: undefined, cpaSeconds: undefined }
-          : f
-      )
-    );
+    setFlightOverrides((prev) => ({
+      ...prev,
+      AI6302: { status: "ENROUTE", cpaPair: undefined, cpaSeconds: undefined },
+      SG881: { status: "ENROUTE", cpaPair: undefined, cpaSeconds: undefined },
+    }));
     showToast("Resolution Applied — AI6302 & SG881 Separation Secured");
   };
 
@@ -212,6 +213,18 @@ export default function HomePage() {
       </div>
 
       <div className="relative flex flex-1 gap-4 overflow-hidden p-4">
+        <div
+          className="pointer-events-none absolute right-4 top-1 z-[950] rounded-sm border px-2 py-1 font-display text-[9px] uppercase tracking-widest"
+          style={{
+            background: "var(--overlay-strong)",
+            borderColor: "var(--border-default)",
+            color: feedStatus === "connected" ? "var(--teal)" : "var(--amber)",
+          }}
+          title={feedError || "Aircraft feed connected"}
+        >
+          DATA: {aircraftSource.provider || aircraftSource.source || "mock"}
+        </div>
+
         <BlurFade delay={0} direction="right" offset={10} className="flex h-full min-h-0 w-[280px] shrink-0 flex-col">
           <FlightListPanel
             flightsData={flights}
