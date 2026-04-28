@@ -29,6 +29,21 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
 
   const isLight = theme === "light";
   const statusColors = isLight ? STATUS_COLORS_LIGHT : STATUS_COLORS_DARK;
+  const hasActiveConflict = flights?.some((f) => f.status === "CONFLICT" || f.cpaPair);
+
+  useEffect(() => {
+    if (!flights?.length) return;
+    flightsRef.current = flightsRef.current.map((rf) => {
+      const pf = flights.find((f) => f.callsign === rf.callsign);
+      if (!pf) return rf;
+      return {
+        ...rf,
+        status: (pf.status || rf.status).toLowerCase(),
+        altitude: pf.altitude || rf.altitude,
+        speed: parseInt(pf.speed, 10) || rf.speed,
+      };
+    });
+  }, [flights]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -152,9 +167,11 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
       ctx.fillStyle = textPrimary; ctx.fill();
 
       const fl = flightsRef.current;
-      const conflictPair = CONFLICT_CALLSIGNS
-        .map(callsign => fl.find(f => f.callsign === callsign))
-        .filter(Boolean);
+      const conflictPair = hasActiveConflict
+        ? CONFLICT_CALLSIGNS
+          .map(callsign => fl.find(f => f.callsign === callsign))
+          .filter(Boolean)
+        : [];
       const conflicts = conflictPair.length >= 2 ? conflictPair : fl.filter(f => f.status === "conflict");
       const cpaX = cx;
       const cpaY = cy - radius * 0.08;
@@ -282,7 +299,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         const fy = cy + (f.y - 0.5) * radius * 2;
         const headRad = (f.heading - 90) * (Math.PI / 180);
         const color   = statusColors[f.status] || baseColor;
-        const isConflictFlight = CONFLICT_CALLSIGNS.includes(f.callsign);
+        const isConflictFlight = hasActiveConflict && CONFLICT_CALLSIGNS.includes(f.callsign);
         const endX    = isConflictFlight ? cpaX : fx + Math.cos(headRad) * TRAJ_PX;
         const endY    = isConflictFlight ? cpaY : fy + Math.sin(headRad) * TRAJ_PX;
 
@@ -430,7 +447,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
       cancelAnimationFrame(animRef.current);
       ro.disconnect();
     };
-  }, [selectedFlight, isLight, statusColors, theme, weatherOn, weatherDevAccepted]);
+  }, [selectedFlight, isLight, statusColors, theme, weatherOn, weatherDevAccepted, hasActiveConflict]);
 
   return (
     <div className="panel overflow-hidden flex flex-col h-full w-full">
@@ -438,7 +455,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         <canvas ref={canvasRef} className="absolute inset-0 block" style={{ background: isLight ? 'var(--bg-base)' : '#060608' }} />
       </div>
       <div className="flex items-center justify-between px-5 py-3 shrink-0" style={{ background: 'var(--bg-panel)', borderTop: '1px solid var(--border-default)' }}>
-        {["28 TRACKS", "6 RWYS", "2 ALERTS", "87% OPT"].map((s) => (
+        {["28 TRACKS", "6 RWYS", hasActiveConflict ? "2 ALERTS" : "0 ALERTS", "87% OPT"].map((s) => (
           <span key={s} className="font-display text-[12px] tracking-wider" style={{ color: 'var(--amber)' }}>{s}</span>
         ))}
         <span className="font-display text-[10px] tracking-wider" style={{ color: 'rgba(255,45,45,0.6)' }}>

@@ -168,7 +168,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
           altitude: pf.altitude || lf.altitude,
           speed: parseInt(pf.speed, 10) || lf.speed,
           heading: pf.heading ?? lf.heading,
-          cpaPair: pf.cpaPair || lf.cpaPair,
+          cpaPair: pf.cpaPair ?? null,
         };
       })
     );
@@ -257,12 +257,10 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         if (f.cpaPair) set.add(f.cpaPair);
       }
     });
-    if (set.size < 2) {
-      set.add(CONFLICT_PLAN.primary);
-      set.add(CONFLICT_PLAN.secondary);
-    }
     return set;
   }, [liveFlights]);
+
+  const hasActiveConflict = conflictCallsigns.size >= 2;
 
   const visibleCallsigns = useMemo(() => {
     const set = new Set();
@@ -300,7 +298,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       .map(callsign => liveFlights.find(f => f.callsign === callsign))
       .filter(Boolean);
 
-    if (conflictFlights.length >= 2) {
+    if (hasActiveConflict && conflictFlights.length >= 2) {
       const addOverlay = (layer) => {
         layer.addTo(map);
         overlaysRef.current.push(layer);
@@ -351,7 +349,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
     liveFlights.forEach(f => {
       const isSelected = selectedFlight === f.callsign;
       const isDimmed   = !visibleCallsigns.has(f.callsign);
-      const isConflictTrack = conflictCallsigns.has(f.callsign);
+      const isConflictTrack = hasActiveConflict && conflictCallsigns.has(f.callsign);
       const color      = isSelected ? selectedColor : f.callsign === CONFLICT_PLAN.primary ? red : isConflictTrack ? amber : (statusColors[f.status] || (isLight ? "#b45309" : "#f5a623"));
       const size       = isConflictTrack ? 36 : 28;
 
@@ -404,7 +402,7 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         markersRef.current[f.callsign] = marker;
       }
     });
-  }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight, statusColors, isLight, conflictCallsigns]);
+  }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight, statusColors, isLight, conflictCallsigns, hasActiveConflict]);
 
   const bgColor = isLight ? "var(--bg-base)" : "#060608";
   
@@ -495,54 +493,55 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         </div>
       </div>
 
-      {/* Conflict HUD panel (fixed position to avoid map overlap clutter) */}
-      <div
-        style={{
-          position: "absolute",
-          right: 12,
-          bottom: 12,
-          zIndex: 11,
-          width: 300,
-          background: isLight ? "rgba(255,255,255,0.95)" : "rgba(10,11,14,0.9)",
-          border: `1px solid ${isLight ? "#b91c1c" : "#ff2d2d"}`,
-          boxShadow: isLight ? "0 8px 20px rgba(0,0,0,0.12)" : "0 10px 24px rgba(0,0,0,0.35)",
-          padding: "10px 12px",
-          pointerEvents: "none",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: isLight ? "#b91c1c" : "#ff2d2d" }}>
-            CONFLICT PAIR
-          </span>
-          <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 10, color: isLight ? "#57534e" : "#9c978f" }}>
-            {CONFLICT_PLAN.minimum}
-          </span>
+      {hasActiveConflict && (
+        <div
+          style={{
+            position: "absolute",
+            right: 12,
+            bottom: 12,
+            zIndex: 11,
+            width: 300,
+            background: isLight ? "rgba(255,255,255,0.95)" : "rgba(10,11,14,0.9)",
+            border: `1px solid ${isLight ? "#b91c1c" : "#ff2d2d"}`,
+            boxShadow: isLight ? "0 8px 20px rgba(0,0,0,0.12)" : "0 10px 24px rgba(0,0,0,0.35)",
+            padding: "10px 12px",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: isLight ? "#b91c1c" : "#ff2d2d" }}>
+              CONFLICT PAIR
+            </span>
+            <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 10, color: isLight ? "#57534e" : "#9c978f" }}>
+              {CONFLICT_PLAN.minimum}
+            </span>
+          </div>
+          <div style={{ marginTop: 4, fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 14, fontWeight: 700, color: isLight ? "#111827" : "#f8fafc", letterSpacing: "0.04em" }}>
+            {CONFLICT_PLAN.primary} ↔ {CONFLICT_PLAN.secondary}
+          </div>
+          <div style={{ marginTop: 3, fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, color: isLight ? "#57534e" : "#9c978f" }}>
+            {CONFLICT_PLAN.cpaLabel}
+          </div>
+          <div style={{ marginTop: 7, display: "grid", gap: 4 }}>
+            {CONFLICT_PLAN.actions.map((action, index) => (
+              <div key={action} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: 99,
+                    marginTop: 6,
+                    background: index === 2 ? (isLight ? "#0f766e" : "#00e5cc") : (isLight ? "#b91c1c" : "#ff2d2d"),
+                  }}
+                />
+                <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, lineHeight: 1.3, color: isLight ? "#111827" : "#e5e7eb" }}>
+                  {action}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ marginTop: 4, fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 14, fontWeight: 700, color: isLight ? "#111827" : "#f8fafc", letterSpacing: "0.04em" }}>
-          {CONFLICT_PLAN.primary} ↔ {CONFLICT_PLAN.secondary}
-        </div>
-        <div style={{ marginTop: 3, fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, color: isLight ? "#57534e" : "#9c978f" }}>
-          {CONFLICT_PLAN.cpaLabel}
-        </div>
-        <div style={{ marginTop: 7, display: "grid", gap: 4 }}>
-          {CONFLICT_PLAN.actions.map((action, index) => (
-            <div key={action} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
-              <span
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: 99,
-                  marginTop: 6,
-                  background: index === 2 ? (isLight ? "#0f766e" : "#00e5cc") : (isLight ? "#b91c1c" : "#ff2d2d"),
-                }}
-              />
-              <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, lineHeight: 1.3, color: isLight ? "#111827" : "#e5e7eb" }}>
-                {action}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
