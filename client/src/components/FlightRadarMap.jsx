@@ -8,8 +8,8 @@ const VABB_LAT = 19.0896;
 const VABB_LNG = 72.8656;
 
 const INITIAL_FLIGHTS = [
-  { callsign: "AI6302", lat: 19.80, lng: 73.85, heading: 45,  speed: 420, altitude: "FL280", status: "conflict" },
-  { callsign: "SG881",  lat: 19.45, lng: 72.70, heading: 320, speed: 210, altitude: "FL270", status: "holding" },
+  { callsign: "AI6302", lat: 18.88, lng: 72.55, heading: 45,  speed: 420, altitude: "FL280", status: "conflict", cpaPair: "SG881" },
+  { callsign: "SG881",  lat: 18.82, lng: 73.15, heading: 320, speed: 210, altitude: "FL270", status: "holding", cpaPair: "AI6302" },
   { callsign: "EK512",  lat: 19.25, lng: 72.40, heading: 272, speed: 165, altitude: "4800ft",status: "landing" },
   { callsign: "9W445",  lat: 19.10, lng: 73.00, heading: 90,  speed: 190, altitude: "1200ft",status: "takeoff" },
   { callsign: "UK965",  lat: 20.50, lng: 73.60, heading: 15,  speed: 470, altitude: "FL350", status: "cruise"  },
@@ -54,6 +54,19 @@ const APPROACH_PATHS = [
   { name: "09L/09R", latlngs: [[19.09, 72.2], [19.09, 72.86]] },
 ];
 
+const CONFLICT_PLAN = {
+  primary: "AI6302",
+  secondary: "SG881",
+  cpa: [19.14, 72.86],
+  cpaLabel: "CPA 2.1 NM / T-04:20",
+  minimum: "MIN SEP 3 NM",
+  actions: [
+    "AI6302: descend FL260, turn left heading 020",
+    "SG881: maintain FL270, turn right heading 350",
+    "Controller: contact AI6302 first, then SG881 readback",
+  ],
+};
+
 const FILTER_OPTS = ["ALL", "LANDING", "DEPARTING", "CONFLICTS"];
 const ALT_OPTS    = ["ALL ALT", "< FL100", "FL100-250", "> FL250"];
 
@@ -92,6 +105,16 @@ function makeAirportIcon(isLight) {
   const shadow = isLight ? "none" : "0 0 8px #f5a623";
   const html = `<div style="position:relative;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="24" height="24" fill="${fill}"><rect x="11" y="2" width="2" height="20" rx="1"/><rect x="2" y="11" width="20" height="2" rx="1"/></svg><span style="position:absolute;top:26px;left:50%;transform:translateX(-50%);font-family:'Geist Variable',system-ui,sans-serif;font-size:10px;color:${label};white-space:nowrap;font-weight:700;text-shadow:${shadow};">VABB</span></div>`;
   return L.divIcon({ className: "", html, iconSize: [24, 24], iconAnchor: [12, 12] });
+}
+
+function makeCpaIcon(isLight) {
+  const bg = isLight ? "#ffffff" : "#120807";
+  const red = isLight ? "#b91c1c" : "#ff2d2d";
+  const html = `<div style="position:relative;width:116px;height:44px;transform:translate(-58px,-22px);font-family:'Geist Variable',system-ui,sans-serif;">
+    <div style="position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border:2px solid ${red};border-radius:999px;background:${red}22;box-shadow:0 0 18px ${red};animation:frm-cpa-pulse 1s ease-out infinite;"></div>
+    <div style="position:absolute;left:28px;top:-18px;background:${bg};border:1px solid ${red};color:${red};font-size:10px;font-weight:800;letter-spacing:.08em;padding:4px 7px;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.18);">CPA 2.1 NM</div>
+  </div>`;
+  return L.divIcon({ className: "", html, iconSize: [116, 44], iconAnchor: [58, 22] });
 }
 
 // Pill button
@@ -139,7 +162,14 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       prev.map(lf => {
         const pf = propFlights.find(p => p.callsign === lf.callsign);
         if (!pf) return lf;
-        return { ...lf, status: (pf.status || lf.status).toLowerCase(), altitude: pf.altitude || lf.altitude, speed: parseInt(pf.speed, 10) || lf.speed, heading: pf.heading ?? lf.heading };
+        return {
+          ...lf,
+          status: (pf.status || lf.status).toLowerCase(),
+          altitude: pf.altitude || lf.altitude,
+          speed: parseInt(pf.speed, 10) || lf.speed,
+          heading: pf.heading ?? lf.heading,
+          cpaPair: pf.cpaPair || lf.cpaPair,
+        };
       })
     );
   }, [propFlights]);
@@ -219,6 +249,21 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
   }, [isLight]);
 
   // ── Compute visible set ──
+  const conflictCallsigns = useMemo(() => {
+    const set = new Set();
+    liveFlights.forEach(f => {
+      if (f.status === "conflict" || f.cpaPair) {
+        set.add(f.callsign);
+        if (f.cpaPair) set.add(f.cpaPair);
+      }
+    });
+    if (set.size < 2) {
+      set.add(CONFLICT_PLAN.primary);
+      set.add(CONFLICT_PLAN.secondary);
+    }
+    return set;
+  }, [liveFlights]);
+
   const visibleCallsigns = useMemo(() => {
     const set = new Set();
     liveFlights.forEach(f => {
@@ -226,12 +271,12 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         statusFilter === "ALL" ||
         (statusFilter === "LANDING"   && (f.status === "landing"  || f.status === "approach")) ||
         (statusFilter === "DEPARTING" && (f.status === "departing"|| f.status === "takeoff"))  ||
-        (statusFilter === "CONFLICTS" && f.status === "conflict");
+        (statusFilter === "CONFLICTS" && conflictCallsigns.has(f.callsign));
       const altOk = altFilter === "ALL ALT" || flightAltBand(f.altitude) === altFilter;
       if (statusOk && altOk) set.add(f.callsign);
     });
     return set;
-  }, [liveFlights, statusFilter, altFilter]);
+  }, [liveFlights, statusFilter, altFilter, conflictCallsigns]);
 
   const statusColors = useMemo(
     () => (isLight ? STATUS_COLORS_LIGHT : STATUS_COLORS_DARK),
@@ -244,22 +289,81 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
     if (!map) return;
 
     const selectedColor = isLight ? "#0c0a09" : "#ffffff";
+    const red = isLight ? "#b91c1c" : "#ff2d2d";
+    const amber = isLight ? "#b45309" : "#f5a623";
+    const teal = isLight ? "#0f766e" : "#00e5cc";
+
+    overlaysRef.current.forEach(layer => map.removeLayer(layer));
+    overlaysRef.current = [];
+
+    const conflictFlights = [CONFLICT_PLAN.primary, CONFLICT_PLAN.secondary]
+      .map(callsign => liveFlights.find(f => f.callsign === callsign))
+      .filter(Boolean);
+
+    if (conflictFlights.length >= 2) {
+      const addOverlay = (layer) => {
+        layer.addTo(map);
+        overlaysRef.current.push(layer);
+      };
+      const [f1, f2] = conflictFlights;
+      const cpa = CONFLICT_PLAN.cpa;
+
+      addOverlay(L.polyline([[f1.lat, f1.lng], cpa, [19.34, 73.06]], {
+        color: red,
+        weight: 3,
+        opacity: 0.72,
+        dashArray: "10 7",
+        lineCap: "round",
+      }));
+      addOverlay(L.polyline([[f2.lat, f2.lng], cpa, [19.42, 72.66]], {
+        color: amber,
+        weight: 3,
+        opacity: 0.72,
+        dashArray: "10 7",
+        lineCap: "round",
+      }));
+      addOverlay(L.polyline([[f1.lat, f1.lng], [f2.lat, f2.lng]], {
+        color: red,
+        weight: 1.5,
+        opacity: 0.55,
+        dashArray: "3 7",
+      }));
+      addOverlay(L.circle(cpa, {
+        radius: 5556,
+        color: red,
+        weight: 1.5,
+        opacity: 0.55,
+        dashArray: "6 5",
+        fillColor: red,
+        fillOpacity: isLight ? 0.05 : 0.08,
+      }));
+      addOverlay(L.circle(cpa, {
+        radius: 3889,
+        color: teal,
+        weight: 1,
+        opacity: 0.5,
+        dashArray: "2 5",
+        fillOpacity: 0,
+      }));
+      addOverlay(L.marker(cpa, { icon: makeCpaIcon(isLight), interactive: false }));
+    }
 
     liveFlights.forEach(f => {
       const isSelected = selectedFlight === f.callsign;
       const isDimmed   = !visibleCallsigns.has(f.callsign);
-      const color      = isSelected ? selectedColor : (statusColors[f.status] || (isLight ? "#b45309" : "#f5a623"));
-      const size       = f.status === "conflict" ? 32 : 28;
+      const isConflictTrack = conflictCallsigns.has(f.callsign);
+      const color      = isSelected ? selectedColor : f.callsign === CONFLICT_PLAN.primary ? red : isConflictTrack ? amber : (statusColors[f.status] || (isLight ? "#b45309" : "#f5a623"));
+      const size       = isConflictTrack ? 36 : 28;
 
       if (markersRef.current[f.callsign]) {
         // Update existing marker
         const marker = markersRef.current[f.callsign];
         marker.setLatLng([f.lat, f.lng]);
-        marker.setIcon(makeAircraftIcon(color, f.heading, size, f.status === "conflict"));
+        marker.setIcon(makeAircraftIcon(color, f.heading, size, isConflictTrack));
         marker.setOpacity(isDimmed ? 0.15 : 1);
 
-        // Show permanent tooltip for conflict or selected
-        const showLabel = f.status === "conflict" || isSelected;
+        // Keep map clean: only selected flight gets permanent label
+        const showLabel = isSelected;
         if (showLabel && !marker.getTooltip()) {
           marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
             permanent: true, direction: "top", offset: [0, -size / 2 - 2], className: "frm-tooltip",
@@ -270,11 +374,11 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
       } else {
         // Create new marker
         const marker = L.marker([f.lat, f.lng], {
-          icon: makeAircraftIcon(color, f.heading, size, f.status === "conflict"),
+          icon: makeAircraftIcon(color, f.heading, size, isConflictTrack),
           opacity: isDimmed ? 0.15 : 1,
         });
 
-        if (f.status === "conflict" || isSelected) {
+        if (isSelected) {
           marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
             permanent: true, direction: "top", offset: [0, -size / 2 - 2], className: "frm-tooltip",
           });
@@ -286,21 +390,21 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
           onSelectFlight(f.callsign, { surface: "map-marker" });
         });
         marker.on("mouseover", () => {
-          if (f.status !== "conflict" && !isSelected) {
+          if (!isSelected) {
             marker.bindTooltip(`${f.callsign} | ${f.altitude} · ${f.speed}kt`, {
               permanent: false, direction: "top", offset: [0, -size / 2 - 2], className: "frm-tooltip",
             }).openTooltip();
           }
         });
         marker.on("mouseout", () => {
-          if (f.status !== "conflict" && !isSelected) marker.unbindTooltip();
+          if (!isSelected) marker.unbindTooltip();
         });
 
         marker.addTo(map);
         markersRef.current[f.callsign] = marker;
       }
     });
-  }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight, statusColors, isLight]);
+  }, [liveFlights, selectedFlight, visibleCallsigns, onSelectFlight, statusColors, isLight, conflictCallsigns]);
 
   const bgColor = isLight ? "var(--bg-base)" : "#060608";
   
@@ -316,6 +420,10 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
         @keyframes frm-pulse {
           0%   { transform: scale(1); opacity: 0.9; }
           100% { transform: scale(2.5); opacity: 0; }
+        }
+        @keyframes frm-cpa-pulse {
+          0%   { transform: scale(0.8); opacity: 1; }
+          100% { transform: scale(2.6); opacity: 0; }
         }
         .frm-tooltip {
           background: ${isLight ? "#ffffff" : "#0a0b0e"} !important;
@@ -383,6 +491,55 @@ export default function FlightRadarMap({ flights: propFlights, selectedFlight, o
                 setAltFilter(opt);
               }}
             />
+          ))}
+        </div>
+      </div>
+
+      {/* Conflict HUD panel (fixed position to avoid map overlap clutter) */}
+      <div
+        style={{
+          position: "absolute",
+          right: 12,
+          bottom: 12,
+          zIndex: 11,
+          width: 300,
+          background: isLight ? "rgba(255,255,255,0.95)" : "rgba(10,11,14,0.9)",
+          border: `1px solid ${isLight ? "#b91c1c" : "#ff2d2d"}`,
+          boxShadow: isLight ? "0 8px 20px rgba(0,0,0,0.12)" : "0 10px 24px rgba(0,0,0,0.35)",
+          padding: "10px 12px",
+          pointerEvents: "none",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, letterSpacing: "0.15em", fontWeight: 700, color: isLight ? "#b91c1c" : "#ff2d2d" }}>
+            CONFLICT PAIR
+          </span>
+          <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 10, color: isLight ? "#57534e" : "#9c978f" }}>
+            {CONFLICT_PLAN.minimum}
+          </span>
+        </div>
+        <div style={{ marginTop: 4, fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 14, fontWeight: 700, color: isLight ? "#111827" : "#f8fafc", letterSpacing: "0.04em" }}>
+          {CONFLICT_PLAN.primary} ↔ {CONFLICT_PLAN.secondary}
+        </div>
+        <div style={{ marginTop: 3, fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, color: isLight ? "#57534e" : "#9c978f" }}>
+          {CONFLICT_PLAN.cpaLabel}
+        </div>
+        <div style={{ marginTop: 7, display: "grid", gap: 4 }}>
+          {CONFLICT_PLAN.actions.map((action, index) => (
+            <div key={action} style={{ display: "flex", gap: 7, alignItems: "flex-start" }}>
+              <span
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: 99,
+                  marginTop: 6,
+                  background: index === 2 ? (isLight ? "#0f766e" : "#00e5cc") : (isLight ? "#b91c1c" : "#ff2d2d"),
+                }}
+              />
+              <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 11, lineHeight: 1.3, color: isLight ? "#111827" : "#e5e7eb" }}>
+                {action}
+              </span>
+            </div>
           ))}
         </div>
       </div>

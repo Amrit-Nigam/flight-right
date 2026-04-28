@@ -14,6 +14,12 @@ const STATUS_COLORS_LIGHT = {
 const TRAJ_PX = 55; // roughly 60s look-ahead at average scale
 // 5 NM ring radius in canvas-px (approx at 50NM range with radius ~40% of canvas min dimension)
 const SEP_RING_PX_RATIO = 0.10; // 5NM as fraction of the 50NM radius
+const CONFLICT_CALLSIGNS = ["AI6302", "SG881"];
+const CONFLICT_ACTIONS = [
+  "CONTACT AI6302 FIRST: descend FL260 + left heading 020",
+  "THEN SG881: maintain FL270 + right heading 350",
+  "CPA projected 2.1 NM, below 3 NM minimum",
+];
 
 export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn, weatherDevAccepted }) {
   const canvasRef = useRef(null);
@@ -78,6 +84,26 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
       }
     };
 
+    const drawLabelBox = (x, y, lines, accent, width = 260) => {
+      const lineHeight = 15;
+      const height = 16 + lines.length * lineHeight;
+      ctx.save();
+      ctx.fillStyle = isLight ? "rgba(255,255,255,0.94)" : "rgba(6,6,8,0.88)";
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 1;
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = isLight ? 0 : 14;
+      ctx.fillRect(x, y, width, height);
+      ctx.strokeRect(x, y, width, height);
+      ctx.shadowBlur = 0;
+      lines.forEach((line, index) => {
+        ctx.fillStyle = index === 0 ? accent : textPrimary;
+        ctx.font = `${index === 0 ? "bold " : ""}${index === 0 ? 11 : 10}px 'Geist Variable', system-ui, sans-serif`;
+        ctx.fillText(line, x + 10, y + 18 + index * lineHeight);
+      });
+      ctx.restore();
+    };
+
     const draw = () => {
       const cx = w / 2, cy = h / 2;
       const radius = Math.max(0, Math.min(cx, cy) - 20);
@@ -126,7 +152,12 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
       ctx.fillStyle = textPrimary; ctx.fill();
 
       const fl = flightsRef.current;
-      const conflicts = fl.filter(f => f.status === "conflict");
+      const conflictPair = CONFLICT_CALLSIGNS
+        .map(callsign => fl.find(f => f.callsign === callsign))
+        .filter(Boolean);
+      const conflicts = conflictPair.length >= 2 ? conflictPair : fl.filter(f => f.status === "conflict");
+      const cpaX = cx;
+      const cpaY = cy - radius * 0.08;
 
       // ── WEATHER CELL ─────────────────────────────────────────────────────
       if (weatherOn && weatherCell?.length > 0) {
@@ -189,18 +220,75 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         });
       }
 
+      // ── ACTIVE CONFLICT STORY: projected convergence and controller intent ─
+      if (conflicts.length >= 2) {
+        const conflictPoints = conflicts.map((f) => ({
+          f,
+          x: cx + (f.x - 0.5) * radius * 2,
+          y: cy + (f.y - 0.5) * radius * 2,
+        }));
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(conflictPoints[0].x, conflictPoints[0].y);
+        ctx.lineTo(cpaX, cpaY);
+        ctx.lineTo(conflictPoints[1].x, conflictPoints[1].y);
+        ctx.closePath();
+        ctx.fillStyle = isLight ? "rgba(220,38,38,0.08)" : "rgba(255,45,45,0.12)";
+        ctx.fill();
+        ctx.strokeStyle = isLight ? "rgba(185,28,28,0.38)" : "rgba(255,45,45,0.4)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        conflictPoints.forEach(({ f, x, y }, index) => {
+          const color = index === 0 ? "#ff2d2d" : (isLight ? "#d97706" : "#ffdd00");
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.quadraticCurveTo((x + cpaX) / 2, y - 34, cpaX, cpaY);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 3;
+          ctx.setLineDash([12, 8]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          ctx.fillStyle = color;
+          ctx.font = "bold 10px 'Geist Variable', system-ui, sans-serif";
+          ctx.fillText(index === 0 ? "CALL FIRST" : "VECTOR SECOND", x - 34, y - 18);
+          ctx.font = "10px 'Geist Variable', system-ui, sans-serif";
+          ctx.fillText(`${f.heading}° / ${f.speed}kt`, x - 28, y - 4);
+        });
+
+        ctx.beginPath();
+        ctx.arc(cpaX, cpaY, 10 + Math.sin(Date.now() / 180) * 3, 0, Math.PI * 2);
+        ctx.fillStyle = isLight ? "rgba(185,28,28,0.2)" : "rgba(255,45,45,0.25)";
+        ctx.fill();
+        ctx.strokeStyle = "#ff2d2d";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = "#ff2d2d";
+        ctx.font = "bold 11px 'Geist Variable', system-ui, sans-serif";
+        ctx.fillText("CPA 2.1 NM", cpaX + 14, cpaY - 8);
+        ctx.fillStyle = textMuted;
+        ctx.font = "10px 'Geist Variable', system-ui, sans-serif";
+        ctx.fillText("minimum 3 NM", cpaX + 14, cpaY + 7);
+        ctx.restore();
+      }
+
       // ── TRAJECTORY PREDICTION LINES (all aircraft) ───────────────────────
       for (const f of fl) {
         const fx = cx + (f.x - 0.5) * radius * 2;
         const fy = cy + (f.y - 0.5) * radius * 2;
         const headRad = (f.heading - 90) * (Math.PI / 180);
         const color   = statusColors[f.status] || baseColor;
-        const endX    = fx + Math.cos(headRad) * TRAJ_PX;
-        const endY    = fy + Math.sin(headRad) * TRAJ_PX;
+        const isConflictFlight = CONFLICT_CALLSIGNS.includes(f.callsign);
+        const endX    = isConflictFlight ? cpaX : fx + Math.cos(headRad) * TRAJ_PX;
+        const endY    = isConflictFlight ? cpaY : fy + Math.sin(headRad) * TRAJ_PX;
 
         // Conflicts glow red/amber; others dim
         let trajColor;
-        if (f.status === "conflict") {
+        if (isConflictFlight) {
           trajColor = `rgba(255,${Math.round(45 + 80 * Math.abs(Math.sin(Date.now() / 300)))},45,0.85)`;
         } else if (f.status === "holding") {
           trajColor = "rgba(255,221,0,0.45)";
@@ -213,7 +301,7 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         ctx.moveTo(fx, fy);
         ctx.lineTo(endX, endY);
         ctx.strokeStyle = trajColor;
-        ctx.lineWidth = f.status === "conflict" ? 1.8 : 1;
+        ctx.lineWidth = isConflictFlight ? 1.8 : 1;
         ctx.stroke();
         ctx.setLineDash([]);
 
@@ -245,27 +333,26 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
         ctx.fillText("5NM", fx + ringR + 2, fy - 4);
       }
 
-      // ── CONFLICT CONVERGENCE LINE (midpoint CPA marker) ──────────────────
+      // ── CONFLICT PAIR LINK + INSTRUCTION PANEL ───────────────────────────
       if (conflicts.length >= 2) {
         const f1 = conflicts[0], f2 = conflicts[1];
         const fx1 = cx + (f1.x - 0.5) * radius * 2;
         const fy1 = cy + (f1.y - 0.5) * radius * 2;
         const fx2 = cx + (f2.x - 0.5) * radius * 2;
         const fy2 = cy + (f2.y - 0.5) * radius * 2;
-        const mx = (fx1 + fx2) / 2, my = (fy1 + fy2) / 2;
 
         ctx.beginPath(); ctx.setLineDash([3, 3]);
-        ctx.moveTo(fx1, fy1); ctx.lineTo(mx, my); ctx.lineTo(fx2, fy2);
+        ctx.moveTo(fx1, fy1); ctx.lineTo(cpaX, cpaY); ctx.lineTo(fx2, fy2);
         ctx.strokeStyle = "rgba(255,45,45,0.6)"; ctx.lineWidth = 1.2; ctx.stroke();
         ctx.setLineDash([]);
 
-        // CPA pulsing marker
-        ctx.beginPath();
-        ctx.arc(mx, my, 4 + Math.sin(Date.now() / 150) * 2, 0, Math.PI * 2);
-        ctx.fillStyle = "#ff2d2d"; ctx.fill();
-        ctx.fillStyle = "rgba(255,45,45,0.7)";
-        ctx.font = "bold 9px 'Geist Variable', system-ui, sans-serif";
-        ctx.fillText("CPA", mx + 6, my - 4);
+        drawLabelBox(
+          Math.max(12, Math.min(18, w - 342)),
+          Math.max(86, h - 104),
+          ["LOSS OF SEPARATION", ...CONFLICT_ACTIONS],
+          isLight ? "#b91c1c" : "#ff2d2d",
+          330
+        );
       }
 
       // ── FLIGHT BLIPS ─────────────────────────────────────────────────────
