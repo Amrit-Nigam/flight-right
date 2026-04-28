@@ -16,8 +16,8 @@ export const initialFlights = [
 
 // ========== RADAR FLIGHTS & ENVIRONMENT ==========
 export const radarFlights = [
-  { callsign: "AI6302", xPct: 62, yPct: 38, heading: 45,  status: "conflict", altitude: "FL280", speed: 420 },
-  { callsign: "SG881",  xPct: 55, yPct: 42, heading: 320, status: "holding",  altitude: "FL270", speed: 210 },
+  { callsign: "AI6302", xPct: 38, yPct: 68, heading: 45,  status: "conflict", altitude: "FL280", speed: 420 },
+  { callsign: "SG881",  xPct: 62, yPct: 68, heading: 320, status: "conflict", altitude: "FL270", speed: 210 },
   { callsign: "EK512",  xPct: 40, yPct: 60, heading: 272, status: "landing",  altitude: "4800ft", speed: 165 },
   { callsign: "9W445",  xPct: 48, yPct: 52, heading: 90,  status: "takeoff",  altitude: "1200ft", speed: 190 },
   { callsign: "UK965",  xPct: 70, yPct: 30, heading: 15,  status: "cruise",   altitude: "FL350", speed: 470 },

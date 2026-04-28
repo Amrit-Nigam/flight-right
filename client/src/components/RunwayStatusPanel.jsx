@@ -7,8 +7,8 @@ export default function RunwayStatusPanel() {
   const [isBalanced, setIsBalanced] = useState(false);
   return (
     <div className="panel p-5">
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-display text-[13px] tracking-widest text-[var(--text-primary)]">
+      <div className="flex items-center justify-between mb-6 gap-3">
+        <h3 className="font-display text-[12px] sm:text-[13px] tracking-widest text-[var(--text-primary)] whitespace-nowrap">
           RUNWAY UTILIZATION
         </h3>
         <div className="flex items-center gap-3">
@@ -37,19 +37,21 @@ export default function RunwayStatusPanel() {
       </div>
 
       <div className="relative pt-4 pb-2">
-        {/* Red NOW line cutting through all runways */}
-        <div className="absolute top-0 bottom-0 z-10 w-[1px] bg-[var(--red)] opacity-80" style={{ left: '25%' }} />
-        <div className="absolute -top-1.5 z-10 font-display text-[9px] px-1 bg-[var(--red)] text-white" style={{ left: '25%', transform: 'translateX(-50%)' }}>
-          NOW
+        <div className="relative">
+          {/* Red NOW line aligned to runway track column */}
+          <div className="absolute top-0 bottom-0 z-10 w-[1px] bg-[var(--red)] opacity-80" style={{ left: "calc(2.75rem + (100% - 2.75rem) * 0.25)" }} />
+          <div
+            className="absolute -top-1.5 z-10 font-display text-[9px] px-1 bg-[var(--red)] text-white"
+            style={{ left: "calc(2.75rem + (100% - 2.75rem) * 0.25)", transform: "translateX(-50%)" }}
+          >
+            NOW
+          </div>
         </div>
 
         <div className="space-y-6">
           {runways.map((rwy) => (
-            <div key={rwy.id} className="relative">
-              {/* Runway marking label */}
-              <div className="absolute -left-2 -translate-x-full top-1/2 -translate-y-1/2">
-                <span className="font-display text-[13px] font-bold text-[var(--text-secondary)]">{rwy.id}</span>
-              </div>
+            <div key={rwy.id} className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-center gap-2">
+              <span className="font-display text-[13px] font-bold text-[var(--text-secondary)] text-right pr-1">{rwy.id}</span>
 
               {/* The "Runway" Base */}
               <div className="h-10 relative overflow-hidden rounded-sm" style={{ background: 'var(--bg-base)', border: '2px solid var(--border-default)' }}>

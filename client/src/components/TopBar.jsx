@@ -97,16 +97,16 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
       </div>
 
       {/* RIGHT ZONE: AI Status, Mic, Controller, Notifications, Theme */}
-      <div className="flex-1 flex items-center justify-end px-6 gap-5">
+      <div className="flex-1 flex items-center justify-end px-3 lg:px-5 gap-2 lg:gap-4 min-w-0 overflow-hidden">
         {/* AI Engine Status with workload */}
         <button
           onClick={() => {
             logAudit("topbar:ai", "AI assist control clicked", { priorEnabled: aiEnabled });
             onToggleAI();
           }}
-          className="flex flex-col items-end text-right transition-colors"
+          className="flex flex-col items-end text-right transition-colors shrink min-w-0"
         >
-          <span className="font-body text-[10px] uppercase tracking-wider mb-0.5" style={{ color: 'var(--text-muted)' }}>
+          <span className="font-body text-[9px] sm:text-[10px] uppercase tracking-wider mb-0.5 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
             AI Engine
           </span>
           <div className="flex items-center gap-1.5">
@@ -116,18 +116,18 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
                 style={{ background: 'var(--teal)', boxShadow: '0 0 6px rgba(0,229,204,0.6)' }}
               />
             )}
-            <span className="font-display text-[13px]" style={{ color: aiEnabled ? 'var(--teal)' : 'var(--text-secondary)', textShadow: aiEnabled ? '0 0 8px rgba(0,229,204,0.4)' : 'none' }}>
+            <span className="font-display text-[12px] sm:text-[13px] whitespace-nowrap" style={{ color: aiEnabled ? 'var(--teal)' : 'var(--text-secondary)', textShadow: aiEnabled ? '0 0 8px rgba(0,229,204,0.4)' : 'none' }}>
               {aiEnabled ? 'ASSIST ACTIVE' : 'ASSIST OFF'}
             </span>
           </div>
           {aiEnabled && (
-            <span className="font-body text-[9px] tracking-wide mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            <span className="hidden 2xl:block font-body text-[9px] tracking-wide mt-0.5 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
               Managing {aiManagedCount} flights · {aiPending} pending
             </span>
           )}
         </button>
 
-        <div className="w-[1px] h-8" style={{ background: 'var(--border-default)' }} />
+        <div className="w-[1px] h-8 shrink-0" style={{ background: 'var(--border-default)' }} />
 
         {/* Mic stub — voice commands coming soon */}
         <button
@@ -145,7 +145,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
         </button>
 
         {/* Controller Name */}
-        <div className="text-right">
+        <div className="hidden xl:block text-right shrink-0">
           <span className="block font-body text-[10px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-muted)' }}>
             Controller
           </span>
@@ -154,23 +154,23 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
           </span>
         </div>
 
-        <div className="w-[1px] h-8" style={{ background: 'var(--border-default)' }} />
+        <div className="hidden xl:block w-[1px] h-8 shrink-0" style={{ background: 'var(--border-default)' }} />
 
         <Link
           to="/logs"
           onClick={() => logAudit("topbar:nav", "User opened Session logs from header", { to: "/logs" })}
-          className="inline-flex items-center gap-1 rounded px-2 py-1 text-[9px] font-semibold uppercase tracking-wider transition-colors hover:bg-white/5 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-widest"
+          className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wider transition-colors hover:bg-white/5 sm:gap-1.5 sm:px-2.5 sm:py-1.5 sm:text-[10px] sm:tracking-widest shrink-0"
           style={{ color: 'var(--text-muted)' }}
           title="Session logs (console & toasts)"
         >
           <ScrollText className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-          <span className="max-[380px]:sr-only">Logs</span>
+          <span className="hidden lg:inline">Logs</span>
         </Link>
 
         <div className="w-px h-8 shrink-0" style={{ background: 'var(--border-default)' }} />
 
         {/* Action icons */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <button
             onClick={() => {
               logAudit("topbar:theme", "Theme toggle control clicked", { priorTheme: theme });
