@@ -10,4 +10,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Leaflet was removed (MapLibre/mapcn). Stale node_modules/.vite could still list it.
+  optimizeDeps: {
+    exclude: ['leaflet', 'react-leaflet'],
+  },
 })
