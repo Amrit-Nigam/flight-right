@@ -149,8 +149,7 @@ body::after {
 .font-display { font-family: "Geist Variable", system-ui, sans-serif; }
 .font-body { font-family: "Geist Variable", system-ui, sans-serif; }
 
-.leaflet-container,
-.leaflet-popup-content {
+.maplibregl-popup-content {
   font-family: "Geist Variable", system-ui, sans-serif !important;
 }
 

@@ -6,7 +6,7 @@ import ResolveModal from "@/components/ResolveModal";
 import SuccessToast from "@/components/SuccessToast";
 import RadarCanvas from "@/components/RadarCanvas";
 import AIAuditTrail from "@/components/AIAuditTrail";
-const FlightRadarMap = lazy(() => import("@/components/FlightRadarMap"));
+const FlightRadarMap = lazy(() => import("@/components/FlightRadarMap.tsx"));
 import TimelinePanel from "@/components/TimelinePanel";
 import FlightListPanel from "@/components/FlightListPanel";
 import FlightDetailDrawer from "@/components/FlightDetailDrawer";
