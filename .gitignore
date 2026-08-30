@@ -1,0 +1,46 @@
+# Secrets and local configuration
+secrets/*
+!secrets/.gitkeep
+.env
+
+# Python environments and bytecode
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# ML data: retain directory placeholders only
+ml_pipeline/data/raw/*
+!ml_pipeline/data/raw/.gitkeep
+ml_pipeline/data/processed/*
+!ml_pipeline/data/processed/.gitkeep
+ml_pipeline/data/synthetic/*
+!ml_pipeline/data/synthetic/.gitkeep
+ml_pipeline/data/replay/*
+!ml_pipeline/data/replay/.gitkeep
+
+# Locally trained model artifacts: retain directory placeholder only
+server/app/ml/saved_models/*
+!server/app/ml/saved_models/.gitkeep
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OpenSky credential exports (contain live API secrets)
+OpenSky Credentials_*.json
+
+# Local env backups and file backups (may contain secrets)
+.env.*
+!.env.example
+*.bak
+*.bak[0-9]
+*.backup_*
