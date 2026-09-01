@@ -10,7 +10,8 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 
-NUM_EPOCHS = 30
+NUM_EPOCHS = 60
+EARLY_STOPPING_PATIENCE = 10
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
 HIDDEN_SIZE = 128
@@ -33,7 +34,13 @@ class BiLSTMTrajectoryModel(nn.Module):
 
     def forward(self, sequence: torch.Tensor) -> torch.Tensor:
         outputs, _ = self.lstm(sequence)
-        final_state = outputs[:, -1, :]
+        # The forward direction summarises the window at its last step and the
+        # backward direction at its first. Taking outputs[:, -1, :] would pair the
+        # forward summary with a backward state that has seen only the final input,
+        # wasting half the network.
+        forward_summary = outputs[:, -1, :HIDDEN_SIZE]
+        backward_summary = outputs[:, 0, HIDDEN_SIZE:]
+        final_state = torch.cat([forward_summary, backward_summary], dim=1)
         return torch.stack([head(final_state) for head in self.heads], dim=1)
 
 
@@ -102,10 +109,17 @@ def main() -> None:
         raise ValueError("Each split needs at least one sample; collect more data before training.")
     (train_x, train_y, val_x, val_y, test_x, test_y), statistics = normalize_arrays(train_x, train_y, train_x, train_y, val_x, val_y, test_x, test_y)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'}")
+    print(f"Samples: {len(train_x)} train / {len(val_x)} val / {len(test_x)} test")
     model = BiLSTMTrajectoryModel().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     criterion = nn.MSELoss()  # Mean over all four heads: each horizon has equal weight.
     train_loader, val_loader, test_loader = make_loader(train_x, train_y, True), make_loader(val_x, val_y, False), make_loader(test_x, test_y, False)
+
+    best_validation_loss = float("inf")
+    best_state = None
+    best_epoch = 0
+    epochs_without_improvement = 0
 
     for epoch in range(1, NUM_EPOCHS + 1):
         model.train()
@@ -117,8 +131,28 @@ def main() -> None:
             optimizer.step()
             total += loss.item() * len(x_batch)
             count += len(x_batch)
-        print(f"Epoch {epoch:02d}/{NUM_EPOCHS} | train loss: {total / count:.6f} | val loss: {average_loss(model, val_loader, criterion, device):.6f}")
+        validation_loss = average_loss(model, val_loader, criterion, device)
 
+        # Keep the best weights rather than whatever the final epoch produced.
+        marker = ""
+        if validation_loss < best_validation_loss:
+            best_validation_loss = validation_loss
+            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            best_epoch = epoch
+            epochs_without_improvement = 0
+            marker = "  <- best"
+        else:
+            epochs_without_improvement += 1
+        print(f"Epoch {epoch:02d}/{NUM_EPOCHS} | train loss: {total / count:.6f} | val loss: {validation_loss:.6f}{marker}")
+
+        if epochs_without_improvement >= EARLY_STOPPING_PATIENCE:
+            print(f"Stopping early: validation loss has not improved for {EARLY_STOPPING_PATIENCE} epochs.")
+            break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    print("")
+    print(f"Evaluating the best checkpoint (epoch {best_epoch}, val loss {best_validation_loss:.6f}).")
     evaluate_real_units(model, test_loader, statistics["y_mean"], statistics["y_std"], device)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     torch.save({"model_state_dict": model.state_dict(), "config": {"input_size": 8, "hidden_size": HIDDEN_SIZE, "num_layers": NUM_LAYERS, "dropout": DROPOUT}, "normalization": statistics}, MODEL_PATH)
