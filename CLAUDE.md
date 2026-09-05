@@ -475,3 +475,250 @@ of unattended runs.
 for 100% of rows across all 774 aircraft observed. The "emergency squawk
 7700" demo scenario in Section 9 therefore cannot come from live data and
 must be synthetic.
+
+### 2026-09-01 — Trajectory model rebuilt as a residual predictor; the old Bi-LSTM formulation is retired
+
+**Why the previous model failed (measured, not assumed).** `train_bilstm.py`
+normalised its targets with `y_std = train_y.std(axis=(0, 1))`, which collapses the
+horizon axis and divides absolute latitude/longitude by the spatial spread of the
+whole collection region (1.867 deg of latitude). 5 NM is 0.083 deg — **0.045 standard
+deviations**. The entire range from a perfect prediction to a useless one occupied
+0 to 0.045 of the space the loss could see. The same normalisation on the inputs
+reduced the aircraft's motion inside its 10-step window to **1.9%** of one standard
+deviation of the latitude feature: the network could see *where* an aircraft was but
+not *which way it was going*. It scored worse than constant velocity at every horizon,
+and this went unnoticed because the script printed a single MAE **pooled across all
+four horizons** — the 1-minute horizon is easy enough to mask a 10-minute failure.
+
+**Supersedes Section 3's "Bi-LSTM (bidirectional)".** The model is now a
+**unidirectional** 2-layer LSTM (hidden 128, dropout 0.3) predicting the *residual
+from constant velocity*, in `train_trajectory.py` (`train_bilstm.py` is deleted).
+Bidirectional was wrong on principle: at inference there is no future to read
+backwards from. Constant velocity is no longer merely a baseline to beat — it is the
+model's own starting point, since a zero output reproduces it exactly. This satisfies
+Section 13's "keep the deterministic version in place" more strongly than before: the
+physics cannot be discarded, only corrected.
+
+**New shared module `ml_pipeline/training/trajectory/framing.py`** holds the
+coordinate transforms used by training, evaluation and (later) backend inference, so
+the three cannot drift apart. Targets are residuals in **metres**, in a frame rotated
+onto the aircraft's last observed heading: along-track, cross-track, altitude.
+`apply_residual` inverts `residual_targets` exactly (verified to 1e-14 deg). Headings
+are unwrapped before differencing so a 359->001 crossing is not read as a 358 deg turn.
+
+**Data pipeline (`preprocess_sequences.py`), two fixes:**
+
+1. Targets are now **linearly interpolated** between the two real observations
+   bracketing each horizon (bracket <= 120 s, never extrapolated). The old
+   nearest-observation snapping accepted a 30 s mismatch; at ~13.6 km/min that was
+   **mean 0.42 NM, p95 1.40 NM, worst 5.2 NM** of pure label noise at the 1-minute
+   horizon, with 28% of windows above 0.5 NM. Removing it dropped the measured
+   constant-velocity 1-minute error from 0.62 NM to **0.21 NM** — that improvement
+   was never the model's to win.
+2. **Per-horizon masking.** A window is kept if **at least one** horizon resolves,
+   with a `(N, 4)` bool `mask` array saved in each `.npz`. Requiring all four
+   silently deleted every aircraft descending into Mumbai within ten minutes, biasing
+   the dataset toward easy high-altitude cruise. Samples went **73,254 -> 151,613**.
+   Per-horizon validity is 97.4 / 83.5 / 72.0 / **49.9%** — that 1-min-to-10-min gap
+   *is* the arrival traffic. **The mask is the contract: invalid target values are
+   0.0 placeholders and must never be read.**
+
+**Loss — and a real trap.** Use `SmoothL1Loss`, never `MSELoss`; squared error is
+dominated by the manoeuvring tail and trades away thousands of near-perfect
+predictions to shrink a few large ones. **But `beta` is measured in normalised units,
+so it interacts with the per-horizon normalisation.** At `beta=1.0` the quadratic
+region reaches one residual standard deviation = **11.5 NM at the 10-minute horizon**,
+putting 86% of along-track and 81% of cross-track targets inside it — i.e. it *was*
+MSE for the bulk of the data. Measured consequence: 10-minute mean improved to
+6.84 NM while within-1-NM **collapsed from the baseline's 32.6% to 12.9%**. At
+`beta=0.05` (quadratic below ~0.5 NM at ten minutes) within-1-NM recovered to 30.6%.
+**Do not raise this beta.**
+
+**Per-horizon residual normalisation is load-bearing** now that targets are residuals:
+their standard deviation grows from 540 m (1 min, along) to 21,296 m (10 min, along),
+so a shared scale would let the 10-minute head dominate. On the old absolute-position
+targets the equivalent weighting was a measured no-op (1.873 / 1.865 / 1.861 / 1.869).
+
+**Evaluation is now per-horizon and per-regime** (`evaluate.py`, runnable standalone).
+Never report a pooled-across-horizons metric again. Cross-track error is the
+safety-relevant component; along-track error means an aircraft is late on a route it
+is still following. Results are written to
+`ml_pipeline/data/processed/eval_<label>.{csv,md}`.
+
+**Measured results on the test split (3 held-out sessions, 20,611 samples):**
+
+| horizon | CV mean | model mean | CV <5NM | model <5NM | GBT reference <5NM |
+|---|---|---|---|---|---|
+| 1 min | 0.21 NM | 0.16 NM | 100.0% | 100.0% | 100.0% |
+| 3 min | 1.38 NM | 1.04 NM | 91.8% | 94.6% | 94.9% |
+| 5 min | 3.45 NM | 2.48 NM | 79.5% | 85.0% | 87.6% |
+| 10 min | 10.21 NM | 6.85 NM | 52.8% | **61.6%** | **69.7%** |
+
+**Open finding, do not paper over it.** `reference_benchmark.py` — a non-neural
+`HistGradientBoostingRegressor(loss='absolute_error')` on the identical features and
+targets — reaches **69.7%** at ten minutes against the LSTM's 61.6%. The tree is
+genuinely ahead, and it fits 12 independent models (4 horizons x 3 axes) versus one
+shared LSTM trunk. Keep the benchmark in the repo as the standing bar and report the
+gap honestly in the evaluation rather than presenting the neural model as the best
+available. Validation loss was flat from epoch 12 while training loss kept falling, so
+the LSTM was overfitting, not under-trained — more epochs will not close this.
+
+**Where the remaining error lives** (10-minute, % within 5 NM): sharp turns
+(>30 deg) **15.8%**, fast climb/descent **35.6%**, terminal-area traffic (<40 NM
+from VABB) **38.6%**, versus en-route level flight at ~67-70%. Constant velocity
+cannot model a turn, and neither model yet has route or intent information.
+
+**Model artifact:** `server/app/ml/saved_models/trajectory_residual.pt`, holding
+`model_state_dict`, feature normalisation, per-horizon residual normalisation, and a
+config dict — verified sufficient to reconstruct predictions in a fresh process with
+no access to the training script. The old `bilstm_trajectory.pt` is left in place.
+
+**Training-loop note:** the whole split (~30 MB) is kept resident on the GPU and
+batched by index rather than through a `DataLoader`. On this laptop GPU the per-batch
+host-to-device copy, not the arithmetic, was setting the epoch time — 15 min/epoch
+became ~25 s/epoch. Hyperparameters are unchanged by this.
+
+### 2026-09-01 — CPA is evaluated on a dense 15 s grid, not the four named horizons
+
+`compute_cpa()` took the minimum lateral separation across only the 60/180/300/600 s
+predictions. The true closest point of approach almost never lands on one of those
+four instants, so a pair passing within 2 NM at t = 240 s was recorded at its
+separation at 180 s and 300 s — 16.2 NM — and the conflict was **silently dropped**.
+This directly capped conflict-detection recall.
+
+`compute_cpa()` now evaluates every time the two aircraft share, and
+`predict_dense_grid()` / `compute_cpa_from_states()` produce a **15 s grid from 0 to
+600 s (41 points)** from a raw state using the constant-velocity baseline, so the
+rule-based path still runs without the neural model. The result adds
+`time_to_cpa_seconds` and `is_converging` (separation decreasing at the start of the
+window). The four named horizons still work as input and are still returned under
+`per_horizon` for the dashboard; `cpa_horizon_seconds` is retained as an alias.
+`classify_conflict()` thresholds and severity rules are unchanged.
+
+**Measured on 4,000 synthetic pairs: the four-point rule labelled 856 conflicts, the
+dense grid 1,089 — 21.4% of true conflicts were invisible to it.**
+`generate_synthetic_scenarios.py` was therefore switched to the dense path: leaving it
+on the sparse grid would have fixed detection while continuing to *train the XGBoost
+classifier on labels produced by the bug*. `time_to_cpa_seconds` also goes from 4
+distinct values to 41, making it an actually usable feature.
+
+**Secrets status (audited 1 Sep 2026):** `.env`, the three
+`OpenSky Credentials_*.json` files and `secrets/credentials.json` are all
+gitignore-covered and **none is tracked, now or in any commit in history** — no
+rotation and no history rewrite needed. `**/secrets/*` was added alongside the rooted
+`secrets/*`, which would not cover a `server/secrets/` once the backend grows one.
+
+### 2026-09-02 — Retrained on 23 sessions; the LSTM's gap to the tree reference nearly closed
+
+**What changed.** Five collection sessions written since the 1 Sep run were added
+(23 raw parquets, 21 session blocks after the 1800 s merge rule). Airborne states
+424,414; samples **151,613 -> 198,537 (+31%)**. Splits re-cut chronologically on
+whole-session boundaries: train 143,117 (15 sessions, to 1 Sep 03:43 IST), val
+27,552 (3 sessions), test 27,868 (3 sessions, 2 Sep 06:01 -> 12:18 IST). Per-horizon
+validity 97.4 / 83.7 / 72.4 / **50.4%** — essentially unchanged, so the arrival-traffic
+skew the mask exists to preserve is stable across a week of collection.
+
+**The new test split is harder than the old one**, so numbers are not comparable to
+the 1 Sep table row-for-row — compare each model against the constant-velocity
+baseline measured on the same split. CV 10-minute went from 10.21 NM / 52.8% within
+5 NM to **11.02 NM / 51.8%**.
+
+Measured on the new test split (27,868 samples):
+
+| horizon | n | CV mean | LSTM mean | GBT mean | CV <5NM | LSTM <5NM | GBT <5NM |
+|---|---|---|---|---|---|---|---|
+| 1 min | 27,163 | 0.22 NM | 0.19 NM | 0.17 NM | 99.9% | 100.0% | 100.0% |
+| 3 min | 23,312 | 1.40 NM | 1.13 NM | 1.02 NM | 91.5% | 93.5% | 94.5% |
+| 5 min | 20,113 | 3.41 NM | 2.49 NM | 2.18 NM | 79.3% | 84.9% | 87.2% |
+| 10 min | 14,030 | 11.02 NM | 6.41 NM | 5.65 NM | 51.8% | **64.5%** | **66.7%** |
+
+**The open finding from 1 Sep is narrowing, not resolved.** The
+`HistGradientBoostingRegressor` reference led the LSTM by **8.1 points** at ten
+minutes on the old split (69.7% vs 61.6%); on the new split it leads by **2.2**
+(66.7% vs 64.5%). The tree's own score *fell* (69.7 -> 66.7) on the harder split while
+the LSTM's *rose* (61.6 -> 64.5), so the extra 31% of data helped the shared-trunk
+neural model materially more than it helped 12 independent per-horizon-per-axis trees.
+Keep reporting the gap honestly; do not present the LSTM as best-available yet.
+
+**A metric that got worse, and should not be hidden.** At ten minutes the LSTM's
+**within-1-NM rate is 25.9% against the baseline's 30.0%** (GBT: 32.7%). The LSTM
+pulls the whole error distribution inward — mean 11.02 -> 6.41 NM, p90 32.75 ->
+16.77 NM — but sacrifices some already-near-perfect predictions doing it. The GBT,
+fitting the conditional median per axis with `absolute_error`, does not pay this. This
+is the same beta/normalisation tension recorded on 1 Sep; `SMOOTH_L1_BETA = 0.05`
+remains the best setting found, and raising it makes this worse, not better.
+
+**Training behaviour unchanged in character.** Best checkpoint epoch 16, early stop at
+epoch 26 of 60; validation loss flat from ~epoch 12 while training loss kept falling.
+Still overfitting rather than under-trained — more epochs will not close the tree gap.
+Wall clock ~4 minutes on the RTX 4050 with the split resident on the GPU.
+
+**Where the error still lives** (10-minute, % within 5 NM, LSTM): sharp turns >30 deg
+**24.5%** (was 15.8%), fast climb/descent **32.5%** (was 35.6%), terminal <40 NM from
+VABB **38.2%** (was 38.6%), against en-route **70.1%** and level flight **75.9%**. The
+extra data helped turns appreciably and vertical manoeuvres not at all. Neither model
+has route or intent information, which is the obvious next lever.
+
+**Collection note.** `session_20260902_063002_partial.parquet` is in the test split —
+account A's 12:00 IST run stopped early but *did* write, so the `finally:` path works
+on a caught interrupt. It is a hard kill (`STATUS_CONTROL_C_EXIT`, 30 Aug) that still
+loses everything. Incremental checkpointing remains unfixed.
+
+### 2026-09-05 — Full retrain on 33 sessions; best-checkpoint restore is now verified, not assumed
+
+**Pipeline re-run end to end** (`preprocess_sequences.py` -> `train_trajectory.py` ->
+`evaluate.py` -> `reference_benchmark.py`) over all 36 raw parquets, 33 session blocks
+after the 1800 s merge rule. Airborne states 424,414 -> **627,344**; samples
+198,537 -> **291,008 (+47%)**. Splits re-cut chronologically on whole sessions: train
+205,757 (22 sessions, to 2 Sep 22:59 IST), val 45,637 (5 sessions), test 39,614
+(6 sessions, 4 Sep 08:01 -> 5 Sep 09:28 IST). Per-horizon validity 97.3 / 83.5 /
+72.0 / **49.9%** — stable across three retrains now, so the arrival-traffic skew the
+mask preserves is a property of the traffic, not of any one week.
+
+**Early stopping now proves it restored the best epoch.** `train_trajectory.py`
+already reloaded `best_state` before evaluating and saving, but nothing checked it.
+It now re-scores the restored weights on the validation split and raises if the result
+differs from the recorded best loss by more than 1e-9 (evaluation is deterministic, so
+this is an exact check), and it raises rather than silently saving an untracked model
+if no checkpoint was ever recorded. This run: best epoch 19, early stop at 29 of 60,
+val loss 0.235965 recorded and 0.235965 on restore.
+
+**This test split is harder again**, so compare each model only against the
+constant-velocity baseline measured on the same split — CV 10-minute went 11.02 NM /
+51.8% (2 Sep split) to **10.30 NM / 50.5%**, and CV at 1 minute is notably worse
+(0.22 -> 0.49 NM), so these six sessions carry more manoeuvring traffic throughout.
+
+| horizon | n | CV mean | LSTM mean | GBT mean | CV <5NM | LSTM <5NM | GBT <5NM |
+|---|---|---|---|---|---|---|---|
+| 1 min | 38,110 | 0.49 NM | 0.45 NM | 0.43 NM | 98.4% | 98.5% | 98.5% |
+| 3 min | 32,324 | 1.69 NM | 1.37 NM | 1.27 NM | 89.5% | 92.1% | 92.6% |
+| 5 min | 27,587 | 3.65 NM | 2.69 NM | 2.39 NM | 77.3% | 83.2% | 85.1% |
+| 10 min | 18,662 | 10.30 NM | 6.41 NM | 5.57 NM | 50.5% | **60.9%** | **65.7%** |
+
+**The tree gap widened, and the 2 Sep "narrowing" should not be read as a trend.**
+`HistGradientBoostingRegressor` leads the LSTM at ten minutes by **4.8 points**
+(65.7% vs 60.9%), against 2.2 on the 2 Sep split and 8.1 on the 1 Sep one. Three
+points across three different test splits is not a trajectory — the split changes each
+time, so the honest statement is that 12 independent per-horizon-per-axis trees have
+beaten the shared-trunk LSTM at ten minutes on every split measured so far, by
+somewhere between 2 and 8 points. Keep `reference_benchmark.py` as the standing bar
+and keep reporting the gap; do not present the LSTM as best-available.
+
+**The within-1-NM regression is confirmed, not noise.** At ten minutes the LSTM
+reaches **25.2% within 1 NM against the baseline's 29.0%** (GBT: 33.1%) — the same
+sign and roughly the same size as the 2 Sep run (25.9% vs 30.0%). The LSTM pulls the
+distribution inward overall (mean 10.30 -> 6.41 NM, p90 29.18 -> 16.96 NM) while
+giving up some already-near-perfect predictions; the GBT's per-axis
+`absolute_error` fit does not pay this. `SMOOTH_L1_BETA = 0.05` is still the best
+setting found and raising it makes this worse.
+
+**Overfitting, not under-training, again.** Validation loss was flat from ~epoch 12
+while training loss fell monotonically from 0.310 to 0.216 through epoch 29. Three
+runs have now shown the same shape; more epochs are not the missing ingredient.
+
+**Where the error lives** (10-minute, % within 5 NM, LSTM vs CV): sharp turns >30 deg
+**22.8%** vs 7.6%, fast climb/descent **28.6%** vs 5.5%, terminal <40 NM from VABB
+**35.8%** vs 15.8%, against en-route **67.9%** and level flight **70.4%**. The model
+roughly triples the baseline in exactly the regimes the baseline cannot represent,
+which is the expected shape — but manoeuvring and terminal traffic remain where the
+remaining error is concentrated, and neither model has route or intent information.
