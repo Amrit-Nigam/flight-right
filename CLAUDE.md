@@ -74,7 +74,7 @@ with this table.
 | **Model 3 — resolution engine** | **NOT STARTED.** |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
 | **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the full rule → multi-path → classifier → tier chain for a pair. The API layer on top of it is the next job. |
-| **Frontend dashboard** | Built, but **not on this branch** — removed by commit `9b6800b`, recoverable from `91720e7`. |
+| **Frontend dashboard** | **ON THIS BRANCH** again as of 6 Sep 2026: `client/` restored from `main` (MapLibre version). Still runs on `mockData.js`; wiring to the backend is Section 8. |
 
 ### PART 3 — RULES THAT ARE NOT UP FOR DEBATE
 
@@ -1880,3 +1880,20 @@ report prints the false-alarm cost beside every option.
 
 **Headline number:** Unmoved until the switch is set, and the run that sets it prints the
 new value with its basis.
+
+### 2026-09-06 — The frontend is back on this branch
+
+**Files:** `client/` (48 files, restored from `origin/main` commit `c7fe5a0`).
+
+**Before:** The React dashboard had been removed from this branch on 30 August so the
+branch held only the Python pipeline. Anyone planning a demo had to restore it first.
+
+**Now:** `client/` is the same code as on `main`, which is newer than the version the
+30 August commit removed (it uses MapLibre instead of Leaflet). Frontend-only code lives
+in `client/`; everything model-related stays in `ml_pipeline/` and `server/`. It still
+runs on mock data; connecting it is Step 5 in `ARCHIT_TODO.md`.
+
+**Why:** One branch that contains the whole project. `client/.env` and `node_modules`
+remain gitignored.
+
+**Headline number:** Unmoved.

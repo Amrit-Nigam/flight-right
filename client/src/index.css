@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ========== DARK MODE (default) ========== */
+  :root {
+    --bg-base: #100f0e;
+    --bg-panel: #161513;
+    --bg-panel-alt: #1a1917;
+    --bg-raised: #22201e;
+    --amber: #f5a623;
+    --amber-dim: #c47d0e;
+    --amber-glow: rgba(245,166,35,0.15);
+    --teal: #00e5cc;
+    --teal-dim: #009e8e;
+    --teal-glow: rgba(0,229,204,0.12);
+    --red: #ff2d2d;
+    --red-dim: #c41a1a;
+    --red-glow: rgba(255,45,45,0.15);
+    --green: #00ff88;
+    --green-dim: #00b360;
+    --yellow: #ffdd00; /* Leaving yellow just in case but mostly we use amber */
+    --text-primary: #e8e3dc;
+    --text-secondary: #9c978f;
+    --text-muted: #6b655f;
+    --border-default: #2f2d2a;
+    --border-bright: #45423f;
+    --border-teal: rgba(0,229,204,0.25);
+    --border-red: rgba(255,45,45,0.5);
+    --radius: 4px;
+    --scanline-opacity: 0.04;
+
+    /* shadcn compat */
+    --background: 24 6% 6%;
+    --foreground: 35 15% 88%;
+    --card: 30 7% 8%;
+    --card-foreground: 35 15% 88%;
+    --popover: 30 7% 8%;
+    --popover-foreground: 35 15% 88%;
+    --primary: 36 91% 55%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 30 7% 12%;
+    --secondary-foreground: 35 15% 88%;
+    --muted: 30 7% 12%;
+    --muted-foreground: 30 5% 40%;
+    --accent: 170 100% 45%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 100% 59%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 5% 18%;
+    --input: 30 5% 18%;
+    --ring: 36 91% 55%;
+    --status-nominal-bg: rgba(0, 255, 136, 0.06);
+    --status-alert-bg: var(--red-glow);
+    --overlay-strong: rgba(6, 6, 8, 0.85);
+    --overlay-ink: #e8e3dc;
+  }
+
+  /* ========== LIGHT MODE (higher contrast for readability) ========== */
+  .light {
+    --bg-base: #eceae6;
+    --bg-panel: #ffffff;
+    --bg-panel-alt: #f4f2ef;
+    --bg-raised: #e8e4de;
+    --amber: #b45309;
+    --amber-dim: #92400e;
+    --amber-glow: rgba(180, 83, 9, 0.12);
+    --teal: #0f766e;
+    --teal-dim: #115e59;
+    --teal-glow: rgba(15, 118, 110, 0.12);
+    --red: #b91c1c;
+    --red-dim: #991b1b;
+    --red-glow: rgba(185, 28, 28, 0.12);
+    --green: #15803d;
+    --green-dim: #166534;
+    --yellow: #a16207;
+    --text-primary: #0c0a09;
+    --text-secondary: #44403c;
+    --text-muted: #57534e;
+    --border-default: #c4bfba;
+    --border-bright: #a6a09a;
+    --border-teal: rgba(15, 118, 110, 0.35);
+    --border-red: rgba(185, 28, 28, 0.35);
+    --scanline-opacity: 0;
+    /* Status chips (TopBar etc.) */
+    --status-nominal-bg: rgba(21, 128, 61, 0.12);
+    --status-alert-bg: rgba(185, 28, 28, 0.1);
+    --overlay-strong: rgba(255, 255, 255, 0.94);
+    --overlay-ink: #0c0a09;
+
+    --background: 40 12% 93%;
+    --foreground: 24 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 10% 10%;
+    --primary: 28 85% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 12% 90%;
+    --secondary-foreground: 24 10% 12%;
+    --muted: 40 10% 88%;
+    --muted-foreground: 24 6% 38%;
+    --border: 30 8% 72%;
+    --input: 30 8% 72%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    font-family: "Geist Variable", system-ui, sans-serif;
+  }
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: "Geist Variable", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .light body {
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ========== SCANLINE OVERLAY ========== */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,var(--scanline-opacity)) 3px, rgba(0,0,0,var(--scanline-opacity)) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ========== CUSTOM SCROLLBAR ========== */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: rgba(245,166,35,0.2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(245,166,35,0.4); }
+.light ::-webkit-scrollbar-thumb { background: rgba(68, 64, 60, 0.35); }
+.light ::-webkit-scrollbar-thumb:hover { background: rgba(68, 64, 60, 0.55); }
+
+/* ========== FONTS (Geist Variable everywhere) ========== */
+.font-display { font-family: "Geist Variable", system-ui, sans-serif; }
+.font-body { font-family: "Geist Variable", system-ui, sans-serif; }
+
+.maplibregl-popup-content {
+  font-family: "Geist Variable", system-ui, sans-serif !important;
+}
+
+/* ========== GLOW EFFECTS ========== */
+.glow-amber { text-shadow: 0 0 12px rgba(245,166,35,0.6); }
+.glow-teal { text-shadow: 0 0 12px rgba(0,229,204,0.5); }
+.glow-red { text-shadow: 0 0 12px rgba(255,45,45,0.7); }
+.glow-green { text-shadow: 0 0 12px rgba(0,255,136,0.5); }
+.light .glow-amber, .light .glow-teal, .light .glow-red, .light .glow-green {
+  text-shadow: none;
+}
+
+/* ========== PANEL STYLES ========== */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+}
+.panel-cut {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.panel-header {
+  background: var(--bg-panel-alt);
+  border-bottom: 2px solid var(--amber);
+  padding: 10px 14px;
+}
+
+/* ========== HEX TEXTURE ========== */
+.hex-texture {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='32'%3E%3Cpolygon points='14,2 26,9 26,23 14,30 2,23 2,9' fill='none' stroke='%23f5a623' stroke-width='0.5' stroke-opacity='0.06'/%3E%3C/svg%3E");
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.5); }
+}
+.animate-pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.animate-blink { animation: blink 1s ease-in-out infinite; }
+
+@keyframes conflict-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-conflict-pulse { animation: conflict-pulse 0.8s ease-in-out infinite; }
+
+@keyframes header-pulse {
+  0% { border-bottom-color: rgba(255,45,45,1); box-shadow: 0 4px 24px rgba(255,45,45,0.6); }
+  50% { border-bottom-color: rgba(255,45,45,0.4); box-shadow: 0 4px 12px rgba(255,45,45,0.1); }
+  100% { border-bottom-color: rgba(255,45,45,1); box-shadow: 0 4px 24px rgba(255,45,45,0.6); }
+}
+.animate-header-pulse { animation: header-pulse 1.5s ease-in-out infinite; }
+
+@keyframes header-pulse-light {
+  0% { border-bottom-color: rgba(185,28,28,1); box-shadow: 0 3px 18px rgba(185,28,28,0.35); }
+  50% { border-bottom-color: rgba(185,28,28,0.45); box-shadow: 0 2px 10px rgba(185,28,28,0.12); }
+  100% { border-bottom-color: rgba(185,28,28,1); box-shadow: 0 3px 18px rgba(185,28,28,0.35); }
+}
+.light .animate-header-pulse { animation: header-pulse-light 1.5s ease-in-out infinite; }
+
+@keyframes bar-fill { from { width: 0%; } }
+.animate-bar-fill { animation: bar-fill 1.2s ease-out forwards; }
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+
+@keyframes flash-green {
+  0%, 100% { border-left-color: transparent; }
+  50% { border-left-color: #00ff88; background: rgba(0,255,136,0.06); }
+}
+.animate-flash-green { animation: flash-green 0.5s ease-in-out 4; }
+
+/* ========== STATUS BADGES ========== */
+.status-badge {
+  font-family: "Geist Variable", system-ui, sans-serif;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 3px 8px;
+  border-width: 2px;
+  border-style: solid;
+}
