@@ -69,10 +69,11 @@ with this table.
 | Component | Status |
 |---|---|
 | **Model 1 — trajectory prediction** | **DONE.** Beats the physics baseline everywhere. |
-| **Model 1b — multi-path output** | **DONE**, needs probability calibration. |
-| **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. |
+| **Model 1b — multi-path output** | **DONE.** Probability calibration (temperature scaling on validation) and dense-grid pairing are CODED as of 6 Sep 2026; the calibrated numbers come from the next real training run. |
+| **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table are coded; alerts unchanged. |
 | **Model 3 — resolution engine** | **NOT STARTED.** |
-| **Backend (FastAPI server)** | **NOT STARTED.** `server/` holds saved model files and a requirements list, no code. |
+| **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
+| **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the full rule → multi-path → classifier → tier chain for a pair. The API layer on top of it is the next job. |
 | **Frontend dashboard** | Built, but **not on this branch** — removed by commit `9b6800b`, recoverable from `91720e7`. |
 
 ### PART 3 — RULES THAT ARE NOT UP FOR DEBATE
@@ -112,16 +113,10 @@ of these.
 
 ### PART 4 — OPEN PROBLEMS, IN PRIORITY ORDER
 
-1. **Multi-path probabilities are badly calibrated.** A stated 90% is right 67%
-   of the time. Below 0.20 the true risk is *higher* than stated, which is the
-   dangerous direction — a genuinely risky pair can sit unnoticed in the
-   background list. Fix with CalibratedClassifierCV fitted on validation data.
-   **Do not adjust TIER_1_PROBABILITY_THRESHOLD or TIER_2_PROBABILITY_THRESHOLD
-   until this is done.**
-2. **The K x K path pairing checks only the four named horizons**, reintroducing
-   the sparse-grid blind spot that the rule-based path already fixed.
-   Interpolate candidate paths onto the same 15-second grid before pairing.
-3. **The conflict classifier misses its recall floor by 0.6 of a point.** Test
+1. **Run the pipeline for real on the RTX 4060 laptop.** Everything below marked
+   "coded" produces its numbers only from that run. `python ml_pipeline/run_pipeline.py`
+   then send back `ml_pipeline/reports/` (6 Sep 2026).
+2. **The conflict classifier misses its recall floor by 0.6 of a point.** Test
    recall is 0.9406 against a 0.95 gate. **Diagnosed, and it is not a bug in the
    model.** The threshold is chosen as the *highest* value still reaching 0.95 on
    validation, which by construction lands exactly on the edge of the floor
@@ -129,10 +124,33 @@ of these.
    below it. Selecting the edge point leaves no margin for the shift between splits.
    The obvious remedy is to select for a small margin above the floor, but that
    **changes when a controller gets alerted, so it needs Archit's sign-off** and has
-   not been done. Reported, not tuned away.
+   not been done. Reported, not tuned away. **As of 6 Sep `train_xgboost.py` prints a
+   WHAT-IF table** (margins 0.005 / 0.01 / 0.02: threshold, test recall, false alarms
+   per 1000, headline metric) so the decision can be made from numbers; the saved
+   model still uses the zero-margin threshold.
+3. **Tier thresholds 0.85 / 0.60 were chosen for a truthful probability.** The
+   multi-path probabilities are now calibrated in code (item resolved below), but the
+   thresholds have not been revisited against the calibrated numbers. Do that only
+   after the real run, and only with Archit.
 4. **The dataset has roughly doubled since the docs were written.** Re-run
    evaluation and refresh the numbers in `Flight_Right_ML_Approach.docx` before
    submission.
+
+**Resolved in code 6 September 2026, awaiting the real run for numbers:**
+
+- ~~*Multi-path probabilities are badly calibrated.*~~ `multipath.py` now fits a
+  single temperature on the validation split (Guo et al. 2017) and saves it in the
+  pickle; `inference.py` applies it. Ranking, and therefore best-of-5, is untouched by
+  construction. The script prints reliability and expected calibration error before and
+  after on the test split. Temperature scaling was chosen over `CalibratedClassifierCV`
+  because it cannot change the top-K and cannot overfit 40 classes on a thin
+  validation split; the reasoning is in the Section 14 entry.
+- ~~*The K x K path pairing checks only the four named horizons.*~~
+  `densify_path()` in `cpa_conflict_detection.py` interpolates each candidate path onto
+  the 15 s grid from the aircraft's current position; `compute_cpa_from_paths()` does it
+  automatically when given the two current positions. Unit-tested on a crossing at
+  t = 240 s that the four-point check misses (16 NM reported) and the dense check finds
+  (under 1 NM).
 
 **Resolved 5 September 2026, kept here so the trail is readable:**
 
@@ -1355,6 +1373,106 @@ rule-based detector on F-beta2) **PASSED**, 0.7480 vs 0.7315.
 deterministic safety net, per Section 13. It is now also the source of the model's
 features, so it cannot be removed.
 
+### 2026-09-06 — One-command training pipeline, calibration for both learned probabilities, dense-grid multi-path pairing, and the inference bridge
+
+**Context.** Work done on this machine (no raw data, no GPU) on the local branch
+`fable-backend`, to be trained for real by Archit on the RTX 4060 laptop. Nothing here
+changes what any model predicts or what any label means. **No headline number in this
+file changed**: every metric reported below the 5 Sep entries still stands until the
+real run replaces it. Verified by an end-to-end smoke test on invented tracks
+(`ml_pipeline/tests/smoke_test.py`), whose gate values are meaningless by design and
+are not quoted anywhere.
+
+**1. `ml_pipeline/run_pipeline.py` + `check_environment.py` + `README_TRAINING.md`.**
+Runs the seven existing scripts in order as subprocesses, tees every line to
+`ml_pipeline/reports/logs/<run>/<step>.log`, stops at the first failure, and writes
+`ml_pipeline/reports/training_report_<run>.md` with every GATE line, the headline block,
+tables and calibration numbers. `check_environment.py` refuses to start without a GPU
+(override `FLIGHT_RIGHT_ALLOW_CPU=1`) or with fewer than 3 raw sessions. The README
+covers the one Windows trap that matters: `pip install torch` installs the CPU build;
+the CUDA build needs `--index-url https://download.pytorch.org/whl/cu128`.
+
+**2. Multi-path calibration: temperature scaling, not `CalibratedClassifierCV`.**
+Source: Guo, Pleiss, Sun & Weinberger, *On Calibration of Modern Neural Networks*,
+ICML 2017, <https://arxiv.org/abs/1706.04599>. One scalar T divides the classifier's
+raw per-class scores before the softmax; fitted on the validation split by minimising
+negative log-likelihood (golden-section search on log T, convex objective). Reasons it
+was preferred over the sklearn wrapper named in the 5 Sep entry: (a) it is monotone, so
+the top-5 patterns and every best-of-K figure are identical before and after — asserted
+in the script; (b) 40 classes on a validation split of ~20k rows leaves several patterns
+with too few examples for a per-class sigmoid or isotonic fit, and one shared parameter
+cannot overfit. The script prints reliability tables and expected calibration error
+(Naeini et al., AAAI 2015) before/after, on arrivals and on all test rows, and stores
+`temperature` plus the ECE numbers in the pickle. `inference.py` reads it; a pickle
+without the key behaves exactly as before (T = 1).
+
+**3. Dense-grid pairing for candidate paths.** `densify_path(current, predictions)` in
+`cpa_conflict_detection.py` puts t = 0 at the aircraft's present position and linearly
+interpolates between the four predicted horizons onto the 15 s grid; never extrapolates
+past 600 s. `compute_cpa_from_paths(..., current_a, current_b)` applies it to every
+candidate. Linear segments add no assumption the model did not make. Unit test: two
+aircraft crossing at t = 240 s, four-point check reports > 8 NM and probability 0.0,
+dense check reports < 1 NM at 240 s and probability 1.0. `multipath.py` now also
+measures, on 300 relocated test pairs, how many pair probabilities change once
+interpolated — the number is printed under "Dense-grid check".
+
+**4. Conflict classifier (`train_xgboost.py`), four additions, alerts unchanged.**
+- **GPU:** `device="cuda"` with `tree_method="hist"` when XGBoost can see one, probed
+  rather than assumed; `FLIGHT_RIGHT_FORCE_CPU=1` overrides. Hyperparameters untouched.
+- **Platt calibration on validation** (Platt 1999; Niculescu-Mizil & Caruana, ICML 2005,
+  <https://www.cs.cornell.edu/~alexn/papers/calibration.icml05.crc.rev3.pdf>). Sigmoid,
+  not isotonic, because it is strictly monotone: the threshold is mapped through the same
+  function and the script **raises if the test alert set differs by a single row**.
+  Brier score and ECE before/after are printed; `platt_a`, `platt_b` and the calibrated
+  threshold are saved as booster attributes.
+- **WHAT-IF recall margins** 0.005 / 0.01 / 0.02: threshold, test recall, precision,
+  false alarms per 1000, missed, headline metric and gate status per row, marked "NOT
+  applied". Gives Archit the numbers for Part 4 item 2 without moving anything.
+- **SHAP:** XGBoost's native TreeSHAP (`pred_contribs=True`; Lundberg, Erion & Lee,
+  arXiv:1802.03888) — mean |contribution| per feature printed beside gain importance, and
+  per-row contributions returned by `inference.py` as the alert's explanation. No new
+  dependency. A `xgboost_conflict_model_card.json` is written beside the model with every
+  number the run printed.
+
+**5. `encounter_features()` and `manoeuvre_summary()` in `generate_synthetic_scenarios.py`.**
+The 24 features were computed inline in `_try_build_row`; they are now one function
+that both the generator and the backend call, with an assertion that its key order
+equals `FEATURE_COLUMNS`. Pure refactor — the generator's output is byte-for-byte the
+same computation.
+
+**6. `server/app/ml/inference.py`.** `TrajectoryPredictor`, `MultiPathPredictor`,
+`ConflictClassifier`, and `ConflictEngine.assess_pair(history_a, history_b, pair_history)`
+which runs: rule CPA on the dense grid (always) → multi-path K x K on the dense grid
+(tier 2 only; tier 1 stays on constant velocity per Section 3) → XGBoost calibrated
+probability + top-5 SHAP reasons → `escalate_pair` with the 3-consecutive-updates rule.
+Every result carries `sources`, `model_versions` and a `reason`. Missing model files
+degrade to the rule path and are listed in `missing`. Verified on smoke-test models:
+a converging pair escalates to tier 1 alarm on update 3 with all three sources present.
+
+**7. `FLIGHT_RIGHT_DATA_ROOT`.** Every pipeline script now resolves its data and model
+paths under this variable when set (default: project root). Exists so the smoke test can
+run the real scripts in a temporary directory and never touch real data or saved
+models. `FLIGHT_RIGHT_NUM_EPOCHS` and `FLIGHT_RIGHT_N_SCENARIOS` exist for the same
+reason. Unset, nothing changes.
+
+**8. First automated tests.** `ml_pipeline/tests/test_units.py` (8 tests: densify,
+Platt monotonicity and slope, temperature NLL and ranking, ECE, feature order,
+heading unwrap, window layout) and `smoke_test.py` (whole pipeline on fake data in a
+temp dir, then `inference_check.py`). Both pass on this machine.
+
+**Two platform findings recorded so nobody re-diagnoses them.** (a) `train_trajectory.py`
+now enables cuDNN benchmark and TF32 on CUDA — fixed shapes every batch, loss in
+normalised units, no precision concern. (b) On macOS, torch, scikit-learn and xgboost
+each bundle a `libomp`; with all three in one process torch's first parallel region
+deadlocks (exit -11 / hang in `load_state_dict`). `inference.py` imports xgboost first
+and pins torch to one thread on macOS-without-CUDA. Not an issue on the Windows/CUDA
+training machine; the workaround is guarded to macOS only.
+
+**Corrections to earlier text.** PROJECT_STATUS.md says the poll scripts have no
+incremental checkpointing; `scheduled_poll.py` (and b/c) do write a `_partial.parquet`
+every 60 polls (`CHECKPOINT_EVERY_POLLS`), so a hard kill loses at most ~10 minutes,
+not the session. Corrected there.
+
 
 ## 15. Plain-English change log (every change, explained for a beginner)
 
@@ -1590,3 +1708,152 @@ massaged. The second gate, which asks whether the model actually beats the simpl
 
 **Headline number:** unaffected. The headline is measured at the chosen setting and is
 93.7%.
+
+### 2026-09-06 — The whole training run is now one command, with a report at the end
+
+**Files:** `ml_pipeline/run_pipeline.py`, `ml_pipeline/check_environment.py`,
+`ml_pipeline/README_TRAINING.md` (all new).
+
+**Before:** Training meant running seven scripts by hand in the right order, watching
+each one's output scroll past, and copying numbers out of the terminal. Nothing checked
+first whether the graphics card was actually being used.
+
+**Now:** `python ml_pipeline/check_environment.py` says whether the laptop is ready
+(Python, packages, the RTX 4060 visible to PyTorch, raw data present, disk space), and
+`python ml_pipeline/run_pipeline.py` runs everything in order, saves every line of
+output to a log per step, and writes a Markdown report listing each gate result, the
+headline number and the key tables. If a step fails it stops there, so a model can never
+be trained on half-processed data.
+
+**Why:** Archit trains on a different machine from the one the code is written on. A
+run that can be started with one command and hands back one folder is a run whose
+results can be trusted and compared.
+
+**Headline number:** Unmoved. This is plumbing; the numbers come from the real run.
+
+### 2026-09-06 — The multi-path model's probabilities are now corrected on held-out data
+
+**File:** `ml_pipeline/training/trajectory/multipath.py`.
+
+**Before:** When the model said "90% likely" it was right about 67% of the time. It was
+over-confident, and the two tier thresholds (0.85 and 0.60) compare against exactly
+these numbers.
+
+**Now:** After training, the script measures on the validation data (data the model
+never trained on) how over-confident it is, and finds one correction number, called a
+temperature, that flattens every stated probability by the right amount. It then shows
+the before-and-after reliability on the test data. The correction cannot change which
+five paths are offered, only how likely each is said to be, so the "one of the five was
+right 63.6% of the time" figure is unaffected by construction.
+
+**Why:** Rule 9 in Part 3: a threshold means nothing until the probability it is
+compared to is truthful. Source: Guo et al., "On Calibration of Modern Neural
+Networks", 2017, <https://arxiv.org/abs/1706.04599>.
+
+**Headline number:** Unmoved. The multi-path probability feeds tier 2 (the watch list),
+not the classifier that the headline number is measured on.
+
+### 2026-09-06 — Candidate paths are now checked every 15 seconds, not at four instants
+
+**File:** `ml_pipeline/utils/cpa_conflict_detection.py` (`densify_path`, and a new
+optional argument to `compute_cpa_from_paths`).
+
+**Before:** The multi-path model predicts positions at 1, 3, 5 and 10 minutes only, and
+the conflict check between two aircraft's candidate paths looked only at those four
+moments. Two paths crossing at four minutes were measured at three and five minutes,
+where they were far apart, and the crossing was missed. This was the same blind spot
+already fixed for the straight-line path on 1 September.
+
+**Now:** Each candidate path is filled in between the known points with straight
+segments, starting from where the aircraft is right now, so the check runs on the same
+41-point grid the straight-line detector uses. A test with two paths crossing at exactly
+four minutes: the old check reported them 16 NM apart, the new one finds the crossing.
+
+**Why:** A model that predicts a conflict which the checker cannot see is a model whose
+prediction was wasted.
+
+**Headline number:** Unmoved (tier 2 path).
+
+### 2026-09-06 — The conflict classifier explains itself, states honest probabilities, and shows the cost of a safer threshold
+
+**File:** `ml_pipeline/training/conflict_classifier/train_xgboost.py`.
+
+**Before:** It printed a probability that was not checked for truthfulness, printed
+feature importance for the whole model but nothing per alert, and left the threshold
+decision in Part 4 without numbers to decide it with.
+
+**Now, four things, none of which changes a single alert:**
+1. The probability is corrected on validation data (Platt scaling) and the script
+   proves the set of alerts on test is identical before and after. It refuses to save
+   otherwise.
+2. For each alert the model can now say which facts pushed it towards "conflict" and
+   by how much (SHAP values, computed by XGBoost itself). The backend returns the top
+   five as the alert's explanation.
+3. A "what-if" table shows, for three small safety margins on the recall floor, what
+   the threshold would be, how many conflicts would be caught and how many false alarms
+   it would cost. Marked "NOT applied". This is the information Archit needs for the
+   decision in Part 4 item 2.
+4. It trains on the graphics card when one is present, and writes a model card (a JSON
+   file with every number from the run) beside the model.
+
+**Why:** Section 3 requires SHAP so controllers can see why an alert fired; Section 12
+forbids surfacing a prediction without a rationale; rule 9 requires calibration.
+
+**Headline number:** Unmoved. Same alerts, same recall, same warning times.
+
+### 2026-09-06 — A single place that turns two aircraft into the classifier's 24 inputs
+
+**File:** `ml_pipeline/training/conflict_classifier/generate_synthetic_scenarios.py`
+(`encounter_features`, `manoeuvre_summary`).
+
+**Before:** The 24 numbers the classifier sees were computed inside the training data
+generator, in a block of code nothing else could call. The backend would have had to
+copy it, and copies drift.
+
+**Now:** One function computes them, both for training and, through
+`server/app/ml/inference.py`, for live pairs. A check inside it fails the run if its
+output ever stops matching the official feature list.
+
+**Why:** A model fed slightly different features in production than in training gives
+answers nobody measured. Same arithmetic, same result; just callable.
+
+**Headline number:** Unmoved.
+
+### 2026-09-06 — The backend can now load and run all three models
+
+**File:** `server/app/ml/inference.py` (new), plus `ml_pipeline/tests/inference_check.py`.
+
+**Before:** The models existed only as files. Nothing outside the training scripts could
+load them.
+
+**Now:** One module loads the trajectory model, the multi-path model and the conflict
+classifier, and offers `assess_pair`, which for two aircraft runs the straight-line
+rule (always), the multi-path probability (for the 3-10 minute watch list), the
+classifier with its explanation, and the tiering rule with its three-consecutive-updates
+requirement. Every answer says which sources it used and which model version produced
+it. If a model file is missing, it says so and falls back to the rule.
+
+**Why:** Section 5 lists the API endpoints; every one of them needs exactly this
+underneath. The API itself is still to be written.
+
+**Headline number:** Unmoved.
+
+### 2026-09-06 — First automated tests, and a fake-data rehearsal of the whole pipeline
+
+**Files:** `ml_pipeline/tests/` (`test_units.py`, `smoke_test.py`, `fake_traffic.py`,
+`inference_check.py`).
+
+**Before:** The project had no automated tests (recorded as a gap in PROJECT_STATUS.md).
+
+**Now:** Eight unit tests cover the new geometry and calibration code. A smoke test
+generates invented flight tracks into a temporary folder, runs the entire pipeline on
+them in about three minutes on a laptop CPU, checks every model file was written, and
+loads them through the backend module. It deletes the folder afterwards and never
+touches real data.
+
+**Why:** A pipeline that has never been run end to end on the machine that will run it
+fails on the training laptop at step five, twenty minutes in. Rehearsing catches that
+here. **The fake data proves the code runs; it proves nothing about the models** (rule 7:
+invented paths teach nothing about Mumbai), and its gate results are never quoted.
+
+**Headline number:** Unmoved.

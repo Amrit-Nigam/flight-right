@@ -10,6 +10,7 @@ across horizons, and every metric is reported against the baseline.
 from __future__ import annotations
 
 import csv
+import os
 from pathlib import Path
 
 import numpy as np
@@ -18,7 +19,10 @@ import framing
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DATA_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "processed"
+# FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
+# it can never touch real data). Unset, everything lives under the project root.
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
+DATA_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
 METRES_TO_FEET = 3.28084
 
 HORIZON_LABELS = ["1 min", "3 min", "5 min", "10 min"]

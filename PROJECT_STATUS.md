@@ -1,6 +1,6 @@
 # Flight Right — Where The Project Stands
 
-**Written 5 September 2026.** Plain English, no assumed knowledge of machine
+**Written 5 September 2026, updated 6 September 2026.** Plain English, no assumed knowledge of machine
 learning or aviation. Every aviation word is defined the first time it is used.
 
 This document answers four questions: where are we, what does each file do, what
@@ -79,11 +79,12 @@ recorded positions.
 |---|---|
 | Data collection from OpenSky | **WORKING.** 35 raw session files on disk; the last full run used 627,344 airborne positions. |
 | Model 1 — trajectory prediction (LSTM) | **DONE.** Beats the physics baseline at all four time horizons. |
-| Model 1b — multi-path prediction | **DONE.** Works, but its confidence numbers are wrong (see Section 5). |
+| Model 1b — multi-path prediction | **DONE.** Its confidence numbers were wrong (Section 5); the correction is now coded and will be measured on the next real training run. |
 | Model 2 — conflict classifier (XGBoost) | **WORKING** as of 5 Sep. Rebuilt so it no longer restates the rule it was handed. See Section 6. |
 | Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. |
 | Model 3 — resolution recommendations | **NOT STARTED.** No file exists. |
-| **Backend server (FastAPI)** | **NOT STARTED.** |
+| **Training pipeline** | **ONE COMMAND** since 6 Sep: `python ml_pipeline/run_pipeline.py`. See `ml_pipeline/README_TRAINING.md`. |
+| **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the whole chain for a pair of aircraft. The web API on top is next. |
 | **Frontend dashboard** | Built earlier, **removed from this branch.** |
 
 ### The backend, specifically, since you asked
@@ -148,10 +149,10 @@ per rolling 24 hours, and one 90-minute session costs 1,080. Three accounts mean
 three sessions per day. The box we ask about is western India, from latitude 16 to
 23.5 and longitude 68 to 77.5, which contains Mumbai.
 
-**Known weakness, not yet fixed.** These scripts hold the whole session in memory and
-write the file only at the very end. On 30 August a session was force-killed after 41
-minutes and all 249 collected snapshots were lost, because the write never happened.
-There is no incremental saving.
+**Correction (6 Sep).** An earlier version of this note said there was no incremental
+saving. The current scripts write a `_partial.parquet` checkpoint every 60 polls (about
+ten minutes), so a hard kill now loses at most the last ten minutes rather than the
+session. The 30 August loss of 249 snapshots happened before that was added.
 
 ### 3b. The physics baseline — `ml_pipeline/utils/trajectory_baseline.py` (78 lines)
 
@@ -224,8 +225,21 @@ Both were rewritten on 5 September. Section 6 explains what was wrong and what c
 | `test_baseline_demo.py` | 65 | Sanity check that the physics baseline and CPA rules run on real data. |
 | `test_two_tier_demo.py` | 247 | Checks the two-tier alerting on three hand-built situations: a conflict hiding between horizons, a one-off bad reading, and a pair that safely passes. |
 
-These are demonstration scripts you run and read, not an automated test suite. **The
-project has no automated tests.** That is a real gap.
+These are demonstration scripts you run and read. **Since 6 September there is also an
+automated test suite** in `ml_pipeline/tests/`: `test_units.py` (8 unit tests, no data
+needed) and `smoke_test.py` (runs the entire pipeline on invented data in a temporary
+folder, then loads the models through the backend module). Run them with
+`python -m unittest ml_pipeline.tests.test_units` and `python ml_pipeline/tests/smoke_test.py`.
+
+### 3g. Added 6 September 2026
+
+| File | What it does |
+|---|---|
+| `ml_pipeline/run_pipeline.py` | Runs the seven training steps in order with one command, logs each, writes a report. |
+| `ml_pipeline/check_environment.py` | Says whether this laptop can train: GPU visible, packages, data present. |
+| `ml_pipeline/README_TRAINING.md` | Setup and run instructions for the RTX 4060 laptop. |
+| `server/app/ml/inference.py` | Loads the three models; `assess_pair` runs rule → multi-path → classifier → tier for two aircraft. |
+| `ml_pipeline/tests/*` | The tests above, plus `inference_check.py` which runs one converging pair through the loaded models. |
 
 ---
 
@@ -513,16 +527,16 @@ The second gate, which asks whether the model actually beats the simple rule, **
 
 | # | Task | Blocked on |
 |---|---|---|
-| 1 | Calibrate the multi-path probabilities | Nothing |
-| 2 | Interpolate multi-path candidates onto the 15-second grid | Nothing |
-| 3 | Decide whether to give the alarm threshold a safety margin | **Archit** |
-| 4 | Build the FastAPI backend and the database | Nothing |
-| 5 | Restore the frontend and connect it | Task 4 |
-| 6 | Build the resolution engine, Model 3 | Task 4 |
-| 7 | Refresh the numbers in the approach document | Tasks 1 and 3 |
-
-Tasks 1 and 2 are already authorised and need no further discussion. Task 3 is the only
-one waiting on a decision, and it is a small one.
+| 1 | Run `python ml_pipeline/run_pipeline.py` on the RTX 4060 laptop and send back `ml_pipeline/reports/` | Nothing |
+| 2 | Decide whether to give the alarm threshold a safety margin, using the WHAT-IF table the run prints | **Archit** |
+| 3 | Build the FastAPI backend and the database on top of `server/app/ml/inference.py` | Nothing |
+| 4 | Restore the frontend and connect it | Task 3 |
+| 5 | Build the resolution engine, Model 3 | Task 3 |
+| 6 | Refresh the numbers in the approach document | Tasks 1 and 2 |
 
 **Done on 5 September 2026:** the circular label, the zero-warning encounters, and the
 missing leakage guard.
+
+**Coded on 6 September 2026, numbers pending the real run:** multi-path probability
+calibration, dense-grid checking of candidate paths, calibrated and SHAP-explained
+conflict classifier, the one-command pipeline, the inference module, and the first tests.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import glob
+import os
 from pathlib import Path
 
 import numpy as np
@@ -34,8 +35,11 @@ TRAIN_FRACTION = 0.70
 VALIDATION_FRACTION = 0.15
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-RAW_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "raw"
-OUTPUT_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "processed"
+# FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
+# it can never touch real data). Unset, everything lives under the project root.
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
+RAW_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "raw"
+OUTPUT_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
 
 
 def load_valid_states() -> pd.DataFrame:
