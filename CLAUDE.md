@@ -1857,3 +1857,26 @@ here. **The fake data proves the code runs; it proves nothing about the models**
 invented paths teach nothing about Mumbai), and its gate results are never quoted.
 
 **Headline number:** Unmoved.
+
+### 2026-09-06 — The alert-threshold decision has a switch, and Archit has a to-do file
+
+**Files:** `ml_pipeline/training/conflict_classifier/train_xgboost.py`
+(`FLIGHT_RIGHT_RECALL_MARGIN`), `ARCHIT_TODO.md` (new).
+
+**Before:** The what-if table showed what a safety margin on the recall floor would
+cost, but applying the chosen margin meant editing code.
+
+**Now:** Setting the environment variable `FLIGHT_RIGHT_RECALL_MARGIN` (for example
+`0.01`) before running the classifier step selects the threshold for that margin above
+the 0.95 floor. Unset, nothing changes. The run prints `DECISION APPLIED` and writes
+the margin into the model card and the saved model, so the decision is on record with
+the numbers it was made from. `ARCHIT_TODO.md` lists every remaining step of the
+project in order, with what "done" looks like for each.
+
+**Why:** Part 6 says threshold changes need Archit's sign-off. A switch with a default
+of "unchanged" and a paper trail is how that sign-off becomes reproducible instead of a
+one-off edit. This is a decision knob, not a way to make a number look better: the
+report prints the false-alarm cost beside every option.
+
+**Headline number:** Unmoved until the switch is set, and the run that sets it prints the
+new value with its basis.
