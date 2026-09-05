@@ -96,6 +96,12 @@ SYNTHETIC_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "synthetic"
 # choosing a margin changes when a controller is alerted and needs Archit's sign-off
 # (CLAUDE.md Part 4, item 3). This table gives him the numbers to decide with.
 WHAT_IF_RECALL_MARGINS = (0.005, 0.01, 0.02)
+# The margin ACTUALLY applied when choosing the threshold. Default 0.0 = the original
+# rule. Set FLIGHT_RIGHT_RECALL_MARGIN (e.g. 0.01) only after Archit has decided, using
+# the WHAT-IF table; the value used is written into the model card so the decision is
+# on record. This is a decision knob, not a tuning knob: it changes when a controller is
+# alerted, and the report says so.
+APPLIED_RECALL_MARGIN = float(os.environ.get("FLIGHT_RIGHT_RECALL_MARGIN", "0.0"))
 # Columns describing what actually happened. These produce the label and must never
 # reach the model; the guard below fails the run if any of them appears in the features.
 OUTCOME_ONLY_COLUMNS = [
@@ -461,7 +467,15 @@ def main() -> None:
     validation_probabilities = model.predict_proba(x_val)[:, 1]
     test_probabilities = model.predict_proba(x_test)[:, 1]
 
-    selected_threshold, target_met = select_threshold(y_val.to_numpy(), validation_probabilities)
+    selected_threshold, target_met = select_threshold(
+        y_val.to_numpy(), validation_probabilities, TARGET_RECALL + APPLIED_RECALL_MARGIN
+    )
+    if APPLIED_RECALL_MARGIN:
+        print("")
+        print(f"DECISION APPLIED: threshold selected for validation recall >= "
+              f"{TARGET_RECALL + APPLIED_RECALL_MARGIN:.3f} (floor {TARGET_RECALL:.2f} + margin "
+              f"{APPLIED_RECALL_MARGIN:.3f}), per FLIGHT_RIGHT_RECALL_MARGIN. This changes when a "
+              f"controller is alerted and is recorded in the model card.")
     print("")
     print("=" * 96)
     print(f"PRECISION-RECALL ON VALIDATION ({len(y_val):,} rows) -- the threshold is chosen here")
@@ -564,6 +578,7 @@ def main() -> None:
         test_pr_auc=json.dumps(round(pr_auc, 6)),
         rule_recall_alert_volume=json.dumps(round(alert_metrics["recall"], 6)),
         training_dataset=dataset_path.name,
+        applied_recall_margin=json.dumps(APPLIED_RECALL_MARGIN),
     )
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     booster.save_model(MODEL_PATH)
@@ -598,6 +613,7 @@ def main() -> None:
         "conflict_rate": {name: float(frame["is_conflict"].mean()) for name, frame in splits.items()},
         "features": FEATURE_COLUMNS,
         "decision_threshold": selected_threshold, "calibrated_decision_threshold": calibrated_threshold,
+        "applied_recall_margin": APPLIED_RECALL_MARGIN, "target_recall_floor": TARGET_RECALL,
         "platt": {"a": calibrator.a, "b": calibrator.b}, "calibration": calibration_summary,
         "test": test_metrics, "rule_alert_volume": alert_metrics, "rule_legal_minimum": legal_metrics,
         "pr_auc": pr_auc, "headline_three_minute_warning": headline_rows,
