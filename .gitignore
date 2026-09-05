@@ -1,6 +1,10 @@
 # Secrets and local configuration
 secrets/*
 !secrets/.gitkeep
+# Also cover a secrets/ directory nested under server/ or client/, which the
+# rooted pattern above would miss once the backend grows its own config.
+**/secrets/*
+!**/secrets/.gitkeep
 .env
 
 # Python environments and bytecode
