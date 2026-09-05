@@ -85,7 +85,7 @@ recorded positions.
 | Model 3 — resolution recommendations | **NOT STARTED.** No file exists. |
 | **Training pipeline** | **ONE COMMAND** since 6 Sep: `python ml_pipeline/run_pipeline.py`. See `ml_pipeline/README_TRAINING.md`. |
 | **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the whole chain for a pair of aircraft. The web API on top is next. |
-| **Frontend dashboard** | Built earlier, **removed from this branch.** |
+| **Frontend dashboard** | **Back on this branch** (6 Sep, restored from `main`). Runs on mock data until the backend exists. |
 
 ### The backend, specifically, since you asked
 
@@ -113,10 +113,12 @@ created, and then nothing was put in it.
 Not started, from CLAUDE.md Section 5: every API endpoint, the WebSocket live-update
 stream, the PostgreSQL database, and the audit log. None of these exist.
 
-### The frontend, which the docs get wrong
+### The frontend
+
+**Update 6 Sep:** `client/` is back on this branch, restored from `main`. The paragraph below is history.
 
 CLAUDE.md Section 8 says the React dashboard exists and works against mock data.
-**On this branch it does not exist.** It was deleted by commit `9b6800b` on
+**On this branch it did not exist until 6 Sep.** It was deleted by commit `9b6800b` on
 30 August, which retired the old Express and React code so the branch would contain
 only the Python pipeline.
 

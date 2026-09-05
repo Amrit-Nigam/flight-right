@@ -135,7 +135,8 @@ Do not change anything under `ml_pipeline/`. Write a Section 15 entry when done.
 ## Step 5 — Restore the dashboard and connect it
 
 ```powershell
-git checkout 91720e7 -- client
+# client/ is already on the branch since 6 Sep; this is only needed if it goes missing again:
+# git checkout main -- client
 cd client && npm install && npm run dev
 ```
 
