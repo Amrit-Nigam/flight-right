@@ -22,6 +22,41 @@ HORIZON_SECONDS = {"1min": 60, "3min": 180, "5min": 300, "10min": 600}
 CPA_GRID_STEP_SECONDS = 15
 CPA_GRID_END_SECONDS = 600
 
+# The legal separation minimum. This is what actually counts as a loss of
+# separation, and it is what the evaluation reports against. Simplified academic
+# en-route values, not certified regulatory standards.
+SEPARATION_LATERAL_NM = 5.0
+SEPARATION_VERTICAL_FT = 1000.0
+# The alert volume, deliberately WIDER than the legal minimum. A prediction that is
+# 1 NM out otherwise flips the decision from "safe" to "conflict" and back again.
+# Measured on our own test pairs: triggering at the bare 5 NM / 1000 ft minimum
+# catches only 46% of real conflicts, while 8 NM / 1500 ft catches 99% at one minute
+# and 93% at three, costing 32-34 false alarms per 1000 pairs. Both pairs of numbers
+# live here so the trade can be re-tuned in one place.
+ALERT_LATERAL_NM = 8.0
+ALERT_VERTICAL_FT = 1500.0
+
+# Two tiers, because a ten-minute prediction is not accurate enough to justify
+# telling an aircraft to change course. Tier 1 raises a real alert and earns a
+# resolution suggestion; tier 2 is a watch-list entry only and never suggests a
+# manoeuvre. The 180 s boundary is the geometry of the response, not a round number:
+# alert to controller decision to readback to the pilot starting the manoeuvre is
+# about 38 s, a 1000 ft level change then takes ~40 s and a 30 degree turn at 450 kt
+# ~96 s, so the practical floor for a useful warning is around three minutes.
+TIER_1_MAX_SECONDS = 180
+TIER_2_MAX_SECONDS = 600
+TIER_NAMES = {0: "background", 1: "alarm", 2: "advisory"}
+# Tier 1 interrupts the controller, so it demands more confidence than tier 2, which
+# only adds a row to a watch list.
+TIER_1_PROBABILITY_THRESHOLD = 0.85
+TIER_2_PROBABILITY_THRESHOLD = 0.60
+# One noisy position report should not raise an alarm, and an alert that flickers on
+# and off is worse than no alert. A pair must qualify on this many updates in a row.
+CONSECUTIVE_UPDATES_TO_NOTIFY = 3
+# Two consecutive increases in separation, so a single jittery reading cannot retire
+# a pair that is still converging.
+DIVERGING_UPDATES_TO_DROP = 2
+
 
 def haversine_distance_nm(latitude_a: float, longitude_a: float, latitude_b: float, longitude_b: float) -> float:
     """Return great-circle lateral distance between latitude/longitude points in NM."""
@@ -131,7 +166,9 @@ def compute_cpa_from_states(
 
 
 def classify_conflict(
-    cpa_result: Mapping[str, Any], lateral_threshold_nm: float = 5.0, vertical_threshold_ft: float = 1000.0
+    cpa_result: Mapping[str, Any],
+    lateral_threshold_nm: float = SEPARATION_LATERAL_NM,
+    vertical_threshold_ft: float = SEPARATION_VERTICAL_FT,
 ) -> dict[str, bool | str]:
     """Apply configurable separation thresholds and the project's severity rules."""
     lateral = float(cpa_result["cpa_lateral_distance_nm"])
@@ -159,3 +196,226 @@ def classify_conflict(
             converging = len(distances) >= 2 and min(distances[1:]) < distances[0]
         severity = "low" if converging else "none"
     return {"is_conflict": is_conflict, "severity": severity}
+
+
+def current_separation_nm(cpa_result: Mapping[str, Any]) -> float:
+    """Lateral separation right now, rather than at the closest point of approach.
+
+    The first sample on the dense grid is t = 0, so it is where the two aircraft
+    actually are. That is the honest measure of "have they passed each other yet",
+    which the CPA distance cannot answer on its own: a pair that has already passed
+    still reports whatever their closest approach was.
+    """
+    grid = cpa_result.get("grid")
+    if grid:
+        return float(grid[0]["lateral_distance_nm"])
+    return float(cpa_result["cpa_lateral_distance_nm"])
+
+
+def is_inside_alert_volume(cpa_result: Mapping[str, Any]) -> bool:
+    """Whether the predicted closest approach breaches the (wider) alert volume."""
+    return (
+        float(cpa_result["cpa_lateral_distance_nm"]) < ALERT_LATERAL_NM
+        and float(cpa_result["cpa_vertical_separation_ft"]) < ALERT_VERTICAL_FT
+    )
+
+
+def conflict_probability(cpa_result: Mapping[str, Any]) -> float:
+    """How likely this pair is to actually conflict, from 0.0 to 1.0.
+
+    When the result came from compute_cpa_from_paths it already carries a real
+    probability -- the summed weight of the candidate path combinations that violate
+    separation -- and that value is used directly.
+
+    Otherwise this falls back to the single-path rule: 1.0 inside the alert volume
+    and 0.0 outside it. That fallback is deliberately blunt rather than an invented
+    confidence, and it keeps the rule-based path working when the multi-path model is
+    unavailable, exactly as the constant-velocity baseline does for trajectories.
+    """
+    if "conflict_probability" in cpa_result:
+        return float(cpa_result["conflict_probability"])
+    return 1.0 if is_inside_alert_volume(cpa_result) else 0.0
+
+
+def compute_cpa_from_paths(
+    paths_a: Sequence[tuple[float, Mapping[Any, Any]]],
+    paths_b: Sequence[tuple[float, Mapping[Any, Any]]],
+) -> dict[str, Any]:
+    """Conflict probability over every combination of two aircraft's candidate paths.
+
+    Each argument is a sequence of (probability, predictions) pairs, where predictions
+    is whatever compute_cpa accepts -- a dense grid keyed by seconds, or the four
+    named horizons. Every one of the K x K combinations is checked, and the
+    probabilities of the combinations that breach the alert volume are summed. That
+    sum is the conflict probability the escalation rule consumes.
+
+    This is the point of predicting several paths. A single predicted path forces a
+    yes/no answer to a question whose honest answer is a proportion: two aircraft in
+    an identical situation finish an average of 7.9 NM apart ten minutes later, so
+    "which of the plausible futures conflict, and how much weight do they carry" is
+    the question that can actually be answered.
+
+    The returned result is a normal CPA result so it drops straight into
+    classify_conflict, assign_tier and escalate_pair, with the probability attached.
+    The representative geometry is the WORST conflicting combination -- the smallest
+    lateral separation -- because that is the encounter the controller needs to see;
+    if nothing conflicts, the most likely combination is reported instead.
+    """
+    if not paths_a or not paths_b:
+        raise ValueError("Both aircraft need at least one candidate path.")
+
+    # Renormalise defensively: a caller that trimmed to the top K without
+    # renormalising would otherwise understate every probability below.
+    weight_a = _normalised_weights([probability for probability, _ in paths_a])
+    weight_b = _normalised_weights([probability for probability, _ in paths_b])
+
+    combinations: list[dict[str, Any]] = []
+    conflict_weight = 0.0
+    for index_a, (_, predictions_a) in enumerate(paths_a):
+        for index_b, (_, predictions_b) in enumerate(paths_b):
+            cpa = compute_cpa(predictions_a, predictions_b)
+            joint = weight_a[index_a] * weight_b[index_b]
+            breaches = is_inside_alert_volume(cpa)
+            if breaches:
+                conflict_weight += joint
+            combinations.append({
+                "path_a": index_a, "path_b": index_b, "joint_probability": joint,
+                "breaches_alert_volume": breaches, "cpa": cpa,
+            })
+
+    breaching = [item for item in combinations if item["breaches_alert_volume"]]
+    if breaching:
+        representative = min(breaching, key=lambda item: item["cpa"]["cpa_lateral_distance_nm"])
+    else:
+        representative = max(combinations, key=lambda item: item["joint_probability"])
+
+    result = dict(representative["cpa"])
+    result["conflict_probability"] = float(min(1.0, conflict_weight))
+    result["combinations_checked"] = len(combinations)
+    result["combinations_breaching"] = len(breaching)
+    result["representative_paths"] = (representative["path_a"], representative["path_b"])
+    result["combinations"] = combinations
+    return result
+
+
+def _normalised_weights(probabilities: Sequence[float]) -> list[float]:
+    """Scale path probabilities to sum to 1, falling back to uniform if they cannot."""
+    values = [max(0.0, float(value)) for value in probabilities]
+    total = sum(values)
+    if total <= 0.0:
+        return [1.0 / len(values)] * len(values)
+    return [value / total for value in values]
+
+
+def assign_tier(cpa_result: Mapping[str, Any]) -> dict[str, Any]:
+    """Place a pair in a tier from how soon its closest approach arrives."""
+    seconds = float(cpa_result.get("time_to_cpa_seconds", cpa_result.get("cpa_horizon_seconds", 0.0)))
+    if 0 <= seconds <= TIER_1_MAX_SECONDS:
+        tier = 1
+    elif TIER_1_MAX_SECONDS < seconds <= TIER_2_MAX_SECONDS:
+        tier = 2
+    else:
+        tier = 0
+    return {"tier": tier, "tier_name": TIER_NAMES[tier], "time_to_cpa_seconds": seconds}
+
+
+def tier_probability_threshold(tier: int) -> float:
+    """The confidence a pair needs before it is worth showing, per tier."""
+    if tier == 1:
+        return TIER_1_PROBABILITY_THRESHOLD
+    if tier == 2:
+        return TIER_2_PROBABILITY_THRESHOLD
+    # Tier 0 is the background list, which is never shown, so nothing can clear it.
+    return 1.1
+
+
+def meets_alert_conditions(cpa_result: Mapping[str, Any]) -> bool:
+    """Conditions 1 and 2 of the escalation rule, for one update on its own.
+
+    Condition 3 -- persistence -- cannot be judged from a single update, so it is
+    applied by escalate_pair over the history.
+    """
+    tier = assign_tier(cpa_result)["tier"]
+    if tier == 0:
+        return False
+    return conflict_probability(cpa_result) >= tier_probability_threshold(tier)
+
+
+def consecutive_alert_updates(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, Any]] = ()) -> int:
+    """Count how many updates in a row, ending with this one, have qualified.
+
+    history is the previous CPA results for this same pair, oldest first, so the
+    walk runs backwards from the most recent and stops at the first update that
+    did not qualify.
+    """
+    if not meets_alert_conditions(cpa_result):
+        return 0
+    count = 1
+    for previous in reversed(list(history)):
+        if not meets_alert_conditions(previous):
+            break
+        count += 1
+    return count
+
+
+def escalate_pair(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
+    """Decide whether this pair is shown to the controller, and in which tier.
+
+    Notify only when all three conditions hold together: the conflict probability
+    clears the tier's threshold, the closest approach falls inside that tier's time
+    range, and the pair has held both of those for CONSECUTIVE_UPDATES_TO_NOTIFY
+    updates in a row. Any one of the three on its own produces alerts that flicker,
+    fire too early to act on, or fire on a single bad position report.
+    """
+    tier_result = assign_tier(cpa_result)
+    tier = tier_result["tier"]
+    probability = conflict_probability(cpa_result)
+    threshold = tier_probability_threshold(tier)
+    updates = consecutive_alert_updates(cpa_result, history)
+    notify = updates >= CONSECUTIVE_UPDATES_TO_NOTIFY
+
+    # Every item surfaced to the controller carries its reason with it, so the
+    # dashboard never has to display an alert it cannot explain.
+    if tier == 0:
+        reason = f"Closest approach {tier_result['time_to_cpa_seconds']:.0f} s away is outside the {TIER_2_MAX_SECONDS} s look-ahead."
+    elif probability < threshold:
+        reason = f"Predicted closest approach stays outside the {ALERT_LATERAL_NM:.0f} NM / {ALERT_VERTICAL_FT:.0f} ft alert volume."
+    elif not notify:
+        reason = f"Held for {updates} of {CONSECUTIVE_UPDATES_TO_NOTIFY} consecutive updates; waiting for confirmation."
+    else:
+        reason = (
+            f"{tier_result['tier_name']}: closest approach {cpa_result['cpa_lateral_distance_nm']:.2f} NM / "
+            f"{cpa_result['cpa_vertical_separation_ft']:.0f} ft in {tier_result['time_to_cpa_seconds']:.0f} s, "
+            f"confirmed on {updates} consecutive updates."
+        )
+
+    return {
+        "tier": tier,
+        "tier_name": tier_result["tier_name"],
+        "time_to_cpa_seconds": tier_result["time_to_cpa_seconds"],
+        "probability": probability,
+        "probability_threshold": threshold,
+        "consecutive_updates": updates,
+        "notify": notify,
+        # Tier 2 is a watch list. Suggesting a manoeuvre on a ten-minute prediction
+        # would cost real fuel and delay on a conflict that may never happen.
+        "suggest_resolution": notify and tier == 1,
+        "reason": reason,
+    }
+
+
+def should_drop_from_tracking(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, Any]] = ()) -> bool:
+    """Whether the aircraft have safely passed and the pair can be retired.
+
+    Both conditions are required. Separation increasing on its own is not enough --
+    two aircraft can be drifting apart and still be predicted to converge again --
+    and being outside the alert volume on its own is just a pair that has not
+    converged yet.
+    """
+    if is_inside_alert_volume(cpa_result):
+        return False
+    separations = [current_separation_nm(item) for item in list(history)] + [current_separation_nm(cpa_result)]
+    if len(separations) < DIVERGING_UPDATES_TO_DROP + 1:
+        return False
+    recent = separations[-(DIVERGING_UPDATES_TO_DROP + 1):]
+    return all(later > earlier for earlier, later in zip(recent, recent[1:]))
