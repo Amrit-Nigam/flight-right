@@ -37,8 +37,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # These are intentionally reused as the single source of truth for prediction
 # and labels.  Do not duplicate their deterministic CPA logic here.
-from ml_pipeline.utils.trajectory_baseline import predict_multiple_horizons
-from ml_pipeline.utils.cpa_conflict_detection import compute_cpa, classify_conflict
+from ml_pipeline.utils.cpa_conflict_detection import compute_cpa_from_states, classify_conflict
 
 
 def _haversine_nm(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -194,9 +193,11 @@ def build_labeled_dataset(seed_pool_df: pd.DataFrame, n_scenarios: int = N_SCENA
 
     for seed_index, force_conflict in zip(seed_indices, intents):
         aircraft_a, aircraft_b = generate_scenario(seed_pool_df.iloc[int(seed_index)], bool(force_conflict))
-        trajectory_a = predict_multiple_horizons(aircraft_a)
-        trajectory_b = predict_multiple_horizons(aircraft_b)
-        cpa = _as_mapping(compute_cpa(trajectory_a, trajectory_b), "compute_cpa")
+        # Labels come from the dense CPA grid, not the four named horizons. A pair
+        # whose true CPA falls at t = 240 s used to be labelled from its separation at
+        # 180 s and 300 s, so genuine conflicts were labelled negative and the
+        # classifier was trained to miss exactly the encounters it exists to catch.
+        cpa = _as_mapping(compute_cpa_from_states(aircraft_a, aircraft_b), "compute_cpa_from_states")
         classification = _as_mapping(classify_conflict(cpa), "classify_conflict")
         relative_speed, relative_heading, closing_speed = _relative_motion_features(aircraft_a, aircraft_b)
 
