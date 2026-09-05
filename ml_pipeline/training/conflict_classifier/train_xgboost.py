@@ -38,12 +38,15 @@ from __future__ import annotations
 import glob
 import json
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
     average_precision_score,
+    brier_score_loss,
     confusion_matrix,
     fbeta_score,
     precision_recall_curve,
@@ -51,10 +54,14 @@ from sklearn.metrics import (
     recall_score,
     f1_score,
 )
+import xgboost
 from xgboost import XGBClassifier
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
+# it can never touch real data). Unset, everything lives under the project root.
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 if str(Path(__file__).resolve().parent) not in sys.path:
@@ -82,8 +89,13 @@ THRESHOLD_GRID = np.round(np.arange(0.05, 1.0, 0.05), 2)
 # time to act on it. 180 s is the response geometry, not a round number.
 HEADLINE_WARNING_SECONDS = 180
 
-MODEL_PATH = PROJECT_ROOT / "server" / "app" / "ml" / "saved_models" / "xgboost_conflict.json"
-SYNTHETIC_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "synthetic"
+MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "xgboost_conflict.json"
+MODEL_CARD_PATH = MODEL_PATH.with_name("xgboost_conflict_model_card.json")
+SYNTHETIC_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "synthetic"
+# Recall margins reported as WHAT-IF rows only. The selected threshold is unchanged --
+# choosing a margin changes when a controller is alerted and needs Archit's sign-off
+# (CLAUDE.md Part 4, item 3). This table gives him the numbers to decide with.
+WHAT_IF_RECALL_MARGINS = (0.005, 0.01, 0.02)
 # Columns describing what actually happened. These produce the label and must never
 # reach the model; the guard below fails the run if any of them appears in the features.
 OUTCOME_ONLY_COLUMNS = [
@@ -227,13 +239,155 @@ def headline_metric(frame: pd.DataFrame, alerts: np.ndarray) -> tuple[float, int
     return caught / total, caught, total
 
 
-def select_threshold(y_true: np.ndarray, probabilities: np.ndarray) -> tuple[float, bool]:
+def select_threshold(y_true: np.ndarray, probabilities: np.ndarray,
+                     target_recall: float = TARGET_RECALL) -> tuple[float, bool]:
     """Highest threshold on the validation split that still meets the recall floor."""
     precision, recall, thresholds = precision_recall_curve(y_true, probabilities)
-    qualifying = [threshold for threshold, achieved in zip(thresholds, recall[:-1]) if achieved >= TARGET_RECALL]
+    qualifying = [threshold for threshold, achieved in zip(thresholds, recall[:-1]) if achieved >= target_recall]
     if qualifying:
         return float(max(qualifying)), True
     return float(thresholds[int(np.argmax(recall[:-1]))]), False
+
+
+def training_device() -> str:
+    """'cuda' when XGBoost can see a GPU, otherwise 'cpu'. Same model either way.
+
+    The RTX 4060 trains 300 trees on 30k rows in about a second; the point of using it
+    is not speed here but confirming the GPU stack works before the trajectory model
+    needs it. If the CUDA build is missing XGBoost falls back silently, so we probe.
+    """
+    if os.environ.get("FLIGHT_RIGHT_FORCE_CPU"):
+        return "cpu"
+    try:
+        probe = xgboost.XGBClassifier(n_estimators=1, device="cuda", tree_method="hist")
+        probe.fit(np.array([[0.0], [1.0], [0.0], [1.0]]), np.array([0, 1, 0, 1]))
+        return "cuda"
+    except Exception:
+        return "cpu"
+
+
+class PlattCalibrator:
+    """Sigmoid (Platt) calibration: p_calibrated = 1 / (1 + exp(-(a * logit(p) + b))).
+
+    Source: Platt, "Probabilistic Outputs for Support Vector Machines", 1999, and
+    Niculescu-Mizil & Caruana, "Predicting Good Probabilities With Supervised
+    Learning", ICML 2005, <https://www.cs.cornell.edu/~alexn/papers/calibration.icml05.crc.rev3.pdf>,
+    which shows boosted trees are characteristically over-confident and that Platt
+    scaling fixes it. Fitted on VALIDATION only.
+
+    Why sigmoid and not isotonic: the map is strictly increasing, so it changes no
+    ranking. The selected threshold is mapped through the same function and the set of
+    alerts is IDENTICAL before and after -- calibration here changes what the
+    probability number MEANS, never when a controller is alerted.
+    """
+
+    def __init__(self, a: float = 1.0, b: float = 0.0) -> None:
+        self.a, self.b = float(a), float(b)
+
+    @staticmethod
+    def _logit(p: np.ndarray) -> np.ndarray:
+        clipped = np.clip(np.asarray(p, dtype=np.float64), 1e-7, 1 - 1e-7)
+        return np.log(clipped / (1 - clipped))
+
+    def fit(self, probabilities: np.ndarray, y_true: np.ndarray) -> "PlattCalibrator":
+        regression = LogisticRegression(C=1e6, solver="lbfgs", max_iter=1000)
+        regression.fit(self._logit(probabilities)[:, None], np.asarray(y_true).astype(int))
+        self.a, self.b = float(regression.coef_[0, 0]), float(regression.intercept_[0])
+        if self.a <= 0:
+            raise RuntimeError(f"Platt slope {self.a:.4f} is not positive; calibration would reverse the ranking.")
+        return self
+
+    def transform(self, probabilities: np.ndarray) -> np.ndarray:
+        return 1.0 / (1.0 + np.exp(-(self.a * self._logit(probabilities) + self.b)))
+
+
+def expected_calibration_error(stated: np.ndarray, y_true: np.ndarray, bins: int = 10) -> float:
+    """Weighted mean gap between stated probability and observed conflict rate, per bin."""
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    error = 0.0
+    for lower, upper in zip(edges[:-1], edges[1:]):
+        in_bin = (stated >= lower) & ((stated < upper) if upper < 1.0 else (stated <= upper))
+        if in_bin.any():
+            error += in_bin.mean() * abs(stated[in_bin].mean() - y_true[in_bin].mean())
+    return float(error)
+
+
+def print_calibration(y_true: np.ndarray, raw: np.ndarray, calibrated: np.ndarray) -> dict:
+    """Reliability of the conflict probability before and after Platt scaling, on TEST."""
+    print("")
+    print("=" * 96)
+    print("CALIBRATION -- does 'probability 0.7' mean a 70% chance of a real conflict?")
+    print("=" * 96)
+    summary = {}
+    for label, probabilities in (("raw XGBoost", raw), ("Platt-calibrated", calibrated)):
+        brier = float(brier_score_loss(y_true, probabilities))
+        ece = expected_calibration_error(probabilities, y_true)
+        summary[label] = {"brier": brier, "ece": ece}
+        print(f"  {label:<18} Brier {brier:.4f}   expected calibration error {ece:.4f}")
+    print("  (Brier: mean squared gap between stated probability and outcome; both lower is better.)")
+    print("")
+    print(f"  {'stated band':>13} {'rows':>7} {'raw stated':>11} {'raw actual':>11} {'cal stated':>11} {'cal actual':>11}")
+    edges = np.linspace(0.0, 1.0, 11)
+    for lower, upper in zip(edges[:-1], edges[1:]):
+        in_raw = (raw >= lower) & ((raw < upper) if upper < 1.0 else (raw <= upper))
+        in_cal = (calibrated >= lower) & ((calibrated < upper) if upper < 1.0 else (calibrated <= upper))
+        if not (in_raw.any() or in_cal.any()):
+            continue
+        raw_stated = f"{raw[in_raw].mean():>11.3f}" if in_raw.any() else f"{'-':>11}"
+        raw_actual = f"{y_true[in_raw].mean():>11.3f}" if in_raw.any() else f"{'-':>11}"
+        cal_stated = f"{calibrated[in_cal].mean():>11.3f}" if in_cal.any() else f"{'-':>11}"
+        cal_actual = f"{y_true[in_cal].mean():>11.3f}" if in_cal.any() else f"{'-':>11}"
+        print(f"  {lower:>5.1f} - {upper:<5.1f} {int(in_raw.sum()):>7,} {raw_stated} {raw_actual} {cal_stated} {cal_actual}")
+    return summary
+
+
+def print_margin_what_if(y_val: np.ndarray, val_probabilities: np.ndarray, test_frame: pd.DataFrame,
+                         y_test: np.ndarray, test_probabilities: np.ndarray, selected: float) -> list[dict]:
+    """What the gate WOULD show if the threshold were chosen with a margin above the floor.
+
+    Reported, not applied. Every row here is information for a decision Archit has to
+    make; the model saved by this script still uses the zero-margin threshold.
+    """
+    print("")
+    print("=" * 96)
+    print("WHAT-IF -- selecting the threshold with a recall margin above the 0.95 floor (NOT applied)")
+    print("=" * 96)
+    print("  The current rule picks the highest threshold reaching 0.95 on validation, which sits on")
+    print("  the edge of the floor by construction and slips below it on a later test split. These")
+    print("  rows show the cost, in false alarms, of buying a margin. Decision needed from Archit.")
+    print("")
+    print(f"  {'margin':>7} {'val target':>11} {'threshold':>10} {'test recall':>12} {'precision':>10} "
+          f"{'FA/1000':>8} {'missed':>7} {'headline':>9} {'gate 1':>7}")
+    rows = []
+    for margin in (0.0,) + tuple(WHAT_IF_RECALL_MARGINS):
+        threshold, met = select_threshold(y_val, val_probabilities, TARGET_RECALL + margin)
+        metrics = metrics_at_threshold(y_test, test_probabilities, threshold)
+        alerts = (test_probabilities >= threshold).astype(int)
+        headline, _, _ = headline_metric(test_frame, alerts)
+        gate = metrics["recall"] >= TARGET_RECALL
+        marker = "  <- current, saved" if abs(threshold - selected) < 1e-12 else ""
+        print(f"  {margin:>7.3f} {TARGET_RECALL + margin:>11.3f} {threshold:>10.4f} {metrics['recall']:>12.4f} "
+              f"{metrics['precision']:>10.4f} {metrics['false_alarms_per_1000']:>8.1f} "
+              f"{metrics['false_negative']:>7} {headline:>8.1%} {'PASS' if gate else 'FAIL':>7}{marker}")
+        rows.append({"margin": margin, "threshold": threshold, "validation_target_met": met,
+                     "test_recall": metrics["recall"], "test_precision": metrics["precision"],
+                     "false_alarms_per_1000": metrics["false_alarms_per_1000"],
+                     "missed": metrics["false_negative"], "headline": headline, "gate_1": bool(gate)})
+    return rows
+
+
+def shap_importance(booster: xgboost.Booster, x: pd.DataFrame) -> dict[str, float]:
+    """Mean absolute SHAP contribution per feature, from XGBoost's built-in TreeSHAP.
+
+    Section 3 asks for SHAP so a controller can be shown WHY an alert fired. XGBoost
+    computes exact TreeSHAP values natively (Lundberg, Erion & Lee, "Consistent
+    Individualized Feature Attribution for Tree Ensembles", arXiv:1802.03888), so no
+    extra dependency is needed. The same call, per row, gives the per-alert explanation
+    the backend will surface.
+    """
+    contributions = booster.predict(xgboost.DMatrix(x, feature_names=list(x.columns)), pred_contribs=True)
+    mean_abs = np.abs(contributions[:, :-1]).mean(axis=0)  # last column is the bias term
+    return {feature: float(value) for feature, value in zip(x.columns, mean_abs)}
 
 
 def print_pr_table(y_true: np.ndarray, probabilities: np.ndarray, selected_threshold: float) -> None:
@@ -294,10 +448,14 @@ def main() -> None:
     print(f"scale_pos_weight from the training split: {scale_pos_weight:.3f} "
           f"({negatives:,} negative / {positives:,} positive)")
 
+    device = training_device()
+    print(f"XGBoost device: {device}  (xgboost {xgboost.__version__})")
+    # Hyperparameters are the ones fixed in CLAUDE.md Section 3. They are not tuned
+    # here: Gate 1's failure is a threshold-selection property, not a capacity one.
     model = XGBClassifier(
         objective="binary:logistic", n_estimators=300, max_depth=6, learning_rate=0.05,
         subsample=0.8, colsample_bytree=0.7, scale_pos_weight=scale_pos_weight,
-        random_state=RANDOM_SEED, eval_metric="logloss",
+        random_state=RANDOM_SEED, eval_metric="logloss", tree_method="hist", device=device,
     )
     model.fit(x_train, y_train)
     validation_probabilities = model.predict_proba(x_val)[:, 1]
@@ -368,15 +526,37 @@ def main() -> None:
     print("Warning time on the conflicts XGBoost caught (real closest approach):")
     median_warning = print_warning_time(test_frame, model_alerts)
 
+    # ---- Calibration (rule 9: probabilities must be calibrated before a threshold means anything) ----
+    calibrator = PlattCalibrator().fit(validation_probabilities, y_val.to_numpy())
+    calibrated_test = calibrator.transform(test_probabilities)
+    calibrated_threshold = float(calibrator.transform(np.array([selected_threshold]))[0])
+    calibrated_alerts = (calibrated_test >= calibrated_threshold).astype(int)
+    if not np.array_equal(calibrated_alerts, model_alerts):
+        raise RuntimeError("Calibration changed the alert set; Platt scaling must be monotone. Refusing to save.")
+    calibration_summary = print_calibration(y_test.to_numpy(), test_probabilities, calibrated_test)
     print("")
-    print("Feature importances:")
-    for feature, importance in sorted(zip(FEATURE_COLUMNS, model.feature_importances_),
-                                      key=lambda item: item[1], reverse=True):
-        print(f"  {feature:<34} {importance:.6f}")
+    print(f"  Platt parameters a={calibrator.a:.4f}, b={calibrator.b:.4f}. Raw threshold {selected_threshold:.4f} "
+          f"maps to calibrated threshold {calibrated_threshold:.4f}.")
+    print(f"  Verified: the set of alerts on test is identical before and after calibration "
+          f"({int(model_alerts.sum()):,} alerts). Calibration changed the meaning of the number, not the decision.")
+
+    what_if_rows = print_margin_what_if(y_val.to_numpy(), validation_probabilities, test_frame,
+                                        y_test.to_numpy(), test_probabilities, selected_threshold)
 
     booster = model.get_booster()
+    shap_values = shap_importance(booster, x_test)
+    print("")
+    print("Feature importance (gain-based) and mean |SHAP| contribution on the test split:")
+    print(f"  {'feature':<34} {'gain':>10} {'mean |SHAP|':>12}")
+    for feature, importance in sorted(zip(FEATURE_COLUMNS, model.feature_importances_),
+                                      key=lambda item: item[1], reverse=True):
+        print(f"  {feature:<34} {importance:>10.6f} {shap_values[feature]:>12.4f}")
+
     booster.set_attr(
         decision_threshold=json.dumps(selected_threshold),
+        calibrated_decision_threshold=json.dumps(calibrated_threshold),
+        platt_a=json.dumps(calibrator.a),
+        platt_b=json.dumps(calibrator.b),
         feature_columns=json.dumps(FEATURE_COLUMNS),
         target_recall=json.dumps(TARGET_RECALL),
         test_recall=json.dumps(round(test_metrics["recall"], 6)),
@@ -388,7 +568,7 @@ def main() -> None:
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     booster.save_model(MODEL_PATH)
     print("")
-    print(f"Saved model, threshold and feature list: {MODEL_PATH}")
+    print(f"Saved model, threshold, calibration and feature list: {MODEL_PATH}")
 
     gate_passed = test_metrics["recall"] >= TARGET_RECALL
     beats_rule = test_metrics["fbeta_2"] > alert_metrics["fbeta_2"]
@@ -405,6 +585,28 @@ def main() -> None:
         print("A failing gate is reported, not tuned away. Do not move the threshold, the gate,")
         print("or a hyperparameter to make this pass -- find out why it failed first.")
     print("=" * 96)
+
+    headline_rows = {}
+    for label, alerts in (("rule_legal_minimum", legal_rule), ("rule_alert_volume", alert_rule), ("xgboost", model_alerts)):
+        rate, caught, total = headline_metric(test_frame, alerts)
+        headline_rows[label] = {"rate": rate, "caught": caught, "total": total}
+    model_card = {
+        "model": "xgboost_conflict", "trained_at_utc": pd.Timestamp.utcnow().isoformat(),
+        "device": device, "xgboost_version": xgboost.__version__,
+        "training_dataset": dataset_path.name,
+        "rows": {name: int(len(frame)) for name, frame in splits.items()},
+        "conflict_rate": {name: float(frame["is_conflict"].mean()) for name, frame in splits.items()},
+        "features": FEATURE_COLUMNS,
+        "decision_threshold": selected_threshold, "calibrated_decision_threshold": calibrated_threshold,
+        "platt": {"a": calibrator.a, "b": calibrator.b}, "calibration": calibration_summary,
+        "test": test_metrics, "rule_alert_volume": alert_metrics, "rule_legal_minimum": legal_metrics,
+        "pr_auc": pr_auc, "headline_three_minute_warning": headline_rows,
+        "median_warning_seconds": median_warning,
+        "gates": {"gate_1_recall_floor": bool(gate_passed), "gate_2_beats_rule": bool(beats_rule)},
+        "recall_margin_what_if": what_if_rows, "shap_mean_abs": shap_values,
+    }
+    MODEL_CARD_PATH.write_text(json.dumps(model_card, indent=2, default=float), encoding="utf-8")
+    print(f"Model card: {MODEL_CARD_PATH}")
 
 
 if __name__ == "__main__":
