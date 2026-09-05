@@ -9,6 +9,7 @@ LSTM, not the framing.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -26,7 +27,10 @@ RANDOM_SEED = 0
 
 AXIS_NAMES = ["along", "cross", "altitude"]
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DATA_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "processed"
+# FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
+# it can never touch real data). Unset, everything lives under the project root.
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
+DATA_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
 
 
 def load_split(name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

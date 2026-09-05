@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import pickle
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
@@ -57,12 +58,15 @@ CLASSIFIER_L2 = 1.0
 RANDOM_SEED = 42
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
+# it can never touch real data). Unset, everything lives under the project root.
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-DATA_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "processed"
-MODEL_PATH = PROJECT_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_multipath.pkl"
-SINGLE_ANSWER_MODEL_PATH = PROJECT_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_residual.pt"
+DATA_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
+MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_multipath.pkl"
+SINGLE_ANSWER_MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_residual.pt"
 
 
 def load_split(name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -178,15 +182,95 @@ def print_cluster_report(pattern_residuals: np.ndarray, labels: np.ndarray) -> N
           f"largest: {counts.max():,}")
 
 
-def candidate_paths(classifier, kmeans, pattern_residuals, X: np.ndarray, top_k: int):
+def _softmax(scores: np.ndarray) -> np.ndarray:
+    shifted = scores - scores.max(axis=1, keepdims=True)
+    exponent = np.exp(shifted)
+    return exponent / exponent.sum(axis=1, keepdims=True)
+
+
+def pattern_probabilities(classifier, features: np.ndarray, temperature: float = 1.0) -> np.ndarray:
+    """Class probabilities, optionally calibrated by temperature scaling.
+
+    HistGradientBoostingClassifier's predict_proba is the softmax of its raw
+    per-class scores. Dividing those scores by a temperature T > 1 before the softmax
+    flattens the distribution -- it says "be less sure" -- without changing which
+    class ranks first, second or fifth. T = 1.0 reproduces predict_proba exactly.
+    """
+    raw = classifier.decision_function(features)
+    if raw.ndim == 1:  # binary edge case, never expected with 40 patterns
+        raw = np.stack([-raw, raw], axis=1)
+    return _softmax(raw / float(temperature))
+
+
+def fit_temperature(classifier, features: np.ndarray, true_labels: np.ndarray) -> float:
+    """Fit the single temperature that minimises negative log-likelihood on VALIDATION.
+
+    Source: Guo, Pleiss, Sun & Weinberger, "On Calibration of Modern Neural Networks",
+    ICML 2017, <https://arxiv.org/abs/1706.04599>. Temperature scaling is their
+    recommended method: one parameter, fitted on held-out data, monotone in the scores.
+    Chosen over CalibratedClassifierCV here for two measured reasons: (1) it cannot
+    change the top-K ranking, so the best-of-5 hit rate the gate is measured on is
+    untouched by construction; (2) with 40 classes and a validation split of a few
+    tens of thousands of rows, several patterns have too few validation examples for
+    a per-class isotonic or sigmoid fit, whereas one shared parameter cannot overfit.
+
+    Fitted by golden-section search on log T over [1/8, 8]; the objective is convex in
+    log T for a softmax, so the minimum is unique.
+    """
+    raw = classifier.decision_function(features)
+    if raw.ndim == 1:
+        raw = np.stack([-raw, raw], axis=1)
+    class_index = {label: index for index, label in enumerate(classifier.classes_)}
+    columns = np.array([class_index[label] for label in true_labels])
+
+    def negative_log_likelihood(log_temperature: float) -> float:
+        probabilities = _softmax(raw / np.exp(log_temperature))
+        return float(-np.log(np.clip(probabilities[np.arange(len(columns)), columns], 1e-12, 1.0)).mean())
+
+    low, high = np.log(1 / 8), np.log(8.0)
+    golden = (np.sqrt(5) - 1) / 2
+    left = high - golden * (high - low)
+    right = low + golden * (high - low)
+    value_left, value_right = negative_log_likelihood(left), negative_log_likelihood(right)
+    for _ in range(60):
+        if value_left < value_right:
+            high, right, value_right = right, left, value_left
+            left = high - golden * (high - low)
+            value_left = negative_log_likelihood(left)
+        else:
+            low, left, value_left = left, right, value_right
+            right = low + golden * (high - low)
+            value_right = negative_log_likelihood(right)
+    return float(np.exp((low + high) / 2))
+
+
+def expected_calibration_error(stated: np.ndarray, correct: np.ndarray, bins: int = 10) -> float:
+    """Weighted mean gap between stated probability and observed hit rate, per bin.
+
+    Standard definition from Naeini, Cooper & Hauskrecht, AAAI 2015 ("Obtaining Well
+    Calibrated Probabilities Using Bayesian Binning"). 0.0 is perfect; 0.05 means the
+    stated numbers are on average five points off.
+    """
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    error = 0.0
+    for lower, upper in zip(edges[:-1], edges[1:]):
+        in_bin = (stated >= lower) & (stated < upper if upper < 1.0 else stated <= upper)
+        if in_bin.any():
+            error += in_bin.mean() * abs(stated[in_bin].mean() - correct[in_bin].mean())
+    return float(error)
+
+
+def candidate_paths(classifier, kmeans, pattern_residuals, X: np.ndarray, top_k: int,
+                    temperature: float = 1.0):
     """Top-k route patterns per sample: renormalised probabilities and absolute positions.
 
     Returns (probabilities, positions, pattern_indices, raw_probabilities) where
     positions has shape (N, k, 4, 3) -- k candidate paths, each with lat/lon/altitude
-    at the four horizons.
+    at the four horizons. `temperature` is the calibration parameter from
+    fit_temperature; 1.0 means uncalibrated.
     """
     features = build_feature_matrix(X)
-    raw_probabilities = classifier.predict_proba(features)
+    raw_probabilities = pattern_probabilities(classifier, features, temperature)
     # Classes may be a subset of range(N_PATTERNS) if a cluster never appears.
     top_columns = np.argsort(-raw_probabilities, axis=1)[:, :top_k]
     top_probabilities = np.take_along_axis(raw_probabilities, top_columns, axis=1)
@@ -218,12 +302,13 @@ def best_of_k_within(positions: np.ndarray, y: np.ndarray, rows: np.ndarray, k: 
 
 
 def print_reliability(raw_probabilities: np.ndarray, patterns: np.ndarray, true_labels: np.ndarray,
-                      rows: np.ndarray) -> None:
+                      rows: np.ndarray, title: str = "Reliability of the stated probabilities") -> float:
     """Do the stated probabilities mean anything? If it says 60%, ~60% should be right."""
     stated = raw_probabilities[rows].ravel()
     correct = (patterns[rows] == true_labels[rows][:, None]).ravel()
+    ece = expected_calibration_error(stated, correct.astype(float))
     print("")
-    print("Reliability of the stated probabilities (all candidate options pooled)")
+    print(f"{title} (all candidate options pooled) -- ECE {ece:.3f}")
     print(f"  {'stated band':>14} {'options':>9} {'mean stated':>12} {'observed':>10} {'gap':>8}")
     edges = [0.0, 0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.01]
     for lower, upper in zip(edges, edges[1:]):
@@ -235,6 +320,69 @@ def print_reliability(raw_probabilities: np.ndarray, patterns: np.ndarray, true_
         print(f"  {lower:>5.2f} - {upper:<5.2f}  {int(in_band.sum()):>9,} {mean_stated:>12.3f} "
               f"{observed:>10.3f} {observed - mean_stated:>+8.3f}")
     print("  A positive gap means the model is under-confident, negative means over-confident.")
+    return ece
+
+
+def dense_grid_blind_spot(X: np.ndarray, probabilities: np.ndarray, positions: np.ndarray,
+                          n_pairs: int = 300, seed: int = RANDOM_SEED) -> None:
+    """Measure how often the four-horizon K x K check and the dense 15 s check disagree.
+
+    Pairs are drawn at random from the test split and the second aircraft is moved
+    (a rigid translation, as the encounter generator does) to within 25 NM of the
+    first, so that some pairs actually approach each other. The same candidate paths
+    are then checked twice: once on the four named horizons only, once interpolated
+    onto the dense grid through densify_path. A pair whose paths cross at t = 240 s is
+    invisible to the first check and visible to the second; this counts those cases.
+    """
+    from ml_pipeline.utils.cpa_conflict_detection import compute_cpa_from_paths, is_inside_alert_volume
+
+    generator = np.random.default_rng(seed)
+    horizons = [int(value) for value in framing.HORIZONS_SECONDS]
+    count = len(X)
+    disagreements = 0
+    sparse_positive = dense_positive = 0
+    probability_gap = []
+    for _ in range(n_pairs):
+        a, b = generator.choice(count, size=2, replace=False)
+        # Move B's whole candidate set next to A so that a meaningful fraction of pairs converge.
+        bearing = generator.uniform(0, 2 * np.pi)
+        offset_nm = generator.uniform(3.0, 25.0)
+        north = offset_nm * framing.METRES_PER_NAUTICAL_MILE * np.cos(bearing) / framing.METRES_PER_DEGREE
+        east = offset_nm * framing.METRES_PER_NAUTICAL_MILE * np.sin(bearing) / (
+            framing.METRES_PER_DEGREE * np.cos(np.radians(X[a, -1, framing.LATITUDE])))
+        shift = np.array([X[a, -1, framing.LATITUDE] - X[b, -1, framing.LATITUDE] + north,
+                          X[a, -1, framing.LONGITUDE] - X[b, -1, framing.LONGITUDE] + east,
+                          X[a, -1, framing.ALTITUDE] - X[b, -1, framing.ALTITUDE]])
+
+        def as_paths(index: int, delta: np.ndarray):
+            paths = []
+            for option in range(positions.shape[1]):
+                predictions = {h: tuple(positions[index, option, k] + delta) for k, h in enumerate(horizons)}
+                paths.append((float(probabilities[index, option]), predictions))
+            return paths
+
+        current_a = tuple(X[a, -1, [framing.LATITUDE, framing.LONGITUDE, framing.ALTITUDE]].astype(float))
+        current_b = tuple(X[b, -1, [framing.LATITUDE, framing.LONGITUDE, framing.ALTITUDE]].astype(float) + shift)
+        paths_a, paths_b = as_paths(a, np.zeros(3)), as_paths(b, shift)
+        sparse = compute_cpa_from_paths(paths_a, paths_b)
+        dense = compute_cpa_from_paths(paths_a, paths_b, current_a, current_b)
+        sparse_positive += is_inside_alert_volume(sparse)
+        dense_positive += is_inside_alert_volume(dense)
+        if abs(sparse["conflict_probability"] - dense["conflict_probability"]) > 1e-9:
+            disagreements += 1
+            probability_gap.append(dense["conflict_probability"] - sparse["conflict_probability"])
+
+    print("")
+    print("Dense-grid check of the candidate paths (the 1 Sep blind spot, now closed for multi-path)")
+    print(f"  {n_pairs} relocated test pairs checked both ways")
+    print(f"  pairs breaching the alert volume on the four named horizons only: {sparse_positive}")
+    print(f"  pairs breaching the alert volume on the dense 15 s grid:          {dense_positive}")
+    print(f"  pairs whose conflict probability changed once interpolated:      {disagreements} "
+          f"({disagreements / n_pairs:.1%})")
+    if probability_gap:
+        gaps = np.array(probability_gap)
+        print(f"  probability moved UP (conflict found between horizons) in {int((gaps > 0).sum())} of them, "
+              f"mean change {gaps.mean():+.3f}")
 
 
 def print_worked_example(X: np.ndarray, y: np.ndarray, probabilities: np.ndarray, positions: np.ndarray,
@@ -311,8 +459,9 @@ def single_answer_within(X: np.ndarray, y: np.ndarray, rows: np.ndarray) -> floa
 
 def main() -> None:
     train_x, train_y, train_mask = load_split("train")
+    val_x, val_y, val_mask = load_split("val")
     test_x, test_y, test_mask = load_split("test")
-    print(f"Samples: {len(train_x):,} train / {len(test_x):,} test")
+    print(f"Samples: {len(train_x):,} train / {len(val_x):,} val / {len(test_x):,} test")
 
     kmeans, pattern_residuals, train_labels = fit_route_patterns(train_x, train_y, train_mask)
     print_cluster_report(pattern_residuals, train_labels)
@@ -331,13 +480,26 @@ def main() -> None:
     )
     classifier.fit(features, train_labels[labelled])
 
+    def true_patterns(X: np.ndarray, y: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """Which pattern each aircraft actually flew (nearest centre to its real residual)."""
+        valid = mask[:, TEN_MINUTE_INDEX]
+        residual = framing.residual_targets(X, y, framing.constant_velocity_predict(X))
+        labels = np.full(len(X), -1, dtype=np.int64)
+        labels[valid] = kmeans.predict(residual[valid][:, TEN_MINUTE_INDEX, :2] / framing.METRES_PER_NAUTICAL_MILE)
+        return labels, valid
+
+    # Calibration is fitted on VALIDATION, which the classifier never saw and which is
+    # not the test split, so the reported reliability on test is an honest measurement.
+    val_true_labels, val_valid = true_patterns(val_x, val_y, val_mask)
+    val_features = build_feature_matrix(val_x)[val_valid]
+    val_known = np.isin(val_true_labels[val_valid], classifier.classes_)
+    temperature = fit_temperature(classifier, val_features[val_known], val_true_labels[val_valid][val_known])
+    print("")
+    print(f"Calibration: temperature {temperature:.3f} fitted on {int(val_known.sum()):,} validation rows "
+          f"(T > 1 means the raw classifier was over-confident; 1.0 would mean no correction needed).")
+
     # Test-side truth: which pattern the aircraft actually flew, for the reliability check.
-    test_valid = test_mask[:, TEN_MINUTE_INDEX]
-    test_residual = framing.residual_targets(test_x, test_y, framing.constant_velocity_predict(test_x))
-    test_true_labels = np.full(len(test_x), -1, dtype=np.int64)
-    test_true_labels[test_valid] = kmeans.predict(
-        test_residual[test_valid][:, TEN_MINUTE_INDEX, :2] / framing.METRES_PER_NAUTICAL_MILE
-    )
+    test_true_labels, test_valid = true_patterns(test_x, test_y, test_mask)
 
     arrivals = arrival_rows(test_x) & test_valid
     all_test = test_valid
@@ -345,9 +507,16 @@ def main() -> None:
           f"of which arrivals (<{ARRIVAL_DISTANCE_NM:.0f} NM from VABB): {int(arrivals.sum()):,}")
 
     max_k = 10
-    probabilities, positions, patterns, raw_top = candidate_paths(
-        classifier, kmeans, pattern_residuals, test_x, max_k
+    # Uncalibrated (T = 1) and calibrated candidate sets. The ranking, and therefore
+    # every position and every best-of-K number below, is identical between the two;
+    # only the stated probabilities differ.
+    _, _, patterns_uncalibrated, raw_top_uncalibrated = candidate_paths(
+        classifier, kmeans, pattern_residuals, test_x, max_k, temperature=1.0
     )
+    probabilities, positions, patterns, raw_top = candidate_paths(
+        classifier, kmeans, pattern_residuals, test_x, max_k, temperature=temperature
+    )
+    assert np.array_equal(patterns, patterns_uncalibrated), "temperature scaling must not change the ranking"
 
     baseline_positions = framing.constant_velocity_predict(test_x)
     baseline_within = float((framing.error_nm(baseline_positions, test_y)[arrivals, TEN_MINUTE_INDEX] < WITHIN_NM).mean() * 100)
@@ -371,8 +540,19 @@ def main() -> None:
         print(f"  {label:<34} {best_of_k_within(positions, test_y, arrivals, k):>9.1f}% "
               f"{best_of_k_within(positions, test_y, all_test, k):>9.1f}%{marker}")
 
-    print_reliability(raw_top, patterns, test_true_labels, arrivals)
+    ece_before = print_reliability(raw_top_uncalibrated, patterns, test_true_labels, arrivals,
+                                   title="BEFORE calibration -- reliability on test arrivals")
+    ece_after = print_reliability(raw_top, patterns, test_true_labels, arrivals,
+                                  title="AFTER temperature scaling -- reliability on test arrivals")
+    ece_all_before = print_reliability(raw_top_uncalibrated, patterns, test_true_labels, all_test,
+                                       title="BEFORE calibration -- reliability on ALL test rows")
+    ece_all_after = print_reliability(raw_top, patterns, test_true_labels, all_test,
+                                      title="AFTER temperature scaling -- reliability on ALL test rows")
+    print("")
+    print(f"Expected calibration error, arrivals: {ece_before:.3f} -> {ece_after:.3f}   "
+          f"all test: {ece_all_before:.3f} -> {ece_all_after:.3f}   (lower is better, 0 is perfect)")
     print_worked_example(test_x, test_y, probabilities[:, :TOP_K], positions[:, :TOP_K], patterns[:, :TOP_K], arrivals)
+    dense_grid_blind_spot(test_x, probabilities[:, :TOP_K], positions[:, :TOP_K])
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     with MODEL_PATH.open("wb") as handle:
@@ -380,6 +560,13 @@ def main() -> None:
             "kmeans": kmeans,
             "classifier": classifier,
             "pattern_residuals": pattern_residuals,
+            # Divide the classifier's raw scores by this before the softmax. 1.0 = none.
+            "temperature": float(temperature),
+            "calibration": {
+                "method": "temperature scaling (Guo et al. 2017), fitted on validation",
+                "ece_arrivals_before": ece_before, "ece_arrivals_after": ece_after,
+                "ece_all_before": ece_all_before, "ece_all_after": ece_all_after,
+            },
             "config": {
                 "n_patterns": N_PATTERNS,
                 "top_k": TOP_K,
