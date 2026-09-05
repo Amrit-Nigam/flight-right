@@ -15,9 +15,17 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# ML data: retain directory placeholders only
+# ML data: retain directory placeholders only, with ONE exception.
+#
+# The raw OpenSky session files ARE tracked. They are the only irreplaceable thing in
+# this repository: twelve days of credit-limited collection, and the free OpenSky
+# interface serves live traffic only -- it will not sell last week back. Everything
+# else under data/ and every saved model is regenerated from these files in about
+# twenty minutes by ml_pipeline/run_pipeline.py, and four of those stages reproduce
+# bit-for-bit, so they stay ignored. About 16 MB total, public data, nothing sensitive.
 ml_pipeline/data/raw/*
 !ml_pipeline/data/raw/.gitkeep
+!ml_pipeline/data/raw/*.parquet
 ml_pipeline/data/processed/*
 !ml_pipeline/data/processed/.gitkeep
 ml_pipeline/data/synthetic/*
