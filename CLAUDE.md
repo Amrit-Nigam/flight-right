@@ -73,7 +73,7 @@ with this table.
 | **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table are coded; alerts unchanged. |
 | **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. ML ranker still deferred. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
-| **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the full rule → multi-path → classifier → tier chain for a pair. The API layer on top of it is the next job. |
+| **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all models and runs the complete chain for a pair: rule → multi-path → classifier → tier → **Model 3 resolutions**. The API layer on top of it is the next job. |
 | **Frontend dashboard** | **ON THIS BRANCH** again as of 6 Sep 2026: `client/` restored from `main` (MapLibre version). Still runs on `mockData.js`; wiring to the backend is Section 8. |
 
 ### PART 3 — RULES THAT ARE NOT UP FOR DEBATE
@@ -1626,6 +1626,61 @@ tier 2 pair is refused; a 90-second pair produces no options at all with a reaso
 each rejection; and a descent through the en-route floor is blocked.
 
 
+### 2026-09-06 — The two branches merged, and Model 3 wired into the inference bridge
+
+**The merge.** `origin/backend` carried three commits written while Model 3 lived only
+on another branch. Both documents conflicted because both sides had appended to the same
+sections. Resolved by keeping both sides in full: every change-log entry from each was
+retained, and each status-table row was taken from whichever side was factually current.
+The incoming rows were newer everywhere except **Model 3, which the incoming side
+recorded as NOT STARTED** because it had not seen it.
+
+**The gap the merge exposed.** `server/app/ml/inference.py` ran rule → multi-path →
+classifier → escalation and stopped. It contained **zero references** to
+`resolution_engine`, so the chain ended at "there is a conflict" and never reached "here
+is what you could do about it". Nothing crashed and no test failed; the bridge simply had
+no way to know Model 3 existed when it was written.
+
+**Wired in as step 5 of `assess_pair`.** Three decisions worth recording:
+
+1. **Model 3 is fed the RULE path CPA, not the multi-path result.** Tier 1 runs on
+   constant velocity by decision (Section 3) and resolutions are tier 1 only, so the rule
+   CPA is the geometry the alarm was actually raised on. The engine re-flies every
+   candidate itself in any case, so it never inherits a predicted path.
+2. **`escalation` is passed through rather than re-deriving the gate.** The engine obeys
+   `suggest_resolution` internally, so tier 2 and a tier 1 pair that has not yet held for
+   three consecutive updates both get a reason instead of a manoeuvre. Re-deriving the
+   condition here would have created a second place for the tier rule to drift.
+3. **Imported directly, not loaded like a model.** Model 3 is rules and kinematics with
+   no saved artifact, so there is no version to check and nothing to degrade to.
+
+The result always carries a `resolution` block, `offered` true or false with a reason, so
+the dashboard never has to handle a missing key. Section 10's "unsafe suggestions
+blocked" count is exposed as `blocked_unsafe` with per-instruction reasons.
+
+**Verified across the three cases that matter**, via the bridge rather than the engine:
+
+| time to CPA | tier | offered | outcome |
+|---|---|---|---|
+| 165 s | 1 | yes | 26 candidates evaluated, 2 ranked options, Model 3 named in `sources` |
+| 60 s | 1 | no | "No manoeuvre in the candidate set restores separation in the time available" |
+| 300 s | 2 | no | refused as an advisory, per the tier rule |
+
+The 60-second case is the situation the existing `inference_check.py` sets up, which is
+why that check shows three sources rather than four. That is correct behaviour, not a
+regression.
+
+**`verify_pipeline.py` gained a section 8**, seven checks on the bridge, and now runs
+**80 of 80 passing**. It asserts that a result always carries a resolution block, that a
+confirmed tier 1 alarm gets ranked and explained options as plain JSON-ready data, that
+Model 3 is named among the sources, that tier 2 is still refused, and that an
+unresolvable pair produces a reason rather than an invented suggestion. This section
+exists specifically because the gap it covers was invisible to every existing test.
+
+**Unchanged:** no model, threshold, hyperparameter or gate was touched. The teammate's
+8 unit tests and `inference_check.py` both still pass.
+
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -2208,3 +2263,56 @@ runs on mock data; connecting it is Step 5 in `ARCHIT_TODO.md`.
 remain gitignored.
 
 **Headline number:** Unmoved.
+
+### 2026-09-06 — The system now says what to do, not just that there is a problem
+
+**File:** `server/app/ml/inference.py`, plus new checks in
+`ml_pipeline/utils/verify_pipeline.py`.
+
+**Before.** Two halves existed and neither knew about the other. The suggestion engine
+worked perfectly on its own. The backend module that the web server will sit on also
+worked, running two aircraft through the geometry, the route model and the classifier,
+and deciding whether to raise an alarm. But it stopped there. It had **no idea the
+suggestion engine existed**, because it was written on a different branch on the same day,
+before that engine had been merged in.
+
+Nothing was broken in a way any test could see. Every test passed. The system simply told
+a controller "these two aircraft are going to lose separation" and then went quiet.
+
+**Now.** A confirmed alarm carries its suggestions with it. The same result that says
+there is a problem now also says what could be done about it, ranked, costed and written
+out in a sentence a controller could read aloud.
+
+**Why it needed care rather than one line.** Three things had to be right.
+
+The suggestions are worked out from the **plain physics prediction**, not from the route
+model, because that is the prediction the alarm was raised on in the first place. The
+engine also re-flies every option itself, so it never inherits somebody else's guess about
+where an aircraft is going.
+
+The decision about **whether suggestions are allowed at all** is not re-made here. It is
+handed to the engine, which already knows the rule: a watch-list pair is never given a
+manoeuvre, and neither is an alarm that has not yet held steady for three readings.
+Copying that rule into a second place is how two parts of a system start disagreeing.
+
+Every result now carries a suggestions section **whether or not there are any**, with a
+plain reason when there are none, so the dashboard never has to cope with a missing piece.
+
+**Tested through the backend rather than the engine, in the three situations that matter:**
+
+| Time until closest approach | What happens |
+|---|---|
+| Nearly three minutes | Two suggestions offered, best first, each explained |
+| One minute | None offered, and it says why: nothing can work in that time |
+| Five minutes | None offered, because that is a watch-list entry, not an alarm |
+
+The one-minute row is the honest one. The system does not invent a suggestion when there
+is no time to act on it. It says so.
+
+**A protection against this happening again.** The gap existed because nothing checked
+that the chain ran all the way to the end. Seven new checks now confirm it does, and the
+automated check went from **73 to 80, all passing**. Your teammate's eight tests still pass
+too.
+
+**Headline number:** unmoved at 93.7%. This connects two finished parts. It does not
+change how many conflicts are caught.

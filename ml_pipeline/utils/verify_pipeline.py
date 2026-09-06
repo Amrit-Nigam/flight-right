@@ -556,6 +556,75 @@ def verify_resolution_engine() -> None:
           str(blocked_option.blocked_reason))
 
 
+def verify_inference_bridge() -> None:
+    """The backend bridge must run the WHOLE chain, ending in what to do about it.
+
+    This section exists because the bridge and Model 3 were written on separate
+    branches and the bridge shipped without ever calling the engine. Nothing crashed;
+    it simply stopped at "there is a conflict". That is the kind of gap only a check
+    that looks at the output can catch.
+    """
+    section("8. BACKEND BRIDGE -- the whole chain, alert through to suggestions")
+    import math as _math
+    try:
+        from server.app.ml.inference import ConflictEngine
+    except Exception as error:  # noqa: BLE001
+        check("inference bridge imports", False, str(error))
+        return
+    check("inference bridge imports", True)
+
+    engine = ConflictEngine.load()
+
+    def steady_history(latitude, longitude, altitude_m, speed, heading, callsign):
+        states = []
+        for index in range(10, -1, -1):
+            back = speed * 10 * index
+            states.append({
+                "latitude": latitude - (back * _math.cos(_math.radians(heading))) / 111320.0,
+                "longitude": longitude - (back * _math.sin(_math.radians(heading)))
+                             / (111320.0 * _math.cos(_math.radians(latitude))),
+                "altitude_m": altitude_m, "velocity_ms": speed, "heading_deg": heading,
+                "vertical_rate_ms": 0.0, "time_position": 1787600000 - index * 10,
+                "callsign": callsign,
+            })
+        return states
+
+    def assess(seconds_to_cpa):
+        speed = 230.0
+        offset = (speed * 2 * seconds_to_cpa) / (111320.0 * _math.cos(_math.radians(19.0)))
+        a = steady_history(19.000, 72.0, 10668.0, speed, 90.0, "AI2841")
+        b = steady_history(19.003, 72.0 + offset, 10668.0, speed, 270.0, "6E455")
+        history: list = []
+        for _ in range(4):
+            outcome = engine.assess_pair(a, b, history)
+            history.append(outcome)
+        return outcome
+
+    alarm = assess(165.0)
+    check("a result always carries a resolution section",
+          "resolution" in alarm, f"keys: {sorted(k for k in alarm if not k.startswith('_'))}")
+    check("a confirmed tier 1 alarm is offered resolutions",
+          alarm["resolution"]["offered"], alarm["resolution"]["reason"][:60])
+    options = alarm["resolution"]["options"]
+    check("options come back as ranked, explained, plain data",
+          bool(options) and all(isinstance(o, dict) and len(o["explanation"]) > 40 for o in options)
+          and all(a["score"] >= b["score"] for a, b in zip(options, options[1:])),
+          f"{len(options)} options, best: {options[0]['manoeuvre_type'] if options else 'none'}")
+    check("Model 3 is named among the sources for that result",
+          any("resolution engine" in source for source in alarm["sources"]),
+          f"{len(alarm['sources'])} sources")
+
+    advisory = assess(300.0)
+    check("a tier 2 advisory is still refused a manoeuvre through the bridge",
+          not advisory["resolution"]["offered"] and not advisory["resolution"]["options"],
+          f"tier {advisory['escalation']['tier']}")
+
+    too_late = assess(60.0)
+    check("when nothing can work in time the bridge says so rather than inventing one",
+          not too_late["resolution"]["offered"] and bool(too_late["resolution"]["reason"]),
+          too_late["resolution"]["reason"][:60])
+
+
 def main() -> int:
     print("FLIGHT RIGHT -- END-TO-END PIPELINE VERIFICATION")
     print("Checks that every stage runs and returns output of the right shape and magnitude.")
@@ -571,6 +640,7 @@ def main() -> int:
     verify_conflict_classifier()
     verify_end_to_end(splits, multipath_output)
     verify_resolution_engine()
+    verify_inference_bridge()
 
     section("SUMMARY")
     failed = [name for name, passed, _ in results if not passed]

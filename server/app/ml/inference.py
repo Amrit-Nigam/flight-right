@@ -20,6 +20,12 @@ and is what tier 1 uses; the learned models add on top, never replace (CLAUDE.md
 Section 13). If a model file is missing the engine degrades to the rule path and says
 so in every result, rather than failing.
 
+A confirmed tier 1 alarm then goes on to Model 3, the rule-based resolution engine,
+which returns up to three ranked and explained ways out. So the chain ends in "here is
+what you could do about it" rather than in "there is a problem". Nothing is ever
+applied: the options are returned for the controller to accept, dismiss or override
+(CLAUDE.md Section 12).
+
 State dictionaries use the field names the rest of the project uses:
     latitude, longitude, altitude_m, velocity_ms, heading_deg, vertical_rate_ms,
     time_position (unix seconds)
@@ -62,6 +68,9 @@ from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
     compute_cpa_from_states,
     escalate_pair,
 )
+# Model 3. Pure rules and kinematics, no saved model file, so it is imported directly
+# like the other project modules rather than loaded and version-checked.
+from ml_pipeline.utils.resolution_engine import generate_resolutions  # noqa: E402
 
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
 SAVED_MODELS = DATA_ROOT / "server" / "app" / "ml" / "saved_models"
@@ -342,6 +351,41 @@ class ConflictEngine:
         # 4. Tiering and escalation with the anti-flicker rule.
         escalation = escalate_pair(cpa_for_tiering, [h.get("_cpa_for_tiering", h) for h in pair_history])
         result["escalation"] = escalation
+
+        # 5. Model 3: what to actually do about it.
+        #
+        # Fed the RULE path, not the multi-path result, for two reasons. Tier 1 runs on
+        # constant velocity by decision (Section 3), and resolutions are tier 1 only, so
+        # the rule CPA is the geometry this alarm was raised on. The engine also flies
+        # each candidate itself rather than trusting any predicted path.
+        #
+        # The engine obeys escalation["suggest_resolution"] internally, so a tier 2
+        # advisory returns offered=False with a reason instead of a manoeuvre, and a
+        # tier 1 pair that has not yet held for three consecutive updates gets nothing
+        # either. Passing escalation through is what enforces that.
+        callsign_a = str(history_a[-1].get("callsign") or "AIRCRAFT A").strip()
+        callsign_b = str(history_b[-1].get("callsign") or "AIRCRAFT B").strip()
+        resolutions = generate_resolutions(state_a, state_b, rule_cpa, escalation,
+                                           callsign_a, callsign_b)
+        result["resolution"] = {
+            "offered": resolutions["offered"],
+            "reason": resolutions["reason"],
+            "options": [_resolution_to_dict(option) for option in resolutions["options"]],
+        }
+        if resolutions["offered"]:
+            # Counts only exist once the engine actually evaluated candidates. The
+            # blocked count is Section 10's "unsafe suggestions blocked" metric.
+            result["resolution"].update({
+                "unavailable_manoeuvre_types": resolutions["unavailable_kinds"],
+                "candidates_evaluated": resolutions["counts"]["evaluated"],
+                "blocked_unsafe": resolutions["counts"]["blocked_unsafe"],
+                "rejected_ineffective": resolutions["counts"]["rejected_ineffective"],
+                "blocked_detail": [{"aircraft": o.manoeuvre.aircraft, "manoeuvre_type": o.manoeuvre.kind,
+                                    "magnitude": o.manoeuvre.magnitude, "reason": o.blocked_reason}
+                                   for o in resolutions["blocked"]],
+            })
+            result["sources"].append("rule-based resolution engine (Model 3)")
+
         result["_cpa_for_tiering"] = {k: v for k, v in cpa_for_tiering.items() if k not in ("grid", "combinations")}
         result["_cpa_for_tiering"]["grid"] = cpa_for_tiering.get("grid", [])
         result["model_versions"] = self.status()
@@ -363,6 +407,32 @@ class ConflictEngine:
                                  "positions": _horizon_dict(positions[0, i])} for i, p in enumerate(probabilities[0])]
             out["multipath_version"] = self.multipath.version
         return out
+
+
+def _resolution_to_dict(option: Any) -> dict[str, Any]:
+    """Flatten one ResolutionOption into the JSON the dashboard consumes.
+
+    The engine returns dataclasses; everything crossing this boundary has to be plain
+    data. The explanation is carried through verbatim because Section 12 forbids
+    surfacing a suggestion without one.
+    """
+    return {
+        "aircraft": option.manoeuvre.aircraft,
+        "manoeuvre_type": option.manoeuvre.kind,
+        "magnitude": option.manoeuvre.magnitude,
+        "unit": option.manoeuvre.unit,
+        "resulting_lateral_separation_nm": option.resulting_lateral_nm,
+        "resulting_vertical_separation_ft": option.resulting_vertical_ft,
+        "resolves": option.resolves,
+        "seconds_to_establish": option.seconds_to_establish,
+        "established_before_cpa": option.established_before_cpa,
+        "delay_seconds": option.delay_seconds,
+        "fuel_equivalent_seconds": option.fuel_equivalent_seconds,
+        "confidence": option.confidence,
+        "score": option.score,
+        "score_components": option.components,
+        "explanation": option.explanation,
+    }
 
 
 def _manoeuvre_from_history(history: Sequence[Mapping[str, float]]) -> dict[str, float]:

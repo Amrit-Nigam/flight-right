@@ -83,10 +83,10 @@ recorded positions.
 | Model 1b — multi-path prediction | **DONE.** Its confidence numbers were wrong (Section 5); the correction is now coded and will be measured on the next real training run. |
 | Model 2 — conflict classifier (XGBoost) | **WORKING** as of 5 Sep. Rebuilt so it no longer restates the rule it was handed. See Section 6. |
 | Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. |
-| Automated end-to-end check | **WORKING** as of 6 Sep. 73 of 73 checks pass. |
+| Automated end-to-end check | **WORKING** as of 6 Sep. 80 of 80 checks pass. |
 | Model 3 — resolution recommendations | **DONE (rule-based)** as of 6 Sep. Three explained, ranked options per alarm. |
 | **Training pipeline** | **ONE COMMAND** since 6 Sep: `python ml_pipeline/run_pipeline.py`. See `ml_pipeline/README_TRAINING.md`. |
-| **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the whole chain for a pair of aircraft. The web API on top is next. |
+| **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now runs the complete chain for a pair, ending in Model 3's ranked suggestions. The web API on top is next. |
 | **Frontend dashboard** | **Back on this branch** (6 Sep, restored from `main`). Runs on mock data until the backend exists. |
 
 ### The backend, specifically, since you asked
@@ -226,7 +226,7 @@ Both were rewritten on 5 September. Section 6 explains what was wrong and what c
 
 | File | Lines | What it does |
 |---|---|---|
-| `verify_pipeline.py` | 589 | **The automated check.** Runs 73 assertions across the whole pipeline and exits non-zero if any fails. |
+| `verify_pipeline.py` | 659 | **The automated check.** Runs 80 assertions across the whole pipeline and exits non-zero if any fails. |
 | `resolution_engine.py` | 699 | **Model 3.** Proposes, simulates, costs and explains ways out of a conflict. See section 7. |
 | `test_baseline_demo.py` | 65 | Sanity check that the physics baseline and CPA rules run on real data. |
 | `test_two_tier_demo.py` | 247 | Checks the two-tier alerting on three hand-built situations: a conflict hiding between horizons, a one-off bad reading, and a pair that safely passes. |
@@ -265,7 +265,7 @@ folder, then loads the models through the backend module). Run them with
 | `ml_pipeline/run_pipeline.py` | Runs the seven training steps in order with one command, logs each, writes a report. |
 | `ml_pipeline/check_environment.py` | Says whether this laptop can train: GPU visible, packages, data present. |
 | `ml_pipeline/README_TRAINING.md` | Setup and run instructions for the RTX 4060 laptop. |
-| `server/app/ml/inference.py` | Loads the three models; `assess_pair` runs rule → multi-path → classifier → tier for two aircraft. |
+| `server/app/ml/inference.py` | Loads the models; `assess_pair` runs rule → multi-path → classifier → tier → **Model 3 suggestions** for two aircraft. |
 | `ml_pipeline/tests/*` | The tests above, plus `inference_check.py` which runs one converging pair through the loaded models. |
 
 ---
