@@ -83,8 +83,8 @@ recorded positions.
 | Model 1b — multi-path prediction | **DONE.** Its confidence numbers were wrong (Section 5); the correction is now coded and will be measured on the next real training run. |
 | Model 2 — conflict classifier (XGBoost) | **WORKING** as of 5 Sep. Rebuilt so it no longer restates the rule it was handed. See Section 6. |
 | Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. |
-| Automated end-to-end check | **WORKING** as of 6 Sep. 80 of 80 checks pass. |
-| Model 3 — resolution recommendations | **DONE (rule-based)** as of 6 Sep. Three explained, ranked options per alarm. |
+| Automated end-to-end check | **WORKING** as of 7 Sep. 87 of 87 checks pass. |
+| Model 3 — resolution recommendations | **DONE (rule-based)**. 7 Sep: every suggestion is checked against the other aircraft's five predicted paths and against all nearby traffic. |
 | **Training pipeline** | **ONE COMMAND** since 6 Sep: `python ml_pipeline/run_pipeline.py`. See `ml_pipeline/README_TRAINING.md`. |
 | **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now runs the complete chain for a pair, ending in Model 3's ranked suggestions. The web API on top is next. |
 | **Frontend dashboard** | **Back on this branch** (6 Sep, restored from `main`). Runs on mock data until the backend exists. |
