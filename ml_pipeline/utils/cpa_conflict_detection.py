@@ -237,9 +237,56 @@ def conflict_probability(cpa_result: Mapping[str, Any]) -> float:
     return 1.0 if is_inside_alert_volume(cpa_result) else 0.0
 
 
+def densify_path(
+    current_position: tuple[float, float, float] | Mapping[str, float],
+    horizon_predictions: Mapping[Any, Any],
+    times_seconds: Sequence[int] | None = None,
+) -> dict[int, tuple[float, float, float]]:
+    """Interpolate a sparse predicted path onto the dense 15 s grid.
+
+    The multi-path model predicts at the four named horizons only (60/180/300/600 s).
+    Checking K x K path combinations on those four instants reintroduces exactly the
+    blind spot the rule-based path fixed on 1 Sep: a pair closest at t = 240 s is
+    measured at 180 s and 300 s and the conflict is missed. This puts the current
+    position at t = 0 and linearly interpolates between the known points, so every
+    candidate path is checked on the same grid the deterministic detector uses.
+
+    Linear interpolation between predicted points is the honest choice: the model has
+    said nothing about the shape of the path between horizons, and a straight segment
+    adds no assumption the model did not make. Over 60-300 s segments the chord of an
+    airliner's turn deviates from the arc by well under the 5 NM threshold.
+    """
+    times = cpa_grid_times() if times_seconds is None else sorted(int(value) for value in times_seconds)
+    known: dict[int, tuple[float, float, float]] = {0: _position(current_position)}
+    for key, prediction in horizon_predictions.items():
+        seconds = _seconds_for_key(key)
+        if seconds is not None and seconds > 0:
+            known[seconds] = _position(prediction)
+    known_times = sorted(known)
+    if len(known_times) < 2:
+        raise ValueError("A path needs the current position and at least one prediction to densify.")
+
+    dense: dict[int, tuple[float, float, float]] = {}
+    for seconds in times:
+        if seconds in known:
+            dense[seconds] = known[seconds]
+            continue
+        if seconds > known_times[-1]:
+            break  # Never extrapolate past the last predicted point.
+        # Locate the bracketing known points.
+        upper = next(t for t in known_times if t > seconds)
+        lower = max(t for t in known_times if t < seconds)
+        fraction = (seconds - lower) / (upper - lower)
+        start, end = known[lower], known[upper]
+        dense[seconds] = tuple(start[i] + fraction * (end[i] - start[i]) for i in range(3))  # type: ignore[assignment]
+    return dense
+
+
 def compute_cpa_from_paths(
     paths_a: Sequence[tuple[float, Mapping[Any, Any]]],
     paths_b: Sequence[tuple[float, Mapping[Any, Any]]],
+    current_a: tuple[float, float, float] | Mapping[str, float] | None = None,
+    current_b: tuple[float, float, float] | Mapping[str, float] | None = None,
 ) -> dict[str, Any]:
     """Conflict probability over every combination of two aircraft's candidate paths.
 
@@ -260,9 +307,16 @@ def compute_cpa_from_paths(
     The representative geometry is the WORST conflicting combination -- the smallest
     lateral separation -- because that is the encounter the controller needs to see;
     if nothing conflicts, the most likely combination is reported instead.
+
+    When current_a and current_b (the aircraft's positions right now) are supplied,
+    every candidate path is first interpolated onto the dense 15 s grid with
+    densify_path, so the K x K check no longer inherits the four-horizon blind spot.
     """
     if not paths_a or not paths_b:
         raise ValueError("Both aircraft need at least one candidate path.")
+    if current_a is not None and current_b is not None:
+        paths_a = [(probability, densify_path(current_a, predictions)) for probability, predictions in paths_a]
+        paths_b = [(probability, densify_path(current_b, predictions)) for probability, predictions in paths_b]
 
     # Renormalise defensively: a caller that trimmed to the top K without
     # renormalising would otherwise understate every probability below.

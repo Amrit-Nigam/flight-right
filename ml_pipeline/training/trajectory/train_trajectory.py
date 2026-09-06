@@ -19,6 +19,7 @@ by evidence.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +30,7 @@ import evaluate
 import framing
 
 
-NUM_EPOCHS = 60
+NUM_EPOCHS = int(os.environ.get("FLIGHT_RIGHT_NUM_EPOCHS", 60))  # env override is for the smoke test only
 EARLY_STOPPING_PATIENCE = 10
 BATCH_SIZE = 64
 LEARNING_RATE = 0.001
@@ -55,8 +56,11 @@ SCALAR_FEATURES = len(framing.SCALAR_FEATURE_NAMES)
 NUM_HORIZONS = len(framing.HORIZONS_SECONDS)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-DATA_DIRECTORY = PROJECT_ROOT / "ml_pipeline" / "data" / "processed"
-MODEL_PATH = PROJECT_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_residual.pt"
+# FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
+# it can never touch real data). Unset, everything lives under the project root.
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
+DATA_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
+MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_residual.pt"
 
 
 class ResidualTrajectoryModel(nn.Module):
@@ -216,7 +220,16 @@ def main() -> None:
     test_tensors = prepare(test_x, test_y, test_mask, feature_statistics, residual_statistics)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Device: {torch.cuda.get_device_name(0) if device.type == 'cuda' else 'CPU'}")
+    if device.type == "cuda":
+        # Fixed input shapes every batch, so letting cuDNN pick its fastest LSTM kernel
+        # once is pure gain. TF32 matmuls are fine here: the loss is in normalised
+        # residual units and the model is nowhere near float32 precision limits.
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        print(f"Device: {torch.cuda.get_device_name(0)} (CUDA {torch.version.cuda}, torch {torch.__version__})")
+    else:
+        print(f"Device: CPU (torch {torch.__version__}) -- training will be slow; the RTX 4060 does an epoch in ~25 s")
     print(f"Samples: {len(train_x)} train / {len(val_x)} val / {len(test_x)} test")
     print("Residual std used for normalisation (m), per horizon [along, cross, altitude]:")
     for horizon_index, horizon in enumerate(framing.HORIZONS_SECONDS):
@@ -307,6 +320,17 @@ def main() -> None:
             "num_horizons": NUM_HORIZONS,
             "horizons_seconds": framing.HORIZONS_SECONDS.tolist(),
             "input_steps": train_x.shape[1],
+        },
+        # Everything the model card and the backend's /health endpoint need to report,
+        # kept with the weights so the numbers can never be quoted from a different run.
+        "training_summary": {
+            "best_epoch": best_epoch,
+            "epochs_run": len(history),
+            "best_validation_loss": best_validation_loss,
+            "samples": {"train": len(train_x), "val": len(val_x), "test": len(test_x)},
+            "test_per_horizon": results["per_horizon"],
+            "gate_beats_constant_velocity": bool(passed),
+            "device": str(device),
         },
     }, MODEL_PATH)
     print("")
