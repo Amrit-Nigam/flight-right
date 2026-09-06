@@ -44,7 +44,7 @@ The project's headline metric is:
 
 > **percentage of conflicts caught with at least 3 minutes of warning**
 
-**Currently 93.7%**, measured 5 September 2026 on held-out test data by
+**Currently 94.0%**, measured 6 September 2026 on held-out test data by
 `ml_pipeline/training/conflict_classifier/train_xgboost.py`. Everything else in this
 file is a supporting detail.
 
@@ -69,7 +69,7 @@ with this table.
 | Component | Status |
 |---|---|
 | **Model 1 — trajectory prediction** | **DONE.** Beats the physics baseline everywhere. |
-| **Model 1b — multi-path output** | **DONE.** Probability calibration (temperature scaling on validation) and dense-grid pairing are CODED as of 6 Sep 2026; the calibrated numbers come from the next real training run. |
+| **Model 1b — multi-path output** | **DONE and calibrated on real data.** Full run 6 Sep 2026: temperature 1.729, calibration error 0.054 -> 0.019 on arrivals and 0.040 -> 0.012 overall. Best-of-5 at ten minutes 63.6%. |
 | **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table are coded; alerts unchanged. |
 | **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. ML ranker still deferred. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
@@ -113,11 +113,8 @@ of these.
 
 ### PART 4 — OPEN PROBLEMS, IN PRIORITY ORDER
 
-1. **Run the pipeline for real on the RTX 4060 laptop.** Everything below marked
-   "coded" produces its numbers only from that run. `python ml_pipeline/run_pipeline.py`
-   then send back `ml_pipeline/reports/` (6 Sep 2026).
-2. **The conflict classifier misses its recall floor by 0.6 of a point.** Test
-   recall is 0.9406 against a 0.95 gate. **Diagnosed, and it is not a bug in the
+1. **The conflict classifier misses its recall floor.** Test recall is **0.9439**
+   against a 0.95 gate (full run, 6 Sep; was 0.9406 before retraining). **Diagnosed, and it is not a bug in the
    model.** The threshold is chosen as the *highest* value still reaching 0.95 on
    validation, which by construction lands exactly on the edge of the floor
    (validation recall 0.9511). A later, different test split then falls slightly
@@ -136,7 +133,7 @@ of these.
    evaluation and refresh the numbers in `Flight_Right_ML_Approach.docx` before
    submission.
 
-**Resolved in code 6 September 2026, awaiting the real run for numbers:**
+**Resolved 6 September 2026, and confirmed by the full training run that day:**
 
 - ~~*Multi-path probabilities are badly calibrated.*~~ `multipath.py` now fits a
   single temperature on the validation split (Guo et al. 2017) and saves it in the
@@ -1681,6 +1678,57 @@ exists specifically because the gap it covers was invisible to every existing te
 8 unit tests and `inference_check.py` both still pass.
 
 
+### 2026-09-06 — First full pipeline run on real data; calibration measured, headline 94.0%
+
+**Run via `ml_pipeline/run_pipeline.py`** on the laptop (RTX 4050, not the 4060 the
+script expects; it warns and proceeds). All seven steps completed. Report:
+`ml_pipeline/reports/training_report_20260906_140317.md`.
+
+| step | outcome |
+|---|---|
+| preprocess | OK |
+| Model 1 residual LSTM | GATE **PASS** |
+| non-neural reference | GATE **PASS**, 65.7% at ten minutes |
+| Model 1b multi-path | GATE **PASS**, 63.6% best-of-5 on arrivals |
+| encounters | OK, 40,000 rows |
+| Model 2 classifier | GATE 1 **FAIL** 0.9439, GATE 2 **PASS** |
+
+**Headline metric 93.7% -> 94.0%** (267 of 284 conflicts caught with at least three
+minutes of warning). Rule at the alert volume 87.3%, rule at the legal minimum 81.7%.
+
+**Calibration ran for the first time and works.** Multi-path temperature **1.729**,
+confirming the raw classifier was over-confident exactly as recorded. Expected
+calibration error, arrivals **0.054 -> 0.019**, all test rows **0.040 -> 0.012**. Every
+reliability band improved and the worst gap roughly halved. Classifier Platt
+calibration: Brier 0.0298 -> 0.0236, calibration error 0.0322 -> 0.0074, and **the alert
+set is identical before and after (740 alerts)** — calibration changed the meaning of the
+number, not the decision. That property is worth keeping: it means recalibrating can
+never silently change who gets alerted.
+
+**GATE 2 is now marginal and this should not be glossed over.** The model beats the
+rule-based detector on F-beta2 by **0.7326 to 0.7315**, a margin of 0.0011, where the
+previous run had 0.7480 to 0.7315. Recall rose (0.9406 -> 0.9439) but precision fell
+(0.4113 -> 0.3865) and false alarms rose (87.0 -> 96.8 per 1000). The threshold
+selection landed on a more aggressive operating point this run. The model still catches
+more real conflicts than the rule at every comparison, but on the combined measure it is
+now barely ahead. Watch this on the next run rather than treating GATE 2 as safely passed.
+
+**An operational defect in the runner, worked around rather than fixed.** The first
+invocation stopped at `train_lstm` reporting exit **3221226505** (`0xC0000409`,
+STATUS_STACK_BUFFER_OVERRUN). The step had in fact **succeeded**: the gate printed PASS,
+the model file was written, and it loads cleanly in a fresh process with all 18 weight
+tensors and the right config. The crash is at interpreter shutdown, the usual Windows
+signature of a CUDA or OpenMP teardown failure, and has nothing to do with the training.
+The runner treats any non-zero exit as a failed step and halts, so an unattended run
+stops there every time. Resuming with `--from benchmark` completed the remaining four
+steps. Worth fixing in `run_pipeline.py` — the runner should decide success from the
+step's own gate line and artifacts, not from the exit code alone — but it is the
+teammate's file and was left alone.
+
+**Verified after the retrain:** `verify_pipeline.py` 80 of 80, teammate's 8 unit tests
+OK, both against the newly written model files.
+
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -2316,3 +2364,42 @@ too.
 
 **Headline number:** unmoved at 93.7%. This connects two finished parts. It does not
 change how many conflicts are caught.
+
+### 2026-09-06 — Trained everything on the real data for the first time, and the headline went up
+
+**Files:** none changed. `python ml_pipeline/run_pipeline.py` ran all seven steps.
+
+**Before.** Every model on disk had been trained by hand, one script at a time, and the
+new probability-correction code had never actually run on real data. The numbers for it
+were predictions about what would happen.
+
+**Now.** The whole thing ran start to finish and the numbers are real.
+
+**Headline number: 93.7% to 94.0%.** Of the conflicts that leave a controller at least
+three minutes to act, we now catch 267 out of 284. The simple geometric rule catches
+87.3% of the same set.
+
+**The probability correction works, and this was the main thing to find out.** The route
+model used to overstate its own confidence. Now, when it says something is 30% likely, it
+happens about 28% of the time instead of about 24%. The overall measure of how honest
+those numbers are improved roughly threefold. The same correction was applied to the
+conflict classifier, and importantly **it did not change a single alert**: exactly the
+same 740 situations get flagged before and after. It changed what the number means, not
+who gets warned. That is the right kind of fix.
+
+**One thing got worse and should not be buried.** The classifier is now only barely
+better than the plain geometric rule on the combined score, 0.7326 against 0.7315, where
+last run it was 0.7480. It catches slightly more real conflicts than before but raises
+noticeably more false alarms doing it. It still beats the rule on every individual
+comparison. Worth watching on the next run rather than assuming it is settled.
+
+**A stumble worth knowing about.** The run stopped halfway with an alarming Windows error
+code. The training had actually finished perfectly: the quality check passed, the model
+was saved, and it loads correctly. The crash happened as the program was closing down,
+which on Windows is usually the graphics driver failing to shut down tidily. The pipeline
+runner only looks at whether a step exited cleanly, so it treated a successful step as a
+failure and stopped. I restarted from the next step and everything completed. Left
+unattended it would stop in the same place every time, so it is worth your teammate
+fixing.
+
+**Headline number:** moved, 93.7% to 94.0%, and for a real reason. Nothing was tuned.

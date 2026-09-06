@@ -39,7 +39,7 @@ Two more, specific to us:
 
 ## 1. The one number
 
-> **Percentage of conflicts caught with at least 3 minutes of warning: 93.7%.**
+> **Percentage of conflicts caught with at least 3 minutes of warning: 94.0%.**
 
 Everything else in this document is a supporting detail.
 
