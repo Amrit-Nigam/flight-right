@@ -71,7 +71,7 @@ with this table.
 | **Model 1 — trajectory prediction** | **DONE.** Beats the physics baseline everywhere. |
 | **Model 1b — multi-path output** | **DONE**, needs probability calibration. |
 | **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. |
-| **Model 3 — resolution engine** | **NOT STARTED.** |
+| **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. ML ranker still deferred. |
 | **Backend (FastAPI server)** | **NOT STARTED.** `server/` holds saved model files and a requirements list, no code. |
 | **Frontend dashboard** | Built, but **not on this branch** — removed by commit `9b6800b`, recoverable from `91720e7`. |
 
@@ -1356,6 +1356,158 @@ deterministic safety net, per Section 13. It is now also the source of the model
 features, so it cannot be removed.
 
 
+### 2026-09-06 — Full pipeline re-run from raw data; end-to-end verification script added
+
+**Every stage was re-run in order on the current 35 raw parquets, and each reproduced
+its documented result.** This was a workflow check, not a tuning run: nothing was
+changed to improve a number.
+
+| stage | script | result |
+|---|---|---|
+| 1. sequences | `preprocess_sequences.py` | 291,008 samples from 627,344 airborne states; per-horizon validity 97.3 / 83.5 / 72.0 / 49.9% |
+| 2. trajectory LSTM | `train_trajectory.py` | GATE **PASS**; 10-min within-5-NM **60.8%** vs CV 50.5% |
+| 3. tree reference | `reference_benchmark.py` | GATE **PASS**; 10-min **65.7%** |
+| 4. multi-path | `multipath.py` | GATE **PASS**; best-of-5 on test arrivals at ten minutes **63.6%** |
+| 5. encounters | `generate_synthetic_scenarios.py` | 40,000 rows, 2,581 real conflicts (6.45%), leakage 95.60%, 0.00% at t=0 |
+| 6. classifier | `train_xgboost.py` | headline **93.7%**; GATE 1 **FAIL** (recall 0.9406 vs 0.95), GATE 2 **PASS** |
+| 7. verification | `verify_pipeline.py` | **57 of 57 checks passed**, exit code 0 |
+
+**Reproducibility is confirmed, with one honest caveat.** Stages 1, 3, 5 and 6 came back
+bit-identical to the 5 Sep run, including the 40,000-row encounter file, because they
+are fully seeded. Stage 2 returned 60.8% at ten minutes against the recorded 60.9%; that
+0.1-point drift is cuDNN kernel non-determinism, not a change in the pipeline. The tree
+reference remains **4.9 points ahead of the LSTM** at ten minutes (65.7% vs 60.8%),
+consistent with the 4.8 recorded on 5 Sep. Do not present the LSTM as best-available.
+
+**New file `ml_pipeline/utils/verify_pipeline.py`** — the project's first automated
+check. It loads every saved artifact in a fresh process, with no access to the training
+scripts' state, and asserts on shape and magnitude rather than on quality. Quality stays
+in `evaluate.py`. What it covers:
+
+- **Data contract.** Splits carry `X`, `y`, `mask`, `timestamps`; window is 10x8;
+  targets are 4x3; **masked-out targets are actually 0.0** (the mask contract, previously
+  documented but never enforced); validation starts after training ends and test after
+  validation, so the time-based split is verified rather than assumed.
+- **Framing.** `apply_residual(residual_targets(y))` round-trips to within 1e-9 degrees.
+  This is load-bearing: training writes one and inference reads the other, so any drift
+  would silently corrupt every prediction the backend would ever serve.
+- **Model 1.** Rebuilds the architecture from the saved config, runs it, and checks the
+  output is real latitude/longitude inside the collection box with plausible altitudes,
+  then re-runs the constant-velocity gate.
+- **Model 1b.** Five candidates per aircraft, probabilities summing to 1 (worst deviation
+  3.33e-16), ordered most likely first, and genuinely distinct (median spread 28.3 NM at
+  ten minutes).
+- **Model 2.** The saved feature list must equal the generator's `FEATURE_COLUMNS`, no
+  outcome column may appear among the features, recall must reproduce the value stored in
+  the model file, the model must beat the geometric rule, and **the label must not be
+  recomputable from the features** — the circular-label defect, now checked on every run.
+- **End to end.** A real pair from the test data, plus a **deliberately converging
+  head-on pair**, because two aircraft drawn at random are almost always far apart and the
+  alarm path would otherwise never be exercised. The constructed pair produces CPA 0.62 NM
+  at 120 s, severity critical, tier 1; the alarm correctly does **not** fire on update 1
+  and does fire on update 3, carrying the reason string
+  `"alarm: closest approach 0.62 NM / 0 ft in 120 s, confirmed on 3 consecutive updates."`
+  and `suggest_resolution=True`, which only a notifying tier 1 pair may have.
+
+**Two defects in the checker itself were found and fixed while writing it**, both worth
+recording because they are the kind of thing that makes a green test meaningless. It
+originally sampled the first 3,000 rows of each split, which is one stretch of one
+afternoon rather than the test period; it now samples evenly across the split. And its
+only end-to-end pair was 46 NM apart and diverging, so every alerting assertion passed
+without the alarm ever firing.
+
+**Unchanged by this session:** no model architecture, hyperparameter, threshold or gate
+was touched. GATE 1 on the classifier still fails at 0.9406 for the reason diagnosed on
+5 Sep, and was again left failing rather than tuned.
+
+
+### 2026-09-06 — Model 3 built: rule-based resolution engine, and a measured correction to Section 3
+
+**New file `ml_pipeline/utils/resolution_engine.py`** (699 lines). Generates the three
+option types Section 3 requires — altitude, heading, speed — each carrying target
+aircraft, manoeuvre type, magnitude, resulting separation, delay and fuel estimates,
+confidence, and a controller-readable explanation. Ranked by the fixed weights
+safety 0.60 / delay 0.15 / fuel 0.10 / workload 0.10 / confidence 0.05. Tier 1 only:
+the `suggest_resolution` flag from `escalate_pair` is obeyed, so a tier 2 advisory is
+never offered a manoeuvre. Nothing is ever applied; options are returned for the
+controller to accept, dismiss or override.
+
+**The design decision that makes it honest: manoeuvres are flown, not teleported.**
+Every candidate is simulated at 1-second resolution through
+`RESPONSE_DELAY_SECONDS = 38` (controller decision 15 s + radio and readback 15 s +
+pilot reaction 8 s) during which **nothing moves at all**, then at real rates — standard
+rate turn 3 deg/s, level change 1500 ft/min, speed change 0.35 m/s^2. The naive version
+would move the aircraft instantly and report conflicts solved that physically cannot be,
+which is wrong in the dangerous direction.
+
+**A design simplification found during implementation.** The first version carried a
+separate `achievable_in_time` test alongside `resolves`. That was redundant *and* wrong:
+because the simulation already contains the response delay and the real turn rates, a
+manoeuvre that is too slow simply fails to prevent the violation. The test now walks
+every second of the window and asks whether **both** separations fail at once at any
+instant, rather than testing only the closest-approach sample — a pair can be tightest
+laterally while comfortably stacked vertically and lose separation at a different moment
+entirely.
+
+**MEASURED CORRECTION TO SECTION 3 — the "prefer altitude as time-to-conflict falls"
+rule does not hold as a blanket rule.** Section 3 states it as a physics-backed
+requirement on the ranker, citing 40 s for a 1000 ft level change against 96 s for a
+30 degree turn at 450 kt. The arithmetic is right. The conclusion is not general.
+
+Swept across a head-on pair at FL350, 230 m/s each, varying only time-to-CPA:
+
+| time to CPA | altitude options that work | heading options that work |
+|---|---|---|
+| 90 s | 0 | 0 |
+| 105 s | 4 | 4 |
+| 120 s | 4 | 6 |
+| 135 s and beyond | 4 | 8 |
+
+**There is no window in which the climb works and the turn does not.** They become
+available at the same time. In a head-on encounter a turn changes the crossing geometry
+very quickly, so the 96-second figure — which is the time to open 5 NM of *lateral
+displacement* — overstates what the turn actually needs when the two aircraft are
+closing at 460 m/s.
+
+Altitude does still rank first, but for a different reason than Section 3 gives: its
+**workload score is 1.00 against the turn's 0.50**, because a level change is one
+instruction the controller can watch working, whereas a vector must be remembered and
+later undone. That is a real advantage and it survives; the physics-availability
+argument does not.
+
+**The engine therefore tests each encounter rather than applying a standing
+preference.** That is the safer design either way: the standing preference would have
+been wrong in this geometry, and a geometry where it is right is still caught, because
+the option that fails is simply rejected. **Section 3 has not been edited** — this is
+recorded here as the measurement that qualifies it, per Section 1a Part 3.
+
+**A second measured result, and the more important one.** At 90 seconds to CPA, **all 26
+candidate instructions are rejected**. Not the climb, not the turn, not the speed change.
+38 of those 90 seconds are gone before the aircraft moves, and nothing an airliner can
+fly in the remaining 52 seconds opens 5 NM or 1000 ft in time.
+
+That is independent confirmation of the three-minute tier boundary. The boundary was
+chosen from response geometry worked out on paper; this simulation reaches the same
+place by flying every option and finding none arrives. **An alert raised well inside
+three minutes is real and useless**, which is exactly why tier 1 stops where it does.
+
+**Safety envelope, enforced rather than declared:** en-route floor 10,000 ft, ceiling
+45,000 ft, speed 150-280 m/s. Violations are returned as `blocked` with a reason string
+and can never be offered, so Section 10's "number of unsafe suggestions blocked" is
+available as a metric.
+
+**Delay and fuel are coarse proxies and the code says so.** Track-mile arithmetic with a
+climb cost of 120 equivalent cruise-seconds per 1000 ft. No engine data, no weight, no
+wind. Good enough to rank three options against each other, not good enough to quote to
+an airline; every explanation string says "approximate".
+
+**Verification.** `verify_pipeline.py` gained 16 checks covering Model 3 and now runs
+**73 of 73 passing**. Among them: the weights sum to 1.0; nothing moves before 38 s;
+options are ranked, explained, one per type, and all actually restore separation; a
+tier 2 pair is refused; a 90-second pair produces no options at all with a reason on
+each rejection; and a descent through the en-route floor is blocked.
+
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -1590,3 +1742,163 @@ massaged. The second gate, which asks whether the model actually beats the simpl
 
 **Headline number:** unaffected. The headline is measured at the chosen setting and is
 93.7%.
+
+### 2026-09-06 — Ran the whole pipeline from scratch to check it actually works
+
+**Files:** none changed. Every training script was run in order, start to finish.
+
+**Before.** Each stage had been run at some point, but never all of them in sequence on
+the same day from the same raw data. So nobody could say for certain that the whole
+chain worked, or that the saved model files matched the code that was supposed to have
+produced them.
+
+**Now.** All six stages ran in order and every one reproduced its recorded result.
+
+| Stage | Outcome |
+|---|---|
+| Turning raw data into training examples | 291,008 examples, as recorded |
+| Training the trajectory model | Passed its gate |
+| The non-neural comparison model | Passed its gate |
+| Training the multi-path model | Passed its gate |
+| Building the conflict practice data | Identical file to the previous run |
+| Training the conflict classifier | Headline 93.7%, as recorded |
+
+**Why this matters.** Four of the six stages came back **bit for bit identical** to the
+previous run, which means they are properly seeded and repeatable. If someone asks
+whether these numbers can be reproduced, the answer is now yes and it has been checked.
+
+**One honest wrinkle.** The trajectory model came back at 60.8% where it was recorded at
+60.9%. That one-tenth of a point is the graphics card doing floating-point arithmetic in
+a slightly different order between runs, not a change in the pipeline. Worth knowing so
+nobody chases it. Also unchanged: the simple non-neural model is still **4.9 points
+better** than the neural one at ten minutes, so the neural model must not be described as
+our best.
+
+**Headline number:** unmoved at 93.7%. Nothing was tuned. This was a check, not an
+improvement.
+
+### 2026-09-06 — The project now has an automatic check that everything still works
+
+**File:** `ml_pipeline/utils/verify_pipeline.py`, new.
+
+**Before.** There were no automatic tests at all. Two demonstration scripts existed that
+a person had to run and read. Both of the project's worst defects were silent: the
+trajectory model that lost to plain arithmetic for three weeks, and the conflict
+classifier that scored a perfect result for weeks while having learned nothing. **Neither
+of them crashed.** Nothing was broken in a way a computer would notice. They were only
+visible to someone who looked at the output and asked whether it made sense.
+
+**Now.** One command runs 57 checks and prints PASS or FAIL for each. It opens each saved
+model file the way the future backend will, from a cold start with no help from the
+training scripts, and asks three kinds of question:
+
+- **Is the output the right shape?** Does the trajectory model return four future
+  positions, each with a latitude, a longitude and an altitude?
+- **Are the numbers physically sensible?** Are the predicted positions actually over
+  western India, and are the altitudes possible for an aircraft?
+- **Are the known traps still shut?** Can the conflict answer key still be worked out
+  from the questions? Is any column describing what actually happened being fed in as an
+  input? Is the test data still strictly later than the training data?
+
+It also walks two aircraft all the way through to a controller alert, and checks the
+alarm refuses to fire on a single reading but does fire once the situation has held for
+three readings in a row, with a written explanation attached.
+
+**Why.** A rule that lives in someone's memory is not a rule. Every hard-won lesson in
+this project was previously written down and nothing enforced it. Now the important ones
+fail the run.
+
+**Two bugs in the checker itself, found while writing it, worth admitting.** It first
+looked only at the earliest 3,000 examples, which is one afternoon rather than a fair
+sample, so it now spreads its sample across the whole test period. And the two aircraft
+it walked through the system were 46 nautical miles apart and moving away from each
+other, so every alarm check passed **without the alarm ever going off**. A test that
+passes without exercising the thing it claims to test is worse than no test, because it
+creates confidence that has not been earned. It now uses a pair deliberately set on a
+collision course as well.
+
+**Headline number:** unmoved. This protects the number rather than changing it.
+
+**Result:** 57 of 57 checks pass.
+
+### 2026-09-06 — Built Model 3, the part that suggests what to actually do about a conflict
+
+**File:** `ml_pipeline/utils/resolution_engine.py`, new.
+
+**Before.** The system could spot a conflict and raise an alarm, and then it stopped. It
+had a single true-or-false flag saying a suggestion *would be* allowed, and nothing that
+produced one. A controller would have been told there is a problem and left to solve it
+alone.
+
+**Now.** For a confirmed alarm the system proposes up to three ways out, one of each
+kind: change an altitude, change a heading, change a speed. Each comes with what
+separation it actually achieves, roughly what it costs in delay and fuel, a confidence
+figure, and a sentence a controller could read aloud. For example:
+
+> Descend AI2841 to FL330. Reason: holds vertical separation at 2,000 ft where the
+> paths cross. Fully established about 118 s from now, against a closest approach in
+> 165 s. Confidence 0.79. Tradeoff: about 1.0 min of extra fuel burn.
+
+They are ranked by the project's fixed formula, which weights safety at 60% and
+everything else at 40% between them. **Nothing is ever applied automatically.** The
+system offers; the controller decides.
+
+**Why it is built the way it is.** The easy version would move the aircraft to its new
+heading instantly and check whether that fixes things. That would be wrong in the
+dangerous direction, because it would confidently recommend turns that no real aircraft
+could complete in time.
+
+So every suggestion is actually **flown** in simulation. For the first 38 seconds
+nothing happens at all, because the controller has to decide, call the pilot, hear the
+readback, and the pilot has to act. Only then does the aircraft begin to turn or climb,
+at the speed a real airliner does it. Separation is measured from what comes out.
+
+**Two things this taught us that we did not know before, both worth telling a mentor.**
+
+**One: with 90 seconds left, nothing works.** Not the climb, not the turn, not the speed
+change. All 26 possible instructions were rejected. Thirty-eight of those ninety seconds
+are gone before the aircraft moves at all, and nothing an airliner can do in the
+remaining fifty-two opens up a safe gap in time.
+
+That is a strong independent confirmation of a decision the project had already made on
+paper, that alarms should be raised at three minutes. Two separate methods, the pencil
+calculation and this simulation, arrive at the same place. An alarm raised much later
+than three minutes is genuine and completely useless.
+
+**Two: one of our stated rules turns out to be too broad.** The project says to prefer
+altitude changes when time is short, because a climb takes about 40 seconds while a turn
+takes about 96. The arithmetic is correct but the rule does not hold generally. Testing
+it directly, climbs and turns became available at exactly the same moment, between 90
+and 105 seconds. There is no window where the climb works and the turn does not, because
+in a head-on encounter a turn changes the geometry very quickly.
+
+Altitude still comes out top, but for an honest and different reason: it is **easier to
+manage**. A climb is one instruction the controller can watch working. A turn has to be
+remembered and later undone.
+
+Rather than hard-code a preference that turns out to be wrong in some geometries, the
+engine simply tries every option on every conflict and rejects the ones that do not work.
+That is safer in both directions. **The original rule in the project document has not
+been edited**, because the process here is to record the measurement and let you decide,
+not to quietly rewrite the specification.
+
+**Headline number:** unmoved at 93.7%. Model 3 acts after a conflict is detected, so it
+cannot change how many conflicts we catch. It changes what happens next.
+
+### 2026-09-06 — The automatic check now covers Model 3 as well
+
+**File:** `ml_pipeline/utils/verify_pipeline.py`.
+
+**Before.** 57 checks, covering the data and the first three models.
+
+**Now.** 73 checks. The 16 new ones confirm the suggestion engine behaves safely:
+nothing moves during the 38-second delay, every suggestion offered genuinely restores a
+safe gap, every one carries an explanation, a watch-list pair is never given a
+manoeuvre, an instruction that would take an aircraft below the 10,000 ft floor is
+blocked rather than offered, and when nothing can work the system says so instead of
+suggesting something useless.
+
+**Why.** This is the part of the system that would put words in a controller's mouth. It
+is the last place where a silent mistake should be possible.
+
+**Headline number:** unmoved. All 73 checks pass.

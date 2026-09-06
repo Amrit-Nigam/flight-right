@@ -3,8 +3,9 @@
 **Written 5 September 2026.** Plain English, no assumed knowledge of machine
 learning or aviation. Every aviation word is defined the first time it is used.
 
-This document answers four questions: where are we, what does each file do, what
-exactly is the LSTM doing, and what is wrong with the conflict classifier.
+This document answers five questions: where are we, what does each file do, what exactly
+is the LSTM doing, what was wrong with the conflict classifier and how it was fixed, and
+what the resolution engine proposes.
 
 ---
 
@@ -82,7 +83,8 @@ recorded positions.
 | Model 1b — multi-path prediction | **DONE.** Works, but its confidence numbers are wrong (see Section 5). |
 | Model 2 — conflict classifier (XGBoost) | **WORKING** as of 5 Sep. Rebuilt so it no longer restates the rule it was handed. See Section 6. |
 | Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. |
-| Model 3 — resolution recommendations | **NOT STARTED.** No file exists. |
+| Automated end-to-end check | **WORKING** as of 6 Sep. 73 of 73 checks pass. |
+| Model 3 — resolution recommendations | **DONE (rule-based)** as of 6 Sep. Three explained, ranked options per alarm. |
 | **Backend server (FastAPI)** | **NOT STARTED.** |
 | **Frontend dashboard** | Built earlier, **removed from this branch.** |
 
@@ -132,7 +134,7 @@ backend" currently means restoring the frontend first.
 
 ## 3. Every file that carries code, explained
 
-16 Python files, about 4,100 lines. Grouped by job.
+18 Python files, about 5,900 lines. Grouped by job.
 
 ### 3a. Getting the data — `ml_pipeline/ingestion/`
 
@@ -217,15 +219,37 @@ Two details in `preprocess_sequences.py` worth knowing:
 
 Both were rewritten on 5 September. Section 6 explains what was wrong and what changed.
 
-### 3f. Manual checks — `ml_pipeline/utils/`
+### 3f. Checks — `ml_pipeline/utils/`
 
 | File | Lines | What it does |
 |---|---|---|
+| `verify_pipeline.py` | 589 | **The automated check.** Runs 73 assertions across the whole pipeline and exits non-zero if any fails. |
+| `resolution_engine.py` | 699 | **Model 3.** Proposes, simulates, costs and explains ways out of a conflict. See section 7. |
 | `test_baseline_demo.py` | 65 | Sanity check that the physics baseline and CPA rules run on real data. |
 | `test_two_tier_demo.py` | 247 | Checks the two-tier alerting on three hand-built situations: a conflict hiding between horizons, a one-off bad reading, and a pair that safely passes. |
 
-These are demonstration scripts you run and read, not an automated test suite. **The
-project has no automated tests.** That is a real gap.
+`verify_pipeline.py` was added on 6 September and closes what had been a real gap. Run it
+with one command and it prints PASS or FAIL for every check:
+
+```
+venv/Scripts/python.exe ml_pipeline/utils/verify_pipeline.py
+```
+
+It opens each saved model the way the future backend will, cold, with no help from the
+training scripts, and asks three kinds of question. Is the output the right shape, so
+does the trajectory model really return four future positions each with a latitude, a
+longitude and an altitude? Are the numbers physically sensible, so are the predicted
+positions actually over western India at possible altitudes? And are the known traps
+still shut, so can the conflict answer key still be worked out from the questions, and
+is the test data still strictly later than the training data?
+
+It also walks two aircraft the whole way through to a controller alert and on into the
+resolution engine, including a pair deliberately set on a collision course. It checks the
+alarm refuses to fire on a single reading but does fire once the situation has held for
+three readings, that every suggestion offered genuinely restores a safe gap and carries an
+explanation, and that an unsafe instruction is blocked rather than offered.
+
+The other two files are demonstration scripts you run and read rather than assertions.
 
 ---
 
@@ -509,20 +533,114 @@ The second gate, which asks whether the model actually beats the simple rule, **
 
 ---
 
-## 7. What is left, in order
+## 7. Model 3, the resolution engine — built 6 September 2026
+
+### 7a. What it does
+
+Once a conflict is confirmed as a tier 1 alarm, this proposes up to three ways out, one
+of each kind: change an altitude, change a heading, change a speed. Each one comes with
+what separation it actually achieves, roughly what it costs in delay and fuel, a
+confidence figure, and a sentence a controller could read aloud. Here is a real one from
+the engine:
+
+> Descend AI2841 to FL330. Reason: holds vertical separation at 2,000 ft where the paths
+> cross. Fully established about 118 s from now, against a closest approach in 165 s.
+> Confidence 0.79. Tradeoff: about 1.0 min of extra fuel burn.
+
+They are ranked by the project's fixed formula, safety 60%, delay 15%, fuel 10%,
+workload 10%, confidence 5%.
+
+**Nothing is ever applied automatically.** The system offers options. The controller
+accepts, dismisses or overrides, and that decision gets logged. Nothing in this file can
+command an aircraft, and that is a hard rule of the project rather than an oversight.
+
+### 7b. The one design decision that matters
+
+The easy version of this would move the aircraft to its new heading instantly, check the
+geometry, and report the conflict solved. That would be wrong in the dangerous
+direction, because it would confidently recommend turns that no real aircraft could
+complete in time.
+
+So every suggestion is actually **flown** in simulation, second by second:
+
+| Phase | What happens |
+|---|---|
+| First 38 seconds | Nothing at all. Controller decides, calls, hears the readback, pilot acts. |
+| Then | The aircraft turns at 3 degrees per second, or climbs at 1,500 feet per minute, or changes speed slowly. |
+| Throughout | Separation is measured at every second, and a suggestion only counts if the gap is never lost. |
+
+Because the delay and the real turn rates are inside the simulation, there is no need
+for a separate "is there time?" test. A manoeuvre that is too slow simply fails to
+prevent the conflict and gets rejected with a reason.
+
+### 7c. Two things this taught us
+
+**With 90 seconds left, nothing works.** All 26 possible instructions were rejected. Not
+the climb, not the turn, not the speed change. Thirty-eight of those ninety seconds are
+gone before the aircraft moves at all, and nothing an airliner can do in the remaining
+fifty-two opens a safe gap in time.
+
+That independently confirms a decision the project had already made on paper, that
+alarms belong at three minutes. The pencil calculation and this simulation arrive at the
+same answer by different routes. An alarm raised well inside three minutes is genuine
+and completely useless, and now we can show that rather than assert it.
+
+**One of our stated rules turned out to be too broad.** The project document says to
+prefer altitude changes when time is short, because a climb takes about 40 seconds and a
+turn about 96. The arithmetic is right, but the rule does not hold generally. Tested
+directly on a head-on pair:
+
+| Time until closest approach | Climbs that work | Turns that work |
+|---|---|---|
+| 90 seconds | 0 | 0 |
+| 105 seconds | 4 | 4 |
+| 120 seconds | 4 | 6 |
+| 135 seconds or more | 4 | 8 |
+
+There is no window where the climb works and the turn does not. They become available at
+the same moment. In a head-on encounter a turn changes the geometry very quickly, so the
+96-second figure overstates what a turn really needs.
+
+Altitude still comes out top, but for an honest and different reason: it is **easier to
+manage**. A climb is one instruction the controller can watch working. A turn has to be
+remembered and later undone. That shows up in the scoring as a workload of 1.00 against
+0.50.
+
+Rather than hard-code a preference that is wrong in some geometries, the engine tries
+every option on every conflict and rejects what does not work. The rule in the project
+document has deliberately **not** been edited. The measurement is recorded next to it so
+Archit can decide.
+
+### 7d. What is deliberately rough, said out loud
+
+Delay and fuel are coarse proxies, not an aircraft performance model. There is no engine
+data, no aircraft weight, no wind. They are track-mile arithmetic, good enough to rank
+three options against each other and not good enough to quote to an airline. Every
+explanation string says "approximate" for that reason.
+
+The machine learning ranker that the project document describes as a later upgrade has
+not been built and is not needed for the MVP. The rule-based engine comes first by
+design, and stays in place underneath if a ranker is ever added.
+
+---
+
+## 8. What is left, in order
 
 | # | Task | Blocked on |
 |---|---|---|
 | 1 | Calibrate the multi-path probabilities | Nothing |
 | 2 | Interpolate multi-path candidates onto the 15-second grid | Nothing |
 | 3 | Decide whether to give the alarm threshold a safety margin | **Archit** |
-| 4 | Build the FastAPI backend and the database | Nothing |
-| 5 | Restore the frontend and connect it | Task 4 |
-| 6 | Build the resolution engine, Model 3 | Task 4 |
+| 4 | Decide what to do about the altitude-preference rule in Section 3 | **Archit** |
+| 5 | Build the FastAPI backend and the database | Nothing |
+| 6 | Restore the frontend and connect it | Task 5 |
 | 7 | Refresh the numbers in the approach document | Tasks 1 and 3 |
 
-Tasks 1 and 2 are already authorised and need no further discussion. Task 3 is the only
-one waiting on a decision, and it is a small one.
+Tasks 1 and 2 are already authorised and need no further discussion. Tasks 3 and 4 are
+small decisions waiting on you.
 
-**Done on 5 September 2026:** the circular label, the zero-warning encounters, and the
-missing leakage guard.
+**All four models are now built.** What remains between here and a working demonstration
+is the backend and the frontend, neither of which involves any machine learning.
+
+**Done on 5 and 6 September:** the circular label, the zero-warning encounters, the
+missing leakage guard, the full pipeline retrain, the automated verification, and Model 3.
