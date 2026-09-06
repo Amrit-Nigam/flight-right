@@ -48,3 +48,9 @@ OpenSky Credentials_*.json
 *.bak
 *.bak[0-9]
 *.backup_*
+
+# Node dependencies (client and server)
+node_modules/
+
+# Training run logs are large and per-machine; the markdown reports beside them are kept.
+ml_pipeline/reports/logs/

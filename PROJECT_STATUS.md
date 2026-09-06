@@ -1,6 +1,6 @@
 # Flight Right — Where The Project Stands
 
-**Written 5 September 2026.** Plain English, no assumed knowledge of machine
+**Written 5 September 2026, updated 6 September 2026.** Plain English, no assumed knowledge of machine
 learning or aviation. Every aviation word is defined the first time it is used.
 
 This document answers five questions: where are we, what does each file do, what exactly
@@ -80,13 +80,14 @@ recorded positions.
 |---|---|
 | Data collection from OpenSky | **WORKING.** 35 raw session files on disk; the last full run used 627,344 airborne positions. |
 | Model 1 — trajectory prediction (LSTM) | **DONE.** Beats the physics baseline at all four time horizons. |
-| Model 1b — multi-path prediction | **DONE.** Works, but its confidence numbers are wrong (see Section 5). |
+| Model 1b — multi-path prediction | **DONE.** Its confidence numbers were wrong (Section 5); the correction is now coded and will be measured on the next real training run. |
 | Model 2 — conflict classifier (XGBoost) | **WORKING** as of 5 Sep. Rebuilt so it no longer restates the rule it was handed. See Section 6. |
 | Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. |
 | Automated end-to-end check | **WORKING** as of 6 Sep. 73 of 73 checks pass. |
 | Model 3 — resolution recommendations | **DONE (rule-based)** as of 6 Sep. Three explained, ranked options per alarm. |
-| **Backend server (FastAPI)** | **NOT STARTED.** |
-| **Frontend dashboard** | Built earlier, **removed from this branch.** |
+| **Training pipeline** | **ONE COMMAND** since 6 Sep: `python ml_pipeline/run_pipeline.py`. See `ml_pipeline/README_TRAINING.md`. |
+| **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all three models and runs the whole chain for a pair of aircraft. The web API on top is next. |
+| **Frontend dashboard** | **Back on this branch** (6 Sep, restored from `main`). Runs on mock data until the backend exists. |
 
 ### The backend, specifically, since you asked
 
@@ -114,10 +115,12 @@ created, and then nothing was put in it.
 Not started, from CLAUDE.md Section 5: every API endpoint, the WebSocket live-update
 stream, the PostgreSQL database, and the audit log. None of these exist.
 
-### The frontend, which the docs get wrong
+### The frontend
+
+**Update 6 Sep:** `client/` is back on this branch, restored from `main`. The paragraph below is history.
 
 CLAUDE.md Section 8 says the React dashboard exists and works against mock data.
-**On this branch it does not exist.** It was deleted by commit `9b6800b` on
+**On this branch it did not exist until 6 Sep.** It was deleted by commit `9b6800b` on
 30 August, which retired the old Express and React code so the branch would contain
 only the Python pipeline.
 
@@ -150,10 +153,10 @@ per rolling 24 hours, and one 90-minute session costs 1,080. Three accounts mean
 three sessions per day. The box we ask about is western India, from latitude 16 to
 23.5 and longitude 68 to 77.5, which contains Mumbai.
 
-**Known weakness, not yet fixed.** These scripts hold the whole session in memory and
-write the file only at the very end. On 30 August a session was force-killed after 41
-minutes and all 249 collected snapshots were lost, because the write never happened.
-There is no incremental saving.
+**Correction (6 Sep).** An earlier version of this note said there was no incremental
+saving. The current scripts write a `_partial.parquet` checkpoint every 60 polls (about
+ten minutes), so a hard kill now loses at most the last ten minutes rather than the
+session. The 30 August loss of 249 snapshots happened before that was added.
 
 ### 3b. The physics baseline — `ml_pipeline/utils/trajectory_baseline.py` (78 lines)
 
@@ -249,7 +252,21 @@ alarm refuses to fire on a single reading but does fire once the situation has h
 three readings, that every suggestion offered genuinely restores a safe gap and carries an
 explanation, and that an unsafe instruction is blocked rather than offered.
 
-The other two files are demonstration scripts you run and read rather than assertions.
+These are demonstration scripts you run and read. **Since 6 September there is also an
+automated test suite** in `ml_pipeline/tests/`: `test_units.py` (8 unit tests, no data
+needed) and `smoke_test.py` (runs the entire pipeline on invented data in a temporary
+folder, then loads the models through the backend module). Run them with
+`python -m unittest ml_pipeline.tests.test_units` and `python ml_pipeline/tests/smoke_test.py`.
+
+### 3g. Added 6 September 2026
+
+| File | What it does |
+|---|---|
+| `ml_pipeline/run_pipeline.py` | Runs the seven training steps in order with one command, logs each, writes a report. |
+| `ml_pipeline/check_environment.py` | Says whether this laptop can train: GPU visible, packages, data present. |
+| `ml_pipeline/README_TRAINING.md` | Setup and run instructions for the RTX 4060 laptop. |
+| `server/app/ml/inference.py` | Loads the three models; `assess_pair` runs rule → multi-path → classifier → tier for two aircraft. |
+| `ml_pipeline/tests/*` | The tests above, plus `inference_check.py` which runs one converging pair through the loaded models. |
 
 ---
 
@@ -628,19 +645,25 @@ design, and stays in place underneath if a ranker is ever added.
 
 | # | Task | Blocked on |
 |---|---|---|
-| 1 | Calibrate the multi-path probabilities | Nothing |
-| 2 | Interpolate multi-path candidates onto the 15-second grid | Nothing |
-| 3 | Decide whether to give the alarm threshold a safety margin | **Archit** |
-| 4 | Decide what to do about the altitude-preference rule in Section 3 | **Archit** |
-| 5 | Build the FastAPI backend and the database | Nothing |
-| 6 | Restore the frontend and connect it | Task 5 |
-| 7 | Refresh the numbers in the approach document | Tasks 1 and 3 |
+| 1 | Run `python ml_pipeline/run_pipeline.py` on the laptop and send back `ml_pipeline/reports/` | Nothing |
+| 2 | Decide whether to give the alarm threshold a safety margin, using the WHAT-IF table the run prints | **Archit** |
+| 3 | Decide what to do about the altitude-preference rule in CLAUDE.md Section 3 | **Archit** |
+| 4 | Build the FastAPI backend and the database on top of `server/app/ml/inference.py` | Nothing |
+| 5 | Connect the restored frontend to that backend | Task 4 |
+| 6 | Refresh the numbers in the approach document | Tasks 1 and 2 |
 
-Tasks 1 and 2 are already authorised and need no further discussion. Tasks 3 and 4 are
-small decisions waiting on you.
+Task 1 is the only one that needs a machine rather than a decision, and it unblocks the
+rest. Tasks 2 and 3 are small decisions waiting on you.
 
-**All four models are now built.** What remains between here and a working demonstration
-is the backend and the frontend, neither of which involves any machine learning.
+**All four models are now built.** What stands between here and a working demonstration
+is the web API and connecting the frontend, neither of which involves machine learning.
 
-**Done on 5 and 6 September:** the circular label, the zero-warning encounters, the
-missing leakage guard, the full pipeline retrain, the automated verification, and Model 3.
+**Done on 5 September 2026:** the circular label, the zero-warning encounters, and the
+missing leakage guard.
+
+**Done on 6 September 2026:** the full pipeline retrain, the automated verification, and
+Model 3, the resolution engine.
+
+**Coded on 6 September 2026, numbers pending the real run:** multi-path probability
+calibration, dense-grid checking of candidate paths, calibrated and SHAP-explained
+conflict classifier, the one-command pipeline, the inference module, and the first tests.

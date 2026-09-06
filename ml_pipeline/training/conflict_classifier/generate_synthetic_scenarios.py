@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import glob
 import math
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,7 +66,9 @@ import numpy as np
 import pandas as pd
 
 
-N_SCENARIOS = 40_000
+# FLIGHT_RIGHT_N_SCENARIOS exists so the smoke test can run this file end to end in
+# seconds; leave it unset for a real run.
+N_SCENARIOS = int(os.environ.get("FLIGHT_RIGHT_N_SCENARIOS", 40_000))
 # The share of pairs we deliberately aim at each other. It is higher than the old
 # 0.30 because aiming no longer guarantees a conflict: B is aimed using only what is
 # knowable at t = 0, and whether the pair actually loses separation depends on what
@@ -124,6 +127,11 @@ MAX_ANCHORS = 60_000
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+# Data lives under the project root unless FLIGHT_RIGHT_DATA_ROOT points elsewhere
+# (the smoke test uses a temporary directory so it can never touch real data).
+DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
+RAW_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "raw"
+SYNTHETIC_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "synthetic"
 
 # Single source of truth for prediction and for closest-approach geometry. Both the
 # FEATURE side (constant-velocity prediction) and the LABEL side (real positions) are
@@ -188,9 +196,9 @@ OUTCOME_COLUMNS = [
 
 def load_valid_states() -> pd.DataFrame:
     """Read every raw parquet and keep en-route airborne states only."""
-    paths = sorted(glob.glob(str(PROJECT_ROOT / "ml_pipeline" / "data" / "raw" / "*.parquet")))
+    paths = sorted(glob.glob(str(RAW_DIRECTORY / "*.parquet")))
     if not paths:
-        raise FileNotFoundError("No raw parquet files found.")
+        raise FileNotFoundError(f"No raw parquet files found in {RAW_DIRECTORY}.")
     frame = pd.concat((pd.read_parquet(path) for path in paths), ignore_index=True)
     required = ["icao24", "time_position", "on_ground", "latitude", "longitude",
                 "baro_altitude", "velocity", "true_track"]
@@ -524,13 +532,70 @@ def _try_build_row(anchors: dict[str, np.ndarray], index_a: int, index_b: int,
     # audited CPA function the rule-based detector uses.
     actual_cpa = compute_cpa(_as_grid(actual_a), _as_grid(actual_b))
     classification = classify_conflict(actual_cpa)
-    relative_speed, relative_heading, closing_speed = _relative_motion(state_a, state_b)
 
-    return {
+    manoeuvre_a = _manoeuvre(anchors, index_a)
+    manoeuvre_b = _manoeuvre(anchors, index_b)
+    row = {
         "seed_time_position": int(anchors["time"][index_a]),
         "session_id": int(anchors["session_id"][index_a]),
         "intended_encounter": bool(intended),
-        # --- features ---
+    }
+    row.update(encounter_features(state_a, state_b, manoeuvre_a, manoeuvre_b, predicted_cpa))
+    row.update({
+        # --- outcome, never a feature ---
+        "actual_cpa_lateral_nm": float(actual_cpa["cpa_lateral_distance_nm"]),
+        "actual_cpa_vertical_ft": float(actual_cpa["cpa_vertical_separation_ft"]),
+        "actual_time_to_cpa_seconds": float(actual_cpa["time_to_cpa_seconds"]),
+        "is_conflict": int(classification["is_conflict"]),
+        "severity": str(classification["severity"]),
+    })
+    return row
+
+
+def _manoeuvre(anchors: dict[str, np.ndarray], index: int) -> dict[str, float]:
+    """The three window-summary numbers describing how an anchor aircraft is flying."""
+    return {
+        "turn_rate_deg_s": float(anchors["turn_rate_deg_s"][index]),
+        "along_accel_ms2": float(anchors["along_accel_ms2"][index]),
+        "vertical_accel_ms2": float(anchors["vertical_accel_ms2"][index]),
+    }
+
+
+def manoeuvre_summary(times: np.ndarray, velocities: np.ndarray, headings_deg: np.ndarray,
+                      vertical_rates: np.ndarray) -> dict[str, float]:
+    """Turn rate and accelerations over a window of past states, oldest first.
+
+    This is the same arithmetic build_anchors uses, exposed so the backend can compute
+    the manoeuvre summary for a live aircraft from its recent history and hand it to
+    encounter_features. Headings are unwrapped before differencing (359 -> 001 is a
+    2 degree turn, not 358).
+    """
+    if len(times) < 2:
+        return {"turn_rate_deg_s": 0.0, "along_accel_ms2": 0.0, "vertical_accel_ms2": 0.0}
+    span = max(float(times[-1] - times[0]), 1.0)
+    unwrapped = np.unwrap(np.deg2rad(np.asarray(headings_deg, dtype=np.float64)))
+    return {
+        "turn_rate_deg_s": math.degrees(unwrapped[-1] - unwrapped[0]) / span,
+        "along_accel_ms2": (float(velocities[-1]) - float(velocities[0])) / span,
+        "vertical_accel_ms2": (float(vertical_rates[-1]) - float(vertical_rates[0])) / span,
+    }
+
+
+def encounter_features(state_a: dict[str, float], state_b: dict[str, float],
+                       manoeuvre_a: dict[str, float], manoeuvre_b: dict[str, float],
+                       predicted_cpa: dict | None = None) -> dict[str, float]:
+    """The FEATURE_COLUMNS for one pair of aircraft, from t = 0 knowledge only.
+
+    This is the single definition of the classifier's inputs. The training generator
+    calls it for every synthetic encounter, and the backend (server/app/ml/inference.py)
+    calls it for every live pair, so the two can never disagree about what a feature
+    means. Nothing here touches any future position.
+    """
+    if predicted_cpa is None:
+        predicted_cpa = compute_cpa_from_states(state_a, state_b)
+    first = predicted_cpa["grid"][0]
+    relative_speed, relative_heading, closing_speed = _relative_motion(state_a, state_b)
+    features = {
         "current_lateral_separation_nm": float(first["lateral_distance_nm"]),
         "current_vertical_separation_ft": float(first["vertical_separation_ft"]),
         "relative_speed_ms": relative_speed,
@@ -541,16 +606,16 @@ def _try_build_row(anchors: dict[str, np.ndarray], index_a: int, index_b: int,
         "predicted_cpa_vertical_ft": float(predicted_cpa["cpa_vertical_separation_ft"]),
         "predicted_time_to_cpa_seconds": float(predicted_cpa["time_to_cpa_seconds"]),
         "predicted_is_converging": int(bool(predicted_cpa["is_converging"])),
-        "max_abs_turn_rate_deg_s": float(max(abs(anchors["turn_rate_deg_s"][index_a]),
-                                             abs(anchors["turn_rate_deg_s"][index_b]))),
-        "a_abs_turn_rate_deg_s": float(abs(anchors["turn_rate_deg_s"][index_a])),
-        "b_abs_turn_rate_deg_s": float(abs(anchors["turn_rate_deg_s"][index_b])),
+        "max_abs_turn_rate_deg_s": float(max(abs(manoeuvre_a["turn_rate_deg_s"]),
+                                             abs(manoeuvre_b["turn_rate_deg_s"]))),
+        "a_abs_turn_rate_deg_s": float(abs(manoeuvre_a["turn_rate_deg_s"])),
+        "b_abs_turn_rate_deg_s": float(abs(manoeuvre_b["turn_rate_deg_s"])),
         "a_abs_vertical_rate_ms": float(abs(state_a["vertical_rate_ms"])),
         "b_abs_vertical_rate_ms": float(abs(state_b["vertical_rate_ms"])),
-        "a_abs_vertical_accel_ms2": float(abs(anchors["vertical_accel_ms2"][index_a])),
-        "b_abs_vertical_accel_ms2": float(abs(anchors["vertical_accel_ms2"][index_b])),
-        "a_abs_along_accel_ms2": float(abs(anchors["along_accel_ms2"][index_a])),
-        "b_abs_along_accel_ms2": float(abs(anchors["along_accel_ms2"][index_b])),
+        "a_abs_vertical_accel_ms2": float(abs(manoeuvre_a["vertical_accel_ms2"])),
+        "b_abs_vertical_accel_ms2": float(abs(manoeuvre_b["vertical_accel_ms2"])),
+        "a_abs_along_accel_ms2": float(abs(manoeuvre_a["along_accel_ms2"])),
+        "b_abs_along_accel_ms2": float(abs(manoeuvre_b["along_accel_ms2"])),
         "min_distance_to_vabb_nm": float(min(
             _distance_to_vabb_nm(state_a["latitude"], state_a["longitude"]),
             _distance_to_vabb_nm(state_b["latitude"], state_b["longitude"]),
@@ -559,13 +624,9 @@ def _try_build_row(anchors: dict[str, np.ndarray], index_a: int, index_b: int,
         "b_altitude_ft": float(state_b["altitude_m"] * M_TO_FT),
         "a_velocity_ms": float(state_a["velocity_ms"]),
         "b_velocity_ms": float(state_b["velocity_ms"]),
-        # --- outcome, never a feature ---
-        "actual_cpa_lateral_nm": float(actual_cpa["cpa_lateral_distance_nm"]),
-        "actual_cpa_vertical_ft": float(actual_cpa["cpa_vertical_separation_ft"]),
-        "actual_time_to_cpa_seconds": float(actual_cpa["time_to_cpa_seconds"]),
-        "is_conflict": int(classification["is_conflict"]),
-        "severity": str(classification["severity"]),
     }
+    assert list(features) == FEATURE_COLUMNS, "encounter_features and FEATURE_COLUMNS have drifted apart"
+    return features
 
 
 def report_leakage_check(dataset: pd.DataFrame) -> None:
@@ -633,7 +694,7 @@ def main() -> None:
     anchors = build_anchors(states)
     dataset = build_dataset(anchors)
 
-    output_directory = PROJECT_ROOT / "ml_pipeline" / "data" / "synthetic"
+    output_directory = SYNTHETIC_DIRECTORY
     output_directory.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     output_path = output_directory / f"encounters_real_outcome_{timestamp}.parquet"
