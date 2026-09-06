@@ -292,13 +292,19 @@ class ConflictEngine:
                 ("latitude", "longitude", "altitude_m", "velocity_ms", "heading_deg", "vertical_rate_ms")}
 
     def assess_pair(self, history_a: Sequence[Mapping[str, float]], history_b: Sequence[Mapping[str, float]],
-                    pair_history: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
+                    pair_history: Sequence[Mapping[str, Any]] = (),
+                    traffic: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
         """Everything the dashboard needs for one pair, with a reason for each number.
 
         history_* are each aircraft's recent states, oldest first, at least ten. The
         rule path needs only the latest state; the models need the window.
         pair_history is the list of previous results for this pair (for the
         3-consecutive-updates rule).
+
+        traffic is every OTHER aircraft nearby, each {"callsign", "history"}. Supplied,
+        a suggested manoeuvre is also checked against those aircraft and rejected if it
+        would create a new conflict with one of them. Omitted, resolutions consider only
+        this pair, which is how a fix for one conflict becomes a conflict elsewhere.
         """
         state_a, state_b = self._current(history_a[-1]), self._current(history_b[-1])
 
@@ -312,6 +318,7 @@ class ConflictEngine:
 
         # 2. Multi-path conflict probability over K x K candidate combinations, densified.
         cpa_for_tiering = rule_cpa
+        resolution_paths_a = resolution_paths_b = None
         if self.multipath is not None and len(history_a) >= INPUT_STEPS and len(history_b) >= INPUT_STEPS:
             X = np.concatenate([window_from_states(history_a), window_from_states(history_b)])
             probabilities, positions, patterns = self.multipath.predict(X)
@@ -335,6 +342,9 @@ class ConflictEngine:
                 "probabilities_calibrated": self.multipath.temperature != 1.0,
             }
             result["sources"].append("multi-path K x K on the dense grid")
+            # Kept for Model 3: the resolution check runs against these weighted futures
+            # rather than a single straight line for the aircraft that is NOT moving.
+            resolution_paths_a, resolution_paths_b = paths_a, paths_b
             # Tier 1 (<= 180 s) stays on the rule path by decision (CLAUDE.md Section 3);
             # the multi-path probability drives tier 2, where constant velocity degrades.
             if assign_tier(rule_cpa)["tier"] != 1:
@@ -365,8 +375,29 @@ class ConflictEngine:
         # either. Passing escalation through is what enforces that.
         callsign_a = str(history_a[-1].get("callsign") or "AIRCRAFT A").strip()
         callsign_b = str(history_b[-1].get("callsign") or "AIRCRAFT B").strip()
+        # Every OTHER aircraft nearby, with its own predicted paths where the model can
+        # supply them, so a manoeuvre is tested against the whole picture.
+        neighbours = []
+        for entry in traffic:
+            neighbour_history = entry.get("history") or ()
+            if not neighbour_history:
+                continue
+            neighbour_paths = None
+            if self.multipath is not None and len(neighbour_history) >= INPUT_STEPS:
+                nx = window_from_states(neighbour_history)
+                np_prob, np_pos, _ = self.multipath.predict(nx)
+                neighbour_paths = self.multipath.paths_for_cpa(nx, 0, np_prob, np_pos)
+            neighbours.append({
+                "callsign": str(entry.get("callsign")
+                                or neighbour_history[-1].get("callsign") or "another aircraft").strip(),
+                "state": self._current(neighbour_history[-1]),
+                "paths": neighbour_paths,
+            })
         resolutions = generate_resolutions(state_a, state_b, rule_cpa, escalation,
-                                           callsign_a, callsign_b)
+                                           callsign_a, callsign_b,
+                                           paths_a=resolution_paths_a,
+                                           paths_b=resolution_paths_b,
+                                           traffic=neighbours)
         result["resolution"] = {
             "offered": resolutions["offered"],
             "reason": resolutions["reason"],
@@ -377,12 +408,22 @@ class ConflictEngine:
             # blocked count is Section 10's "unsafe suggestions blocked" metric.
             result["resolution"].update({
                 "unavailable_manoeuvre_types": resolutions["unavailable_kinds"],
+                "checked_against": resolutions.get("checked_against"),
                 "candidates_evaluated": resolutions["counts"]["evaluated"],
                 "blocked_unsafe": resolutions["counts"]["blocked_unsafe"],
                 "rejected_ineffective": resolutions["counts"]["rejected_ineffective"],
+                # The domino count: manoeuvres that fixed this pair but would have
+                # caused a conflict with a third aircraft.
+                "rejected_new_conflict": resolutions["counts"].get("rejected_domino", 0),
                 "blocked_detail": [{"aircraft": o.manoeuvre.aircraft, "manoeuvre_type": o.manoeuvre.kind,
                                     "magnitude": o.manoeuvre.magnitude, "reason": o.blocked_reason}
                                    for o in resolutions["blocked"]],
+                "new_conflict_detail": [{"aircraft": o.manoeuvre.aircraft,
+                                         "manoeuvre_type": o.manoeuvre.kind,
+                                         "magnitude": o.manoeuvre.magnitude,
+                                         "would_conflict_with": o.creates_conflict_with,
+                                         "risk": o.new_conflict_risk}
+                                        for o in resolutions.get("would_create_new_conflict", [])],
             })
             result["sources"].append("rule-based resolution engine (Model 3)")
 
@@ -431,6 +472,10 @@ def _resolution_to_dict(option: Any) -> dict[str, Any]:
         "confidence": option.confidence,
         "score": option.score,
         "score_components": option.components,
+        # How much of the other aircraft's predicted futures this still fails against,
+        # and how much of a third aircraft's futures it would newly endanger.
+        "residual_risk": option.residual_risk,
+        "new_conflict_risk": option.new_conflict_risk,
         "explanation": option.explanation,
     }
 

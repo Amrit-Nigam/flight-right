@@ -625,6 +625,86 @@ def verify_inference_bridge() -> None:
           too_late["resolution"]["reason"][:60])
 
 
+def verify_resolution_against_traffic() -> None:
+    """Model 3 must consider the other aircraft's PREDICTED paths, and the whole picture.
+
+    Two behaviours, both added 7 Sep, both of which fail silently if they regress:
+
+      1. The aircraft that is NOT moving is checked as several weighted predicted
+         futures rather than one straight line. Flying it straight is measurably wrong
+         at the far end of a tier 1 alarm.
+      2. A manoeuvre is checked against every OTHER aircraft nearby and rejected if it
+         would create a new conflict. Without this the engine resolves one pair by
+         breaking another, which the literature calls the domino effect and which level
+         changes cause most often.
+
+    The scenario is built so the second one MUST fire: two aircraft head-on at FL350,
+    and a third 2000 ft below flying the opposite way to one of them. Descending that
+    aircraft solves the first conflict and creates a head-on at the lower level.
+    """
+    section("9. MODEL 3 AGAINST PREDICTED PATHS AND SURROUNDING TRAFFIC")
+    import math as _math
+    from server.app.ml.inference import ConflictEngine
+    from ml_pipeline.utils.cpa_conflict_detection import compute_cpa_from_states, escalate_pair
+    from ml_pipeline.utils import resolution_engine as engine_module
+
+    engine = ConflictEngine.load()
+    metres_per_degree = 111320.0
+
+    def steady(latitude, longitude, altitude_m, speed, heading, callsign):
+        return [{"latitude": latitude - (speed * 10 * i * _math.cos(_math.radians(heading))) / metres_per_degree,
+                 "longitude": longitude - (speed * 10 * i * _math.sin(_math.radians(heading)))
+                              / (metres_per_degree * _math.cos(_math.radians(latitude))),
+                 "altitude_m": altitude_m, "velocity_ms": speed, "heading_deg": heading,
+                 "vertical_rate_ms": 0.0, "time_position": 1787600000 - i * 10,
+                 "callsign": callsign}
+                for i in range(10, -1, -1)]
+
+    speed, seconds = 230.0, 165.0
+    offset = (speed * 2 * seconds) / (metres_per_degree * _math.cos(_math.radians(19.0)))
+    a = steady(19.000, 72.0, 10668.0, speed, 90.0, "AI2841")
+    b = steady(19.003, 72.0 + offset, 10668.0, speed, 270.0, "6E455")
+    third = steady(19.000, 72.0 + offset / 2, 10668.0 - 2000.0 / 3.28084, speed, 90.0, "UK955")
+
+    def assess(with_traffic):
+        history: list = []
+        outcome = None
+        for _ in range(4):
+            outcome = engine.assess_pair(a, b, history,
+                                         traffic=[{"callsign": "UK955", "history": third}]
+                                         if with_traffic else ())
+            history.append(outcome)
+        return outcome
+
+    alone = assess(False)
+    check("resolutions are checked against the other aircraft's predicted paths, not one line",
+          "predicted paths" in str(alone["resolution"].get("checked_against", "")),
+          str(alone["resolution"].get("checked_against")))
+    check("each option reports how much predicted-path risk it leaves behind",
+          all("residual_risk" in option for option in alone["resolution"]["options"]),
+          f"{len(alone['resolution']['options'])} options")
+
+    with_third = assess(True)
+    check("the surrounding traffic is named in what the check covered",
+          "other aircraft nearby" in str(with_third["resolution"].get("checked_against", "")),
+          str(with_third["resolution"].get("checked_against")))
+    rejected = with_third["resolution"].get("rejected_new_conflict", 0)
+    check("a manoeuvre that would hit a third aircraft is rejected",
+          rejected > 0, f"{rejected} rejected for causing a new conflict")
+    detail = with_third["resolution"].get("new_conflict_detail", [])
+    check("the rejection names the aircraft it would have endangered",
+          bool(detail) and detail[0].get("would_conflict_with") == "UK955",
+          str(detail[0]) if detail else "no detail recorded")
+    check("nothing offered would create a new conflict",
+          all(option["new_conflict_risk"] <= engine_module.RESIDUAL_RISK_LIMIT
+              for option in with_third["resolution"]["options"]),
+          f"{len(with_third['resolution']['options'])} options offered")
+    check("adding the third aircraft never ADDS options, it only removes them",
+          len(with_third["resolution"]["options"]) <= len(alone["resolution"]["options"]),
+          f"{len(alone['resolution']['options'])} without it, "
+          f"{len(with_third['resolution']['options'])} with it")
+
+
 def main() -> int:
     print("FLIGHT RIGHT -- END-TO-END PIPELINE VERIFICATION")
     print("Checks that every stage runs and returns output of the right shape and magnitude.")
@@ -641,6 +721,7 @@ def main() -> int:
     verify_end_to_end(splits, multipath_output)
     verify_resolution_engine()
     verify_inference_bridge()
+    verify_resolution_against_traffic()
 
     section("SUMMARY")
     failed = [name for name, passed, _ in results if not passed]

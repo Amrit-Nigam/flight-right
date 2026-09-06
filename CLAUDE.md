@@ -71,7 +71,7 @@ with this table.
 | **Model 1 — trajectory prediction** | **DONE.** Beats the physics baseline everywhere. |
 | **Model 1b — multi-path output** | **DONE and calibrated on real data.** Full run 6 Sep 2026: temperature 1.729, calibration error 0.054 -> 0.019 on arrivals and 0.040 -> 0.012 overall. Best-of-5 at ten minutes 63.6%. |
 | **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table are coded; alerts unchanged. |
-| **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. ML ranker still deferred. |
+| **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. 7 Sep: checked against the other aircraft's 5 predicted paths and against all nearby traffic, so a fix that would cause a new conflict is rejected. ML ranker still deferred. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
 | **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all models and runs the complete chain for a pair: rule → multi-path → classifier → tier → **Model 3 resolutions**. The API layer on top of it is the next job. |
 | **Frontend dashboard** | **ON THIS BRANCH** again as of 6 Sep 2026: `client/` restored from `main` (MapLibre version). Still runs on `mockData.js`; wiring to the backend is Section 8. |
@@ -175,6 +175,18 @@ Save time by not re-proposing these. All measured on our own data.
   converge, the limit is the information in the features, not model capacity. A
   Transformer will land in the same place.
 - **Per-horizon equal loss weighting:** 63.7% vs 64.5%. Slightly worse.
+- **Warning only when the conflict probability is climbing.** The idea was to cut false
+  alarms by showing the controller only the pairs whose danger is visibly increasing.
+  Measured on 220 encounters against what the real aircraft actually did: it removed
+  4 false alarms and **5 real conflicts**. Recall fell from 93.8% to 62.5% while
+  precision rose only 62.5% to 66.7%. False alarms were 37.5% of all alerts and 44% of
+  what the filter removed, so it is barely better than deleting alerts at random --
+  which also improves precision. The cause: whether the dominant path combination is
+  momentarily strengthening is noise (it moves about 0.04 per update with a quarter of
+  steps jumping over 0.10), and noise cannot separate real conflicts from false ones.
+  **The false-alarm problem it targets is real and still open** -- roughly six alerts in
+  ten are for conflicts that never happen. The supported levers are the recall-margin
+  threshold table and suppressing repeat alerts for the same pair, not a trend filter.
 - **The hard ceiling:** two aircraft in an IDENTICAL situation end up 7.9 NM
   apart on average at 10 minutes, and 64% of such pairs end more than 5 NM
   apart. The outcome depends on a controller instruction we never receive. This
@@ -1729,6 +1741,61 @@ teammate's file and was left alone.
 OK, both against the newly written model files.
 
 
+### 2026-09-07 — Model 3 checks predicted paths and surrounding traffic, not one line and one pair
+
+**Two changes to `ml_pipeline/utils/resolution_engine.py`, both requested by Archit.**
+
+**1. The aircraft that is NOT moving is now checked as weighted predicted futures.**
+Previously it was flown in a straight line. The aircraft being told to manoeuvre still
+must be simulated -- its learned prediction describes a future we are about to cancel --
+but the other one is carrying on undisturbed, and the straight line is measurably wrong
+at the far end of a tier 1 alarm: at three minutes it misses by more than 5 NM in a
+tenth of cases, wider than the separation standard the suggestion exists to protect.
+
+`path_grids()` interpolates each candidate through the audited `densify_path`, and
+`_risk_against()` returns the summed probability of the futures in which the manoeuvre
+still fails. `RESIDUAL_RISK_LIMIT = 0.05`: a manoeuvre must work across futures carrying
+at least 95% of the probability. Demanding safety against all five including a
+0.02-probability outlier would reject nearly everything; checking only the most likely
+path is the behaviour being replaced. Residual risk also multiplies into the confidence,
+so a manoeuvre that fails against 3% of futures is offered with lower confidence rather
+than silently treated as certain.
+
+**2. Every manoeuvre is checked against all other nearby aircraft.** This is the domino
+effect, a named failure with an established metric (Domino Effect Parameter), and level
+changes are specifically called out as its most common cause -- see the
+[MDPI review of conflict resolution methods](https://www.mdpi.com/2226-4310/7/6/79) and
+[Stability of Intersecting Aircraft Flows](https://arxiv.org/pdf/1010.0448). An option
+that resolves this pair but endangers a third aircraft is rejected, carries
+`creates_conflict_with`, and is counted separately as `rejected_domino`.
+
+**Verified by hand, not assumed.** Scenario: AI2841 east and 6E455 west at FL350, in
+conflict; UK955 east 2000 ft below. Descending 6E455 by 2000 ft resolves the first
+conflict and puts it **head-on into UK955, losing separation at 79 s**. Checked against
+each of UK955's five predicted paths individually and against a plain straight line --
+all six agree it is a genuine secondary conflict. The engine rejects it and names UK955.
+That is precisely the level-change domino the literature describes.
+
+**Cost, measured earlier on real traffic density:** 0.5 s per conflict at median density
+(34 aircraft), 0.9 s at the busiest snapshot (56). The data arrives every 10 s, so this
+fits with the window mostly free. Candidate paths are densified once per aircraft rather
+than once per manoeuvre, which is what keeps it affordable across 26 candidates.
+
+**Backward compatible by design.** With no paths supplied the engine falls back to the
+straight line and produces byte-identical output to before, so the deterministic path
+still runs without the multi-path model, as Section 13 requires.
+
+**`server/app/ml/inference.py`** passes the multi-path candidates through and accepts a
+`traffic` argument. The result surfaces `checked_against`, `rejected_new_conflict`,
+`new_conflict_detail`, and per-option `residual_risk` and `new_conflict_risk`.
+
+**Verification:** `verify_pipeline.py` gained a section 9 with 7 checks and now runs
+**87 of 87**. Among them: that a third aircraft is actually named in a rejection, that
+nothing offered carries new-conflict risk over the limit, and that adding traffic can
+only ever remove options and never add them. The teammate's 8 unit tests and
+`inference_check.py` both still pass.
+
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -2403,3 +2470,49 @@ unattended it would stop in the same place every time, so it is worth your teamm
 fixing.
 
 **Headline number:** moved, 93.7% to 94.0%, and for a real reason. Nothing was tuned.
+
+### 2026-09-07 — Suggestions are now checked against the whole picture, not just two aircraft
+
+**Files:** `ml_pipeline/utils/resolution_engine.py`, `server/app/ml/inference.py`.
+
+**Before.** When the system suggested a way out of a conflict, it checked two things
+only: the aircraft being moved, and the one it was in conflict with. It assumed that
+second aircraft would fly in a perfectly straight line, and it never looked at anybody
+else in the sky.
+
+**Now.** Two changes.
+
+The other aircraft is no longer assumed to fly straight. It is checked against the five
+paths the model thinks it might take, weighted by how likely each is. A suggestion is
+accepted only if it works across futures covering at least 95% of what could happen.
+
+And every suggestion is now checked against all the other aircraft nearby. If moving one
+aircraft out of trouble would fly it into somebody else, the suggestion is thrown out and
+the system says which aircraft it would have endangered.
+
+**Why the second one matters, with a real example from the test.** Two aircraft are
+head-on and about to lose separation. A third is flying 2,000 ft below one of them, in
+the opposite direction. The obvious fix is to descend one aircraft out of the way. The
+old system offered exactly that. It would have put that aircraft head-on into the third
+one, losing separation 79 seconds later.
+
+So the "fix" would have swapped one conflict for another, and nobody would have noticed
+until it happened. The system now rejects it and explains why.
+
+This is a known problem in air traffic research with a name, the domino effect, and
+level changes are its most common cause. That is not our observation, it is in the
+published literature, and our own test reproduced it on the first try.
+
+**What you will notice.** Slightly fewer suggestions, and the ones offered are checked
+far more thoroughly. Each now also carries two new numbers: how much of the other
+aircraft's possible futures it still fails against, and how much risk it creates
+elsewhere. Both should normally read zero.
+
+**Nothing breaks without the models.** If the path predictions are unavailable the
+engine goes back to the straight line and behaves exactly as it did before. The simple
+version is still underneath.
+
+**Headline number:** unmoved at 94.0%. This changes what we suggest after a conflict is
+found, not how many conflicts we find.
+
+**Checks:** 80 to 87, all passing.

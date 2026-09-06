@@ -64,6 +64,7 @@ from ml_pipeline.utils.cpa_conflict_detection import (
     SEPARATION_LATERAL_NM,
     SEPARATION_VERTICAL_FT,
     compute_cpa,
+    densify_path,
 )
 
 METRES_PER_DEGREE = 111_320.0
@@ -128,6 +129,22 @@ DESCENT_COST_SECONDS_PER_1000FT = 30.0
 COMFORTABLE_LATERAL_NM = 8.0
 COMFORTABLE_VERTICAL_FT = 1500.0
 
+# --- Checking against PREDICTED PATHS rather than one straight line.
+#
+# The aircraft being told to move must be simulated: its learned prediction describes a
+# future we are about to cancel. But the OTHER aircraft is carrying on undisturbed, and
+# flying it in a straight line is measurably wrong at the far end of a tier 1 alarm --
+# at three minutes the straight line misses by more than 5 NM in a tenth of cases,
+# which is wider than the separation standard the suggestion is meant to protect.
+#
+# So the other aircraft is checked as several weighted candidate futures. A manoeuvre
+# is accepted when the probability weight of the futures in which it STILL fails is
+# below this limit. Demanding safety against all five including a 0.02-probability
+# outlier would reject nearly everything; checking only the single most likely path is
+# the behaviour being replaced. This is the middle: the manoeuvre has to work across
+# futures carrying at least 95% of the probability.
+RESIDUAL_RISK_LIMIT = 0.05
+
 
 @dataclass
 class Manoeuvre:
@@ -157,17 +174,26 @@ class ResolutionOption:
     components: dict[str, float]
     explanation: str
     blocked_reason: str | None = None
+    # Probability weight of the other aircraft's futures in which this manoeuvre still
+    # loses separation. 0.0 means it works against every candidate path.
+    residual_risk: float = 0.0
+    # Probability weight of a NEW conflict this manoeuvre would create with some third
+    # aircraft. This is the domino effect, and ignoring it is how a resolution for one
+    # pair becomes a conflict for another.
+    new_conflict_risk: float = 0.0
+    creates_conflict_with: str | None = None
     detail: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_offerable(self) -> bool:
-        """Offerable means it is safe to issue AND it actually prevents the loss.
+        """Safe to issue, prevents the loss, and does not cause a different one.
 
         There is no separate 'in time' test. The simulation already contains the 38 s
         response delay and the real turn and climb rates, so a manoeuvre that is too
         slow simply fails to prevent the violation and resolves is False.
         """
-        return self.blocked_reason is None and self.resolves
+        return (self.blocked_reason is None and self.resolves
+                and self.new_conflict_risk <= RESIDUAL_RISK_LIMIT)
 
 
 def _flight_level(altitude_m: float) -> str:
@@ -306,6 +332,43 @@ def _seconds_to_establish(manoeuvre: Manoeuvre, state: Mapping[str, float]) -> f
     return RESPONSE_DELAY_SECONDS + moving
 
 
+def path_grids(paths, state, times_seconds):
+    """Candidate futures for one aircraft, as (probability, dense grid) pairs.
+
+    Given the multi-path model's output, each candidate is interpolated onto the same
+    grid the manoeuvre simulation uses, through the audited densify_path so it matches
+    what the detector does.
+
+    Given None, this falls back to a single certain straight-line future. That keeps the
+    engine working when the multi-path model is unavailable, exactly as the
+    constant-velocity baseline does everywhere else in the project.
+    """
+    current = (float(state["latitude"]), float(state["longitude"]), float(state["altitude_m"]))
+    if not paths:
+        return [(1.0, simulate_manoeuvre(state, None, times_seconds))]
+    return [(float(probability), densify_path(current, predictions, times_seconds))
+            for probability, predictions in paths]
+
+
+def _risk_against(grid, candidates):
+    """Weight of the candidate futures in which this path still loses separation.
+
+    Returns (risk, worst lateral NM, vertical at that moment, earliest violation).
+    The risk is a probability, so a manoeuvre that fails only against a 3%-likely
+    future scores 0.03 rather than being thrown out as if it always failed.
+    """
+    risk = 0.0
+    worst_lateral, vertical_there, earliest = float("inf"), float("inf"), None
+    for probability, other in candidates:
+        first, lateral, vertical, _ = _pair_geometry(grid, other)
+        if first is not None:
+            risk += probability
+            earliest = first if earliest is None else min(earliest, first)
+        if lateral < worst_lateral:
+            worst_lateral, vertical_there = lateral, vertical
+    return risk, worst_lateral, vertical_there, earliest
+
+
 def _estimate_delay_seconds(manoeuvre: Manoeuvre, state: Mapping[str, float],
                             hold_seconds: float) -> float:
     """Rough extra flying time the instruction costs. A proxy, not a performance model."""
@@ -432,13 +495,22 @@ def _blocked_reason(manoeuvre: Manoeuvre, state: Mapping[str, float]) -> str | N
 
 
 def evaluate_manoeuvre(
-    manoeuvre: Manoeuvre,
-    state_a: Mapping[str, float],
-    state_b: Mapping[str, float],
-    time_to_cpa_seconds: float,
-    times_seconds: Sequence[int],
-) -> ResolutionOption:
-    """Simulate one instruction and cost it. Returns an option, blocked or otherwise."""
+    manoeuvre,
+    state_a,
+    state_b,
+    time_to_cpa_seconds,
+    times_seconds,
+    candidates_a=None,
+    candidates_b=None,
+    traffic=(),
+):
+    """Simulate one instruction, cost it, and check it against everything nearby.
+
+    candidates_* are the other aircraft's weighted futures, already densified. traffic
+    is every OTHER aircraft in the area, each as a mapping with "callsign" and
+    "candidates", so a manoeuvre that fixes this pair by flying into a third aircraft
+    is caught rather than offered.
+    """
     manoeuvred_is_a = manoeuvre.aircraft == state_a.get("callsign", "A")
     subject = state_a if manoeuvred_is_a else state_b
 
@@ -450,25 +522,40 @@ def evaluate_manoeuvre(
             first_violation_seconds=None, seconds_to_establish=float("nan"),
             established_before_cpa=False, delay_seconds=float("nan"),
             fuel_equivalent_seconds=float("nan"), confidence=0.0, score=0.0,
-            components={}, explanation=f"Blocked: {blocked}.", blocked_reason=blocked,
+            components={}, explanation="Blocked: " + blocked + ".", blocked_reason=blocked,
         )
 
     # Simulate at 1 s resolution over the whole window, not just the reporting grid:
     # a violation lasting 20 s can sit entirely between two 15 s samples.
     fine_times = list(range(0, int(max(times_seconds, default=600)) + 1))
-    grid_a = simulate_manoeuvre(state_a, manoeuvre if manoeuvred_is_a else None, fine_times)
-    grid_b = simulate_manoeuvre(state_b, None if manoeuvred_is_a else manoeuvre, fine_times)
+    moved = simulate_manoeuvre(subject, manoeuvre, fine_times)
+    others = candidates_b if manoeuvred_is_a else candidates_a
+    if not others:
+        others = path_grids(None, state_b if manoeuvred_is_a else state_a, fine_times)
 
-    first_violation, lateral, vertical, _ = _pair_geometry(grid_a, grid_b)
-    resolves = first_violation is None
+    # Does it still lose separation against the OTHER aircraft's plausible futures?
+    residual, lateral, vertical, first_violation = _risk_against(moved, others)
+    resolves = residual <= RESIDUAL_RISK_LIMIT
     establish = _seconds_to_establish(manoeuvre, subject)
     established_before_cpa = establish <= max(time_to_cpa_seconds, 0.0)
+
+    # Does it create a NEW conflict with a third aircraft? Section 10 counts these, and
+    # the literature names the failure: a resolution that considers only the conflicting
+    # pair sets off chain reactions in dense traffic.
+    new_risk, culprit = 0.0, None
+    for neighbour in traffic:
+        risk, _, _, _ = _risk_against(moved, neighbour["candidates"])
+        if risk > new_risk:
+            new_risk, culprit = risk, str(neighbour.get("callsign", "another aircraft"))
 
     hold = max(time_to_cpa_seconds, 60.0) + 120.0
     delay = _estimate_delay_seconds(manoeuvre, subject, hold)
     fuel = _estimate_fuel_equivalent_seconds(manoeuvre, subject, delay)
     confidence = _confidence(lateral, vertical, establish, time_to_cpa_seconds,
                              state_a, state_b)
+    # Residual risk is uncertainty about whether this works, so it belongs in the
+    # confidence and not only in the accept-or-reject decision.
+    confidence = round(max(0.0, confidence * (1.0 - min(residual, 1.0))), 3)
 
     components = {
         "safety": _safety_score(lateral, vertical),
@@ -484,23 +571,36 @@ def evaluate_manoeuvre(
         + components["workload"] * WEIGHT_WORKLOAD
         + components["confidence"] * WEIGHT_CONFIDENCE
     )
-    # An option that does not prevent the loss of separation cannot out-rank one that
-    # does, however cheap and easy it is.
-    if not resolves:
+    creates_conflict = new_risk > RESIDUAL_RISK_LIMIT
+    if not resolves or creates_conflict:
         score *= 0.1
 
-    if resolves:
+    if creates_conflict:
+        explanation = (
+            "Rejected: would create a new conflict with " + str(culprit) + ". Probability "
+            "weight " + format(new_risk, ".2f") + " of that aircraft's plausible paths lose "
+            "separation against this manoeuvre. Solving one pair by breaking another is "
+            "not a resolution."
+        )
+    elif resolves:
         explanation = _explain(manoeuvre, {
             "lateral": lateral, "vertical": vertical, "delay": delay, "fuel": fuel,
             "establish": establish, "time_to_cpa": time_to_cpa_seconds,
             "confidence": confidence,
         }, subject)
+        if residual > 0.0:
+            explanation += (" Works against " + format(1.0 - residual, ".0%")
+                            + " of the other aircraft's plausible paths.")
     else:
+        where = ("at about " + format(first_violation, ".0f") + " s"
+                 if first_violation is not None else "somewhere in the window")
         explanation = (
-            f"Rejected: separation is still lost at about {first_violation:.0f} s "
-            f"({lateral:.1f} NM / {vertical:,.0f} ft at the closest point). The "
-            f"manoeuvre is not fully established until about {establish:.0f} s, "
-            f"including {RESPONSE_DELAY_SECONDS:.0f} s before the aircraft moves."
+            "Rejected: separation is still lost " + where + " against "
+            + format(residual, ".0%") + " of the other aircraft's plausible paths ("
+            + format(lateral, ".1f") + " NM / " + format(vertical, ",.0f")
+            + " ft at the closest point). The manoeuvre is not fully established until "
+            "about " + format(establish, ".0f") + " s, including "
+            + format(RESPONSE_DELAY_SECONDS, ".0f") + " s before the aircraft moves."
         )
 
     return ResolutionOption(
@@ -509,22 +609,38 @@ def evaluate_manoeuvre(
         seconds_to_establish=establish, established_before_cpa=established_before_cpa,
         delay_seconds=delay, fuel_equivalent_seconds=fuel, confidence=confidence,
         score=round(score, 4), components=components, explanation=explanation,
+        residual_risk=round(residual, 4), new_conflict_risk=round(new_risk, 4),
+        creates_conflict_with=culprit if creates_conflict else None,
     )
 
 
 def generate_resolutions(
-    state_a: Mapping[str, float],
-    state_b: Mapping[str, float],
-    cpa_result: Mapping[str, Any],
-    escalation: Mapping[str, Any] | None = None,
-    callsign_a: str = "AIRCRAFT A",
-    callsign_b: str = "AIRCRAFT B",
-) -> dict[str, Any]:
-    """The entry point: three ranked, explained options for one tier 1 conflict.
+    state_a,
+    state_b,
+    cpa_result,
+    escalation=None,
+    callsign_a="AIRCRAFT A",
+    callsign_b="AIRCRAFT B",
+    paths_a=None,
+    paths_b=None,
+    traffic=(),
+):
+    """The entry point: ranked, explained options for one tier 1 conflict.
 
-    Returns the best option of each kind -- altitude, heading, speed -- ranked by the
-    project's scoring formula, plus every candidate that was blocked or rejected, so
-    the count of unsafe suggestions stopped is available as an evaluation metric.
+    paths_a / paths_b are each aircraft's weighted candidate futures from the
+    multi-path model, as (probability, predictions) pairs. Supplied, a manoeuvre must
+    work across futures carrying at least 1 - RESIDUAL_RISK_LIMIT of the probability,
+    instead of against a single straight line. Omitted, the engine falls back to the
+    straight line and still works.
+
+    traffic is every OTHER aircraft nearby, each a mapping with "callsign", "state" and
+    optionally "paths". A manoeuvre that resolves this pair but flies into a third
+    aircraft is rejected and says which one. Without this the engine solves one conflict
+    by creating another, which is a named failure mode in the literature.
+
+    Returns the best option of each kind, ranked by the project's scoring formula, plus
+    everything blocked or rejected so the count of unsafe suggestions stopped stays
+    available as an evaluation metric.
 
     If an escalation result is supplied, its suggest_resolution flag is obeyed: tier 2
     is a watch list and is never offered a manoeuvre, per CLAUDE.md Section 3.
@@ -532,7 +648,8 @@ def generate_resolutions(
     if escalation is not None and not escalation.get("suggest_resolution", False):
         return {
             "offered": False,
-            "reason": (f"No resolution offered: {escalation.get('reason', 'pair is not a confirmed tier 1 alarm')}"),
+            "reason": "No resolution offered: " + str(
+                escalation.get("reason", "pair is not a confirmed tier 1 alarm")),
             "options": [], "blocked": [], "rejected": [],
         }
 
@@ -542,45 +659,71 @@ def generate_resolutions(
     if not times:
         times = list(range(0, 601, 15))
 
-    named_a = dict(state_a) | {"callsign": callsign_a}
-    named_b = dict(state_b) | {"callsign": callsign_b}
+    named_a = dict(state_a)
+    named_a["callsign"] = callsign_a
+    named_b = dict(state_b)
+    named_b["callsign"] = callsign_b
 
-    candidates: list[Manoeuvre] = []
+    # Densify every aircraft's candidate futures ONCE, not per candidate manoeuvre.
+    # There are 26 manoeuvres to try; interpolating the same paths 26 times over would
+    # dominate the cost for no benefit.
+    fine_times = list(range(0, int(max(times, default=600)) + 1))
+    candidates_a = path_grids(paths_a, named_a, fine_times)
+    candidates_b = path_grids(paths_b, named_b, fine_times)
+    neighbours = [{"callsign": entry.get("callsign", "another aircraft"),
+                   "candidates": path_grids(entry.get("paths"), entry["state"], fine_times)}
+                  for entry in traffic]
+
+    manoeuvres = []
     for callsign in (callsign_a, callsign_b):
-        candidates += [Manoeuvre(callsign, "altitude", value, "ft") for value in ALTITUDE_CHANGES_FT]
-        candidates += [Manoeuvre(callsign, "heading", value, "deg") for value in HEADING_CHANGES_DEG]
-        candidates += [Manoeuvre(callsign, "speed", value, "kt") for value in SPEED_CHANGES_KT]
+        manoeuvres += [Manoeuvre(callsign, "altitude", value, "ft") for value in ALTITUDE_CHANGES_FT]
+        manoeuvres += [Manoeuvre(callsign, "heading", value, "deg") for value in HEADING_CHANGES_DEG]
+        manoeuvres += [Manoeuvre(callsign, "speed", value, "kt") for value in SPEED_CHANGES_KT]
 
-    evaluated = [evaluate_manoeuvre(candidate, named_a, named_b, time_to_cpa, times)
-                 for candidate in candidates]
+    evaluated = [evaluate_manoeuvre(m, named_a, named_b, time_to_cpa, times,
+                                    candidates_a, candidates_b, neighbours)
+                 for m in manoeuvres]
 
-    blocked = [option for option in evaluated if option.blocked_reason is not None]
-    rejected = [option for option in evaluated
-                if option.blocked_reason is None and not option.is_offerable]
-    offerable = [option for option in evaluated if option.is_offerable]
+    blocked = [o for o in evaluated if o.blocked_reason is not None]
+    domino = [o for o in evaluated if o.blocked_reason is None and o.resolves
+              and o.new_conflict_risk > RESIDUAL_RISK_LIMIT]
+    rejected = [o for o in evaluated if o.blocked_reason is None and not o.is_offerable]
+    offerable = [o for o in evaluated if o.is_offerable]
 
     # One option of each kind, so the controller always sees a genuine choice rather
     # than three variations of the same instruction.
-    best_of_kind: dict[str, ResolutionOption] = {}
+    best_of_kind = {}
     for option in sorted(offerable, key=lambda item: item.score, reverse=True):
         best_of_kind.setdefault(option.manoeuvre.kind, option)
     options = sorted(best_of_kind.values(), key=lambda item: item.score, reverse=True)
-
     missing = [kind for kind in ("altitude", "heading", "speed") if kind not in best_of_kind]
+
+    checked_against = "a straight-line projection of the other aircraft"
+    if paths_a or paths_b:
+        checked_against = "the other aircraft's " + str(max(len(candidates_a), len(candidates_b))) \
+                          + " predicted paths"
+    if neighbours:
+        checked_against += " and " + str(len(neighbours)) + " other aircraft nearby"
+
     return {
         "offered": bool(options),
         "reason": ("Tier 1 alarm confirmed; options ranked by safety 0.60, delay 0.15, "
-                   "fuel 0.10, workload 0.10, confidence 0.05."
+                   "fuel 0.10, workload 0.10, confidence 0.05. Checked against "
+                   + checked_against + "."
                    if options else
-                   "No manoeuvre in the candidate set restores separation in the time available."),
+                   "No manoeuvre in the candidate set restores separation in the time "
+                   "available without creating a new conflict."),
         "time_to_cpa_seconds": time_to_cpa,
+        "checked_against": checked_against,
         "options": options,
         "unavailable_kinds": missing,
         "blocked": blocked,
         "rejected": rejected,
+        "would_create_new_conflict": domino,
         "counts": {
             "evaluated": len(evaluated), "offerable": len(offerable),
             "blocked_unsafe": len(blocked), "rejected_ineffective": len(rejected),
+            "rejected_domino": len(domino),
         },
     }
 
