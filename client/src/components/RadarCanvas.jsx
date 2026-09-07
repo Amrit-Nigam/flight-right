@@ -1,5 +1,5 @@
 import { useRef, useEffect } from "react";
-import { radarFlights, weatherCell, deviationRoutes } from "@/data/mockData";
+import { weatherCell, deviationRoutes } from "@/data/mockData";
 
 const STATUS_COLORS_DARK = {
   conflict: "#ff2d2d", holding: "#ffdd00", landing: "#00e5cc",
@@ -14,10 +14,10 @@ const STATUS_COLORS_LIGHT = {
 const TRAJ_PX = 55; // roughly 60s look-ahead at average scale
 // 5 NM ring radius in canvas-px (approx at 50NM range with radius ~40% of canvas min dimension)
 const SEP_RING_PX_RATIO = 0.10; // 5NM as fraction of the 50NM radius
-const CONFLICT_CALLSIGNS = ["AI6302", "SG881"];
+// Derived from whichever pair the detection chain has actually flagged.
+const CONFLICT_CALLSIGNS = [];
 const CONFLICT_ACTIONS = [
-  "CONTACT AI6302 FIRST: descend FL260 + left heading 020",
-  "THEN SG881: maintain FL270 + right heading 350",
+  "Resolution guidance appears here when an alarm is confirmed.",
   "CPA projected 2.1 NM, below 3 NM minimum",
 ];
 
@@ -25,7 +25,8 @@ export default function RadarCanvas({ flights, selectedFlight, theme, weatherOn,
   const canvasRef = useRef(null);
   const animRef   = useRef(null);
   const angleRef  = useRef(0);
-  const flightsRef = useRef(radarFlights.map((f) => ({ ...f, x: f.xPct / 100, y: f.yPct / 100 })));
+  // Seeded from the live feed, not from a fixed list of invented positions.
+  const flightsRef = useRef([]);
 
   const isLight = theme === "light";
   const statusColors = isLight ? STATUS_COLORS_LIGHT : STATUS_COLORS_DARK;

@@ -81,7 +81,7 @@ export default function MetricsRow({ metricsData }) {
           <h3 className="font-display text-[13px] tracking-widest" style={{ color: 'var(--text-primary)' }}>
             Sector metrics
           </h3>
-          <p className="font-body text-[10px] text-[var(--text-muted)] mt-0.5">Snapshot from mock scenario data</p>
+          <p className="font-body text-[10px] text-[var(--text-muted)] mt-0.5">Live from the detection chain · recomputed every update</p>
         </div>
         <span className="w-2 h-2 rounded-full animate-pulse-dot" style={{ background: 'var(--green)', boxShadow: '0 0 8px var(--green)' }} />
       </div>

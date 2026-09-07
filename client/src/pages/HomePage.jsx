@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import TopBar from "@/components/TopBar";
 import MetricsRow from "@/components/MetricsRow";
 import ConflictBanner from "@/components/ConflictBanner";
@@ -11,17 +11,36 @@ import TimelinePanel from "@/components/TimelinePanel";
 import FlightListPanel from "@/components/FlightListPanel";
 import FlightDetailDrawer from "@/components/FlightDetailDrawer";
 import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+import WatchListPanel from "@/components/WatchListPanel";
+import DataSourceBar from "@/components/DataSourceBar";
 import RunwayStatusPanel from "@/components/RunwayStatusPanel";
 import NLPCommsPanel from "@/components/NLPCommsPanel";
 import { BlurFade } from "@/components/ui/blur-fade";
 
-import { initialFlights, metrics, initialConflict, initialSuggestions } from "@/data/mockData";
+import { useLiveData } from "@/hooks/useLiveData";
+import {
+  conflictFromAlerts, metricsFromState, resolveOptionsFromAlert,
+  suggestionsFromAlerts, timelineFromAlerts, watchListFromAlerts, withConflictStatus,
+} from "@/lib/adapters";
+import { acceptSuggestion, dismissSuggestion } from "@/lib/api";
 import { logActivity, logAudit } from "@/lib/siteLogger";
 
 export default function HomePage() {
-  const [flights, setFlights] = useState(initialFlights);
-  const [conflict, setConflict] = useState(initialConflict);
-  const [suggestions, setSuggestions] = useState(initialSuggestions);
+  // Everything on this page comes from the backend. There is no mock traffic, no mock
+  // conflict and no mock resolution: if the backend is unreachable the dashboard says
+  // so rather than showing aircraft that do not exist.
+  const { flights: rawFlights, conflicts, feed, connection, lastError } = useLiveData();
+
+  const active = conflicts.active || [];
+  const flights = useMemo(() => withConflictStatus(rawFlights, active), [rawFlights, active]);
+  const conflict = useMemo(() => conflictFromAlerts(active), [active]);
+  const suggestions = useMemo(() => suggestionsFromAlerts(active), [active]);
+  const watchList = useMemo(() => watchListFromAlerts(active), [active]);
+  const metrics = useMemo(
+    () => metricsFromState(flights, conflicts, feed), [flights, conflicts, feed]);
+  const resolveOptions = useMemo(() => resolveOptionsFromAlert(conflict), [conflict]);
+  const timelineRows = useMemo(() => timelineFromAlerts(active), [active]);
+
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState("OPT_1");
   const [selectedFlight, setSelectedFlight] = useState(null);
@@ -29,7 +48,7 @@ export default function HomePage() {
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("ALL");
   const [acceptedCount, setAcceptedCount] = useState(0);
-  const [acceptedIds, setAcceptedIds] = useState(new Set());
+  const [handledIds, setHandledIds] = useState(new Set());
 
   const [theme, setTheme] = useState("light");
   useEffect(() => {
@@ -40,15 +59,11 @@ export default function HomePage() {
     setTheme((t) => {
       const next = t === "dark" ? "light" : "dark";
       logAudit("dashboard:theme", "Application color theme switched", { next });
-      logActivity("ui:theme", `Theme → ${next}`);
       return next;
     });
 
-  const alertCount = conflict
-    ? flights.filter((f) => f.status === "CONFLICT" || f.status === "HOLDING").length > 0
-      ? 1
-      : 0
-    : 0;
+  // Only confirmed tier 1 alarms are interruptions. Tier 2 is a watch list.
+  const alertCount = (conflicts.counts?.tier_1 ?? 0);
 
   const showToast = useCallback((message) => {
     setToast({ message, type: "success" });
@@ -61,86 +76,97 @@ export default function HomePage() {
     return () => window.removeEventListener("show-toast", handleToastEvent);
   }, [showToast]);
 
+  // Keep the selected option valid as the engine's option set changes between updates.
+  useEffect(() => {
+    if (resolveOptions.length && !resolveOptions.some((o) => o.id === selectedOption)) {
+      setSelectedOption(resolveOptions[0].id);
+    }
+  }, [resolveOptions, selectedOption]);
+
   const handleResolveClick = () => {
-    logAudit("conflict:flow", "Conflict resolution flow opened from workspace", {
-      pair: conflict ? [conflict.flight1, conflict.flight2] : [],
-    });
-    logActivity("conflict:action", "User opened resolution flow from banner", {
-      pair: conflict ? [conflict.flight1, conflict.flight2] : [],
-    });
+    if (!conflict) return;
+    logAudit("conflict:flow", "Conflict resolution flow opened", { pair: [conflict.flight1, conflict.flight2] });
     setResolveModalOpen(true);
   };
 
-  const handleApplyResolution = () => {
-    logAudit("conflict:resolve", "Mock resolution committed to workspace state", {
-      optionId: selectedOption,
-      callsigns: ["AI6302", "SG881"],
-    });
-    logActivity("conflict:resolve", "Applied mock resolution to traffic state", {
-      optionId: selectedOption,
-      updatedCallsigns: ["AI6302", "SG881"],
-      newStatus: "ENROUTE",
-    });
-    setResolveModalOpen(false);
-    setConflict(null);
-    setFlights((prev) =>
-      prev.map((f) =>
-        f.callsign === "AI6302" || f.callsign === "SG881"
-          ? { ...f, status: "ENROUTE", cpaPair: undefined, cpaSeconds: undefined }
-          : f
-      )
-    );
-    showToast("Resolution Applied — AI6302 & SG881 Separation Secured");
-  };
-
-  const handleCancelResolution = () => {
-    logAudit("conflict:resolve", "Resolution modal dismissed without applying automated option", {
-      optionId: selectedOption,
-    });
-    logActivity("conflict:resolve", "Cancelled resolution modal (manual handling)", { optionId: selectedOption });
+  /**
+   * The controller accepted a suggestion. This RECORDS the decision in the server-side
+   * audit log. It does not transmit anything to an aircraft and it does not change the
+   * traffic picture: the next surveillance update decides whether the conflict is gone,
+   * exactly as it would in a real centre.
+   */
+  const handleAcceptResolution = async () => {
+    if (!conflict) return;
+    const option = resolveOptions.find((o) => o.id === selectedOption) || resolveOptions[0];
+    try {
+      await acceptSuggestion({
+        conflictId: conflict.id,
+        callsign: option?.manoeuvre?.aircraft,
+        action: option ? `Accepted: ${option.action}` : "Accepted resolution",
+        confidence: option ? Number(String(option.confidence).replace("%", "")) / 100 : null,
+        modelVersion: conflict.sources,
+        detail: { optionId: selectedOption, pair: [conflict.flight1, conflict.flight2],
+                  manoeuvre: option?.manoeuvre, score: option?.score },
+      });
+      showToast(`Decision recorded — ${conflict.flight1} & ${conflict.flight2}`);
+    } catch (error) {
+      showToast(`Could not record the decision: ${error.message}`);
+    }
     setResolveModalOpen(false);
   };
 
-  const handleAcceptSuggestion = (suggestion) => {
-    logAudit("ai:suggestion", "Operator accepted AI suggestion card", {
-      id: suggestion.id,
-      type: suggestion.type,
-      flights: suggestion.flights,
-    });
-    logActivity("ai:suggestion", `Accepted mock AI suggestion: ${suggestion.type}`, {
-      id: suggestion.id,
-      priority: suggestion.priority,
-      flights: suggestion.flights,
-      confidence: suggestion.confidence,
-    });
-    setSuggestions((prev) => prev.filter((s) => s.id !== suggestion.id));
-    setAcceptedCount((c) => c + 1);
-    setAcceptedIds((prev) => new Set([...prev, suggestion.id]));
-    showToast(suggestion.actionToast || `Applied: ${suggestion.type} — ${suggestion.flights.join(", ")}`);
+  const handleCancelResolution = async () => {
+    if (conflict) {
+      try {
+        await dismissSuggestion({
+          conflictId: conflict.id,
+          action: "Dismissed resolution options — handling manually",
+          detail: { optionId: selectedOption, pair: [conflict.flight1, conflict.flight2] },
+        });
+      } catch { /* the modal still closes; the failure is surfaced by the audit page */ }
+    }
+    setResolveModalOpen(false);
   };
-  const handleDismissSuggestion = (id) => {
-    const s = suggestions.find((x) => x.id === id);
-    logAudit("ai:suggestion", "Operator dismissed AI suggestion card", s ? { id, type: s.type, flights: s.flights } : { id });
-    logActivity("ai:suggestion", "Dismissed mock AI suggestion", s ? { id, type: s.type, flights: s.flights } : { id });
-    setSuggestions((prev) => prev.filter((x) => x.id !== id));
+
+  const handleAcceptSuggestion = async (suggestion) => {
+    try {
+      await acceptSuggestion({
+        conflictId: suggestion.id,
+        callsign: suggestion.flights[0],
+        action: `Accepted suggestion: ${suggestion.text}`,
+        confidence: Number(String(suggestion.confidence).replace("%", "")) / 100,
+        detail: { pair: suggestion.flights, tier: suggestion.tier },
+      });
+      setAcceptedCount((c) => c + 1);
+      setHandledIds((prev) => new Set([...prev, suggestion.id]));
+      showToast(suggestion.actionToast);
+    } catch (error) {
+      showToast(`Could not record the decision: ${error.message}`);
+    }
+  };
+
+  const handleDismissSuggestion = async (id) => {
+    const suggestion = suggestions.find((s) => s.id === id);
+    try {
+      await dismissSuggestion({
+        conflictId: id,
+        action: "Dismissed AI suggestion",
+        detail: { pair: suggestion?.flights },
+      });
+    } catch { /* recorded failures surface on the audit page */ }
+    setHandledIds((prev) => new Set([...prev, id]));
   };
 
   const handleSelectFlight = (callsign, meta = {}) => {
     const next = callsign === selectedFlight ? null : callsign;
     logAudit("flights:select", next ? "Flight selection set" : "Flight selection cleared", {
-      callsign: next,
-      surface: meta.surface || "unknown",
-    });
-    logActivity("flights:select", next ? `Selected ${next} in mock list` : "Cleared flight selection", {
-      callsign: next,
-      surface: meta.surface || "unknown",
+      callsign: next, surface: meta.surface || "unknown",
     });
     setSelectedFlight(next);
   };
 
   const handleTabChange = (tab) => {
-    logAudit("flights:tab", "Flight list filter changed (workspace)", { tab });
-    logActivity("flights:tab", `Flight list filter → ${tab}`);
+    logAudit("flights:tab", "Flight list filter changed", { tab });
     setActiveTab(tab);
   };
 
@@ -151,45 +177,26 @@ export default function HomePage() {
 
   const bootLogged = useRef(false);
   useEffect(() => {
-    if (bootLogged.current) return;
+    if (bootLogged.current || connection === "connecting") return;
     bootLogged.current = true;
-    logAudit("session:dashboard", "Operator loaded mock ATC dashboard surface", {
-      flights: initialFlights.length,
-      conflictScenario: !!(initialConflict && initialConflict.visible),
-      suggestionsQueued: initialSuggestions.length,
+    logAudit("session:dashboard", "Controller dashboard connected to backend", {
+      connection, source: feed.source, mode: feed.mode,
     });
-    logActivity("dashboard", "Mock ATC dashboard loaded", {
-      flights: initialFlights.length,
-      conflictScenario: !!(initialConflict && initialConflict.visible),
-      suggestionsQueued: initialSuggestions.length,
-    });
-  }, []);
+    logActivity("dashboard", `Dashboard connected (${connection}, ${feed.source || "no source"})`);
+  }, [connection, feed.source, feed.mode]);
 
-  const prevResolveOpen = useRef(false);
-  useEffect(() => {
-    if (resolveModalOpen && conflict && !prevResolveOpen.current) {
-      logAudit("conflict:modal", "Resolution modal surface displayed", {
-        flights: [conflict.flight1, conflict.flight2],
-        selectedOption,
-      });
-      logActivity("conflict:modal", "Resolution modal opened (mock CPA scenario)", {
-        flights: [conflict.flight1, conflict.flight2],
-        selectedOption,
-      });
-    }
-    prevResolveOpen.current = resolveModalOpen;
-  }, [resolveModalOpen, conflict, selectedOption]);
+  const visibleSuggestions = suggestions.filter((s) => !handledIds.has(s.id));
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
       <TopBar
         alertCount={alertCount}
+        trackedCount={flights.length}
         aiEnabled={aiEnabled}
         onToggleAI={() => {
           setAiEnabled((v) => {
             const next = !v;
             logAudit("dashboard:ai", "AI assist master control toggled", { enabled: next });
-            logActivity("ai:engine", `AI assist ${next ? "ENABLED" : "DISABLED"} (mock)`);
             return next;
           });
         }}
@@ -197,15 +204,11 @@ export default function HomePage() {
         onToggleTheme={toggleTheme}
         conflict={conflict}
         weatherOn={weatherOn}
-        onWeatherToggle={() =>
-          setWeatherOn((w) => {
-            const next = !w;
-            logAudit("dashboard:weather", "TopBar weather overlay control toggled", { on: next });
-            logActivity("map:weather", `Radar/map weather overlay ${next ? "ON" : "OFF"} (mock)`);
-            return next;
-          })
-        }
+        onWeatherToggle={() => setWeatherOn((w) => !w)}
       />
+
+      <DataSourceBar feed={feed} connection={connection} lastError={lastError}
+                     conflicts={conflicts} theme={theme} />
 
       <div className="relative z-40 w-full">
         <ConflictBanner conflict={conflict} onResolveClick={handleResolveClick} theme={theme} />
@@ -225,18 +228,11 @@ export default function HomePage() {
 
         <BlurFade delay={0.06} direction="down" offset={12} className="flex h-full w-[55vw] shrink-0 flex-col gap-2">
           <div className="relative flex shrink-0 items-center gap-0" style={{ height: 30, zIndex: 900 }}>
-            {[
-              { key: "map", label: "MAP VIEW" },
-              { key: "radar", label: "RADAR SWEEP" },
-            ].map(({ key, label }) => (
+            {[{ key: "map", label: "MAP VIEW" }, { key: "radar", label: "RADAR SWEEP" }].map(({ key, label }) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  logAudit("dashboard:map-mode", "Center panel map/radar mode control", { view: key });
-                  logActivity("map:view", `Center workspace view → ${key}`, { view: key });
-                  setMapView(key);
-                }}
+                onClick={() => setMapView(key)}
                 className="font-display px-5 py-1.5 text-[11px] tracking-widest transition-all"
                 style={{
                   background: mapView === key ? "var(--amber)" : "transparent",
@@ -251,14 +247,8 @@ export default function HomePage() {
 
             <button
               type="button"
-              onClick={() =>
-                setWeatherOn((w) => {
-                  const next = !w;
-                  logAudit("dashboard:weather", "Map toolbar weather control toggled", { on: next });
-                  logActivity("map:weather", `Weather toggle from map bar → ${next ? "ON" : "OFF"}`);
-                  return next;
-                })
-              }
+              onClick={() => setWeatherOn((w) => !w)}
+              title="Weather overlay is illustrative only — no weather feed is connected."
               className="font-display ml-2 px-4 py-1.5 text-[11px] tracking-widest transition-all"
               style={{
                 background: weatherOn ? "var(--teal)" : "transparent",
@@ -266,7 +256,7 @@ export default function HomePage() {
                 border: "1px solid var(--teal)",
               }}
             >
-              ☁ WEATHER
+              ☁ WEATHER (DEMO)
             </button>
 
             <div className="relative ml-auto" style={{ zIndex: 950 }}>
@@ -276,33 +266,10 @@ export default function HomePage() {
 
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <div style={{ position: "absolute", inset: 0, display: mapView === "map" ? "block" : "none" }}>
-              <Suspense
-                fallback={
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      background: "var(--bg-base)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "'Geist Variable', system-ui, sans-serif",
-                        fontSize: 12,
-                        color: "var(--text-muted)",
-                        letterSpacing: "0.2em",
-                      }}
-                    >
-                      LOADING RADAR MAP…
-                    </span>
-                  </div>
-                }
-              >
+              <Suspense fallback={<MapLoading />}>
                 <FlightRadarMap
                   flights={flights}
+                  conflict={conflict}
                   selectedFlight={selectedFlight}
                   onSelectFlight={handleSelectFlight}
                   theme={theme}
@@ -310,13 +277,8 @@ export default function HomePage() {
               </Suspense>
             </div>
             <div style={{ position: "absolute", inset: 0, display: mapView === "radar" ? "block" : "none" }}>
-              <RadarCanvas
-                flights={flights}
-                selectedFlight={selectedFlight}
-                theme={theme}
-                weatherOn={weatherOn}
-                weatherDevAccepted={acceptedIds.has("s3")}
-              />
+              <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme}
+                           weatherOn={weatherOn} weatherDevAccepted={false} />
             </div>
           </div>
         </BlurFade>
@@ -324,37 +286,51 @@ export default function HomePage() {
         <BlurFade delay={0.12} direction="left" offset={10} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
           <MetricsRow metricsData={metrics} />
           <AISuggestionsPanel
-            suggestions={suggestions}
+            suggestions={visibleSuggestions}
             onAccept={handleAcceptSuggestion}
             onDismiss={handleDismissSuggestion}
             aiEnabled={aiEnabled}
             acceptedCount={acceptedCount}
           />
+          <WatchListPanel items={watchList} lowConfidence={conflicts.lowConfidence} theme={theme} />
           <RunwayStatusPanel />
           <NLPCommsPanel />
           <div className="h-4 shrink-0" />
         </BlurFade>
       </div>
 
-      <TimelinePanel isOpen={timelineOpen} onToggle={() => setTimelineOpen((o) => !o)} />
+      <TimelinePanel isOpen={timelineOpen} onToggle={() => setTimelineOpen((o) => !o)}
+                     rows={timelineRows} />
 
       <ResolveModal
         open={resolveModalOpen}
         conflict={conflict}
+        options={resolveOptions}
         countdown={conflict?.countdown || 0}
         selectedOption={selectedOption}
         onSelectOption={setSelectedOption}
-        onApply={handleApplyResolution}
+        onApply={handleAcceptResolution}
         onCancel={handleCancelResolution}
       />
       <SuccessToast toast={toast} />
 
-      {/* Flight detail drawer — rendered outside column panels so fixed positioning is viewport-level */}
       <FlightDetailDrawer
         flight={flights.find((f) => f.callsign === selectedFlight) || null}
         onClose={() => handleSelectFlight(null, { surface: "drawer-close" })}
         theme={theme}
       />
+    </div>
+  );
+}
+
+function MapLoading() {
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center",
+                  justifyContent: "center", background: "var(--bg-base)" }}>
+      <span style={{ fontFamily: "'Geist Variable', system-ui, sans-serif", fontSize: 12,
+                     color: "var(--text-muted)", letterSpacing: "0.2em" }}>
+        LOADING RADAR MAP…
+      </span>
     </div>
   );
 }

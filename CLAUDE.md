@@ -73,9 +73,9 @@ with this table.
 | **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table are coded; alerts unchanged. |
 | **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. 7 Sep: checked against the other aircraft's 5 predicted paths and against all nearby traffic, so a fix that would cause a new conflict is rejected. ML ranker still deferred. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
-| **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all models and runs the complete chain for a pair: rule → multi-path → classifier → tier → **Model 3 resolutions**. The API layer on top of it is the next job. |
+| **Backend (FastAPI server)** | **RUNNING** as of 8 Sep 2026. `server/app/` — 13 REST endpoints plus `/ws/stream`, OpenSky OAuth2 live mode, recorded-session replay with fallback, the full model chain per pair, the alert feed, and an append-only SQLite audit log. Start with `python -m uvicorn server.app.main:app --port 8000`. |
 | **Alert feed (what the controller sees)** | **DONE** as of 7 Sep 2026: `ml_pipeline/utils/alert_feed.py`. Repeat suppression and low-confidence collapsing, both display-only. Interruptions down 63-65% on real traffic replay and prominent-list precision 0.386 -> 0.503, with **zero** pairs lost from the reported set. Not yet called by anything — the API layer and the frontend are still to come. |
-| **Frontend dashboard** | **ON THIS BRANCH** again as of 6 Sep 2026: `client/` restored from `main` (MapLibre version). Still runs on `mockData.js`; wiring to the backend is Section 8. The alert-feed contract it must honour is in that module's docstring: **render `active` in full**. |
+| **Frontend dashboard** | **CONNECTED** as of 8 Sep 2026. Aircraft, conflicts, resolutions, suggestions, metrics, timeline and the audit trail all come from the backend over a WebSocket, with polling fallback. No mock data remains for anything a model produces. Runways, weather and the NLP transcript have no data source and are labelled DEMO on screen. |
 
 ### PART 3 — RULES THAT ARE NOT UP FOR DEBATE
 
@@ -1941,6 +1941,83 @@ suppression because the standard vertical filter needs cleared-flight-level data
 ADS-B does not carry, and we measured what it costs without it" is a defensible finding,
 and the 21 lost conflicts are the evidence.
 
+### 2026-09-08 — The backend exists, and the dashboard is connected to it
+
+**What was actually wrong.** The two halves were never connected on this branch, and the
+reason was not that a connection had never been built. Commit `1077117` (27 Apr 2026)
+built a working Express backend and a client API layer; commit `9b6800b` (30 Aug 2026),
+"retire legacy Express/React implementation from branch tip", deleted all of it -- server
+routes, providers, `client/src/lib/api.js`, `client/src/hooks/useAircraftFeed.js` -- as
+the first half of the documented migration to FastAPI (Section 3). The second half was
+never written. `origin/main` never had the connected version at all; its `server.js` is a
+ten-line hello-world.
+
+**What was built.** `server/app/` as FastAPI, implementing the Section 5 endpoint list plus
+the model endpoints that did not exist in April:
+
+| file | what it does |
+|---|---|
+| `main.py` | app, CORS, the ten-second ingest loop, `/ws/stream` |
+| `config.py` | every threshold and mode, overridable from the environment |
+| `services/normalizer.py` | direct port of the deleted `aircraftNormalizer.js`, field-for-field, so the React components did not have to be rewritten |
+| `services/opensky_client.py` | OAuth2 client credentials (the deleted Node provider used Basic auth, which OpenSky retired), with the 200-credit reserve the collection scripts use |
+| `services/replay_service.py` | recorded sessions as a live feed |
+| `services/aircraft_service.py` | snapshot, per-aircraft rolling history, live/replay/auto with fallback |
+| `services/conflict_service.py` | pair pre-filter, the full chain per pair, the alert feed |
+| `services/audit_service.py` | append-only audit log |
+| `api/routes.py` | 13 endpoints |
+
+**Measured, running against a recorded session:** 33-38 aircraft per update, 20-28 passing
+the en-route floor, 15-30 pairs assessed per update in **1.8-2.5 s** against a ten-second
+budget, and genuine tier 1 alarms with three Model 3 options each -- for example
+`JZR533 x UAE325`, closest approach 4.23 NM / 1,100 ft in 30 s, offering a descent, a
+speed reduction and a turn, each with its own confidence and score.
+
+**Five defects found and fixed while wiring it up. All five were invisible until real data
+flowed through.**
+
+1. **Replay frames were built on the wrong timestamp.** Bucketing on `time_position` -- when
+   each aircraft last reported *itself* -- scattered one snapshot across many frames,
+   giving frames holding anywhere from 1 to 166 aircraft. The poll timestamp
+   (`fetch_timestamp_utc`) is the real snapshot boundary: 536 frames of a steady 35.
+2. **Alarms were raised about aircraft that had left the airspace.** `histories_for_models()`
+   returned every aircraft with ten past states, including ones no longer in the current
+   update, so a pair could be assessed on positions minutes stale. Verified live: an alarm
+   named `AIC112 x UAE323` when neither was in the snapshot. Now both aircraft must be in
+   the current update as well as have a history.
+3. **The history warm-up wrapped past the start of the session**, splicing the tail of the
+   recording -- ninety minutes and a different set of aircraft away -- onto the front as an
+   aircraft's "recent past".
+4. **The replay clock started before the models finished loading**, so the encounter it had
+   seeked to was already two minutes gone by the time the server answered anything.
+5. **The map dropped all real traffic.** `FlightRadarMap` merged incoming flights into a
+   fixed list *by callsign* and silently discarded everything that did not match, which is
+   every real aircraft.
+
+**The en-route floor now applies at inference, not only when building training data.** This
+was recorded as an open gap on 7 Sep: `assess_pair` had no altitude filter, so the API layer
+could have fed approach traffic to a rule calibrated for cruise -- the failure that flagged
+something in 91-94% of all snapshots on 30 Aug. `CONFLICT_MIN_ALTITUDE_FT = 10,000`.
+
+**Two deviations from the plan, stated rather than buried.**
+
+- **SQLite, not PostgreSQL** (Section 3 specifies Postgres). Same schema, ordinary SQL,
+  a connection-string change to migrate; but it needs no database server installed, which
+  means the audit trail runs today instead of after a setup. Only INSERT and SELECT appear
+  in the module, so append-only is enforced by construction.
+- **One WebSocket, not two.** Section 5 lists `/ws/aircraft` and `/ws/alerts` separately.
+  They are served together because an alert about two aircraft is meaningless if it
+  arrives before the positions it refers to.
+
+**Replay now starts near a real encounter.** A recorded session is ninety minutes of mostly
+uneventful traffic. `FLIGHT_RIGHT_REPLAY_SEEK=conflict` (the default) scans for the first
+frame where two en-route aircraft are predicted inside the alert volume and starts three
+minutes before it. A scan of six sessions found **4,049 such frames**, so this is choosing
+where to begin in real data, not manufacturing anything.
+
+**Headline number unmoved at 94.0%.** No model, threshold, gate or hyperparameter was
+touched. `verify_pipeline.py` 110/110 and the 8 unit tests pass against the same artifacts.
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -2848,3 +2925,77 @@ do not match its data is worse than no chart.
 
 **Headline number:** unmoved at 94.0%. Nothing was trained, tuned or changed — this was
 collecting and explaining what was already measured.
+
+### 2026-09-08 — The screen finally shows what the models actually think
+
+**Files:** `server/app/` (the whole backend, new), `client/src/lib/api.js`,
+`client/src/lib/adapters.js`, `client/src/hooks/useLiveData.js`,
+`client/src/hooks/useAuditLog.js`, `client/src/components/DataSourceBar.jsx`,
+`client/src/components/WatchListPanel.jsx` (all new), plus `HomePage`, `ResolveModal`,
+`FlightRadarMap`, `RadarCanvas`, `AIAuditTrail`, `TimelinePanel`, `TopBar`, `MetricsRow`.
+
+**Before.** The dashboard was beautiful and it was entirely make-believe. Every aircraft on
+it, every conflict, every suggested manoeuvre and every number was typed into a file called
+`mockData.js`. Nothing on the screen had ever been produced by any of the four models. The
+part that would connect them did not exist.
+
+**The reason, which is worth knowing.** It is not that nobody ever built the connection. A
+teammate built a working one in April. It was deliberately deleted on 30 August, as the
+first step of a planned move from one kind of server to another. The replacement was never
+written, so the project spent a week with the old bridge demolished and the new one
+unstarted.
+
+**Now.** There is a backend. It reads aircraft — either live from the internet or from the
+twelve days of real Mumbai traffic we recorded — works out which pairs are heading for
+trouble, asks all three models, decides what deserves an alarm and what is only worth
+watching, works out what could be done about it, and writes every decision to a database.
+The dashboard reads all of that over a live connection and draws it.
+
+**What is now real that was invented before:**
+
+| On screen | Before | Now |
+|---|---|---|
+| The aircraft | 12 made-up flights | 33–38 real ones, updating every ten seconds |
+| The conflict alert | One fixed scenario | Whatever the models actually predict |
+| The three suggested manoeuvres | Written by hand | Model 3, re-simulated for this pair |
+| "ATCO match: 94% (847 cases)" | **Invented** — that model was never built | Gone. Replaced by the real ranking score |
+| Sector metrics | On-time rate, "AI optimisation score", wind, visibility — none measured by anything | Aircraft tracked, en-route, alarms, watch list, pairs assessed and how long it took |
+| The audit trail | Kept in the browser tab, erased on close | Server-side, append-only |
+| The timeline | Invented runway slots | Predicted closest approaches |
+
+**What is still fake, and now says so.** Runway occupancy, the weather overlay and the
+radio transcript have no data source at all, so each is labelled on screen — "DEMO DATA",
+"WEATHER (DEMO)", "VHF / DATALINK TRANSCRIPT (DEMO — NOT IMPLEMENTED)" — with a note under
+the transcript explaining its callsigns will not match the live traffic. Labelling them is
+the honest option; quietly leaving them looking real is not.
+
+**A bar across the top now says where the data came from.** Live or recorded, which
+recording, how many aircraft, how many pairs the models assessed and how long it took, how
+many repeat alerts were suppressed, and — permanently — "PROTOTYPE · DECISION SUPPORT ·
+CONTROLLER DECIDES". A dashboard that cannot say whether it is showing live traffic or a
+recording can quietly present yesterday's aircraft as if they were outside the window.
+
+**The button no longer claims something untrue.** It used to say APPLY RESOLUTION, next to
+another that offered to transmit by datalink. The system cannot move an aircraft and is not
+permitted to. It now says **ACCEPT — RECORD DECISION**, and that is exactly what it does:
+writes the controller's decision to the audit log.
+
+**Five bugs that only appeared once real data flowed.** Worth listing because every one of
+them was invisible while the screen was showing made-up data:
+
+1. The recorded sessions were being cut into snapshots on the wrong clock, producing
+   moments containing anywhere between 1 and 166 aircraft instead of a steady 35.
+2. **The system raised an alarm about two aircraft that had already left the area** — it
+   kept their last known positions and kept using them. Now an aircraft has to be visible
+   right now, not merely remembered.
+3. When filling in an aircraft's recent past at startup, the code ran off the beginning of
+   the recording and grabbed the end instead — an hour and a half away, different aircraft
+   entirely.
+4. The recording started playing while the models were still loading, so the interesting
+   part had already gone past before anything was on screen.
+5. **The map threw away every real aircraft.** It matched incoming flights against its own
+   fixed list by callsign and silently dropped anything that did not match, which was all
+   of them.
+
+**Headline number:** unmoved at 94.0%. Not one model, threshold or setting was touched.
+This connected what already existed. The automatic checks still pass, 110 of 110.

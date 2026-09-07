@@ -58,3 +58,7 @@ node_modules/
 
 # Training run logs are large and per-machine; the markdown reports beside them are kept.
 ml_pipeline/reports/logs/
+
+# backend runtime artifacts
+server/audit.sqlite3
+server/*.sqlite3

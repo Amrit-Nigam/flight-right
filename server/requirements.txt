@@ -9,3 +9,5 @@ torch
 joblib
 fastapi
 uvicorn
+websockets
+python-multipart
