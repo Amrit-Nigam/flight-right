@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Bell, Sun, Moon, Mic, ScrollText } from "lucide-react";
 import { logAudit } from "@/lib/siteLogger";
 
-export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onToggleTheme, conflict, onWeatherToggle, weatherOn }) {
+export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onToggleTheme, conflict, onWeatherToggle, weatherOn, trackedCount = 0 }) {
   const [time, setTime] = useState(new Date());
   const [cpaSeconds, setCpaSeconds] = useState(conflict?.countdown ?? 0);
   const timerRef = useRef(null);
@@ -34,8 +34,6 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
   const cpaColor = cpaSeconds < 180 ? "var(--red)" : cpaSeconds < 480 ? "var(--amber)" : "var(--green)";
 
   // Simulated AI workload
-  const aiManagedCount = 4;
-  const aiPending = 1;
 
   return (
     <header
@@ -122,7 +120,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
           </div>
           {aiEnabled && (
             <span className="hidden 2xl:block font-body text-[9px] tracking-wide mt-0.5 whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
-              Managing {aiManagedCount} flights · {aiPending} pending
+              {trackedCount} tracked · {alertCount} alarm{alertCount === 1 ? "" : "s"}
             </span>
           )}
         </button>

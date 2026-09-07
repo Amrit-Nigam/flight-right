@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { resolveOptions } from "@/data/mockData";
 import { logActivity, logAudit } from "@/lib/siteLogger";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -153,7 +152,7 @@ function useLiveCountdown(initialSeconds) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ResolveModal({ open, conflict, countdown, selectedOption, onSelectOption, onApply, onCancel }) {
+export default function ResolveModal({ open, conflict, options = [], countdown, selectedOption, onSelectOption, onApply, onCancel }) {
   const secs = useLiveCountdown(countdown);
   if (!open || !conflict) return null;
 
@@ -188,10 +187,17 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
                     {conflict.flight1} × {conflict.flight2}
                   </p>
                   <p className="font-body text-[12px] mt-1.5" style={{ color: 'var(--text-secondary)' }}>
-                    {conflict.flight1} FL280 hdg045 @ 420kt &nbsp;↔&nbsp; {conflict.flight2} FL270 hdg320 @ 210kt
+                    {conflict.reason}
                   </p>
                   <p className="font-display text-[11px] mt-1 tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                    CPA: <span style={{ color: urgencyColor }}>{conflict.cpaNM ?? 2.1} NM</span> — Below 3 NM minimum separation
+                    Predicted closest approach:{" "}
+                    <span style={{ color: urgencyColor }}>
+                      {Number(conflict.cpaNM).toFixed(2)} NM / {Math.round(conflict.cpaVerticalFt ?? 0)} ft
+                    </span>{" "}
+                    — separation standard 5 NM laterally or 1000 ft vertically (en-route)
+                    {conflict.probability != null && (
+                      <> · model confidence {(conflict.probability * 100).toFixed(0)}%</>
+                    )}
                   </p>
                 </div>
               </div>
@@ -205,7 +211,7 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
                   className="font-display tabular-nums leading-none"
                   style={{ fontSize: 52, color: urgencyColor, textShadow: `0 0 24px ${urgencyColor}80`, fontVariantNumeric: 'tabular-nums', letterSpacing: 2 }}
                 >
-                  {secs > 0 ? timeStr : "CRITICAL"}
+                  {secs > 0 ? timeStr : "00:00"}
                 </p>
                 <button
                   type="button"
@@ -224,26 +230,33 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
             {/* ── SELECTION NOTICE ── */}
             <div className="px-5 pt-4">
               <p className="font-body text-[13px]" style={{ color: 'var(--text-secondary)' }}>
-                Select a resolution strategy — <span style={{ color: 'var(--green)' }}>AI recommends Option 1</span>
+                {options.length
+                  ? <>Select a resolution strategy — <span style={{ color: 'var(--green)' }}>ranked best first</span>. Nothing is transmitted; accepting records your decision.</>
+                  : "No manoeuvre in the candidate set restores separation in the time available."}
               </p>
             </div>
 
             {/* ── OPTIONS ── */}
             <div className="p-5 space-y-3">
-              {resolveOptions.map((opt) => {
+              {options.map((opt) => {
                 const selected = selectedOption === opt.id;
                 return (
-                  <button
+                  <div
                     key={opt.id}
+                    role="radio"
+                    aria-checked={selected}
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onSelectOption(opt.id);
+                      }
+                    }}
                     onClick={() => {
                       logAudit("resolve:option", "Resolution strategy row selected", { optionId: opt.id, recommended: !!opt.recommended });
-                      logActivity("conflict:option", `Selected mock resolution ${opt.id}`, {
-                        recommended: !!opt.recommended,
-                        label: opt.label,
-                      });
                       onSelectOption(opt.id);
                     }}
-                    className="w-full text-left p-4 transition-all relative"
+                    className="w-full text-left p-4 transition-all relative cursor-pointer"
                     style={{
                       border: selected ? '2px solid var(--green)' : '1px solid var(--border-default)',
                       background: selected ? 'rgba(0,255,136,0.06)' : 'var(--bg-panel-alt)',
@@ -263,18 +276,22 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
                     <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{opt.result}</p>
 
                     <div className="flex gap-5 mt-2 font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                      {/* ATCO match replaces confidence % */}
                       <span>
-                        ATCO match: <span style={{ color: 'var(--teal)' }}>{opt.atcoMatch}</span>
-                        <span style={{ fontSize: 10, marginLeft: 4 }}>({opt.atcoCases?.toLocaleString()} cases)</span>
+                        Confidence: <span style={{ color: 'var(--teal)' }}>{opt.confidence}</span>
                       </span>
+                      <span>Score: {opt.score?.toFixed(3)}</span>
                       <span>Fuel: {opt.fuelImpact}</span>
                       <span>Delay: {opt.delayImpact}</span>
+                      {opt.newConflictRisk > 0 && (
+                        <span style={{ color: 'var(--amber)' }}>
+                          New-conflict risk {(opt.newConflictRisk * 100).toFixed(0)}%
+                        </span>
+                      )}
                     </div>
 
                     {/* XAI expandable reason */}
                     {opt.xaiReason && <XaiReason reason={opt.xaiReason} />}
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -284,25 +301,25 @@ export default function ResolveModal({ open, conflict, countdown, selectedOption
               <button
                 type="button"
                 onClick={() => {
-                  logAudit("resolve:modal", "APPLY RESOLUTION button clicked", { selectedOption });
+                  logAudit("resolve:modal", "Accept clicked — recording controller decision", { selectedOption });
                   onApply();
                 }}
-                disabled={!selectedOption}
+                disabled={!selectedOption || !options.length}
                 className="flex-1 py-3 font-display text-[14px] tracking-wider transition-colors disabled:opacity-30"
                 style={{ background: 'var(--amber)', color: 'black' }}
               >
-                APPLY RESOLUTION
+                ACCEPT — RECORD DECISION
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  logAudit("resolve:modal", "CANCEL — HANDLE MANUALLY button clicked", { selectedOption });
+                  logAudit("resolve:modal", "Dismissed — controller handling manually", { selectedOption });
                   onCancel();
                 }}
                 className="flex-1 py-3 font-display text-[14px] tracking-wider transition-all hover:bg-white/5"
                 style={{ border: '2px solid var(--red)', color: 'var(--red)', background: 'transparent' }}
               >
-                CANCEL — HANDLE MANUALLY
+                DISMISS — HANDLE MANUALLY
               </button>
             </div>
           </motion.div>

@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { timelineRows } from "@/data/mockData";
 import { logAudit } from "@/lib/siteLogger";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, RotateCcw } from "lucide-react";
@@ -65,7 +64,7 @@ function BarTooltip({ bar, rowFlight, barIndex, onUndo }) {
   );
 }
 
-export default function TimelinePanel({ isOpen, onToggle }) {
+export default function TimelinePanel({ isOpen, onToggle, rows = [] }) {
   const ticks = Array.from({ length: 25 }, (_, i) => i * 5);
   const [tooltip, setTooltip] = useState(null); // { rowFlight, barIndex }
 
@@ -176,7 +175,12 @@ export default function TimelinePanel({ isOpen, onToggle }) {
                   </span>
                 </div>
 
-                {timelineRows.map((row) => (
+                {rows.length === 0 && (
+                  <div className="px-3 py-4 font-body text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    No predicted closest approaches inside the ten-minute look-ahead.
+                  </div>
+                )}
+                {rows.map((row) => (
                   <div
                     key={row.flight}
                     className="flex items-center h-[32px] group hover:bg-white/5 transition-colors rounded"

@@ -19,12 +19,21 @@ export default function NLPCommsPanel({ feed }) {
       {/* Transcript Header */}
       <div className="py-2.5 px-4 flex items-center justify-between border-b border-[var(--border-default)]" style={{ background: "var(--bg-panel-alt)" }}>
         <h3 className="font-display text-[11px] tracking-[0.2em] text-[var(--text-secondary)] uppercase">
-          VHF / DATALINK TRANSCRIPT
+          VHF / DATALINK TRANSCRIPT (DEMO — NOT IMPLEMENTED)
         </h3>
-        <span className="font-display text-[9px] text-[var(--teal)] animate-pulse flex items-center gap-1.5 tracking-widest">
-          <span className="w-1.5 h-1.5 bg-[var(--teal)] rounded-full shadow-[0_0_8px_var(--teal)]" />
-          REC THREAD
+        <span className="font-display text-[9px] text-[var(--text-muted)] tracking-widest">
+          SCRIPTED SAMPLE
         </span>
+      </div>
+
+      {/* Speech recognition is explicitly out of scope for this project (CLAUDE.md
+          Section 3). This panel is a fixed illustration of what the interface would
+          look like, so its callsigns will not match the live traffic above. */}
+      <div className="px-4 py-1.5 font-body text-[10px]"
+           style={{ color: "var(--text-muted)", background: "rgba(0,0,0,0.03)",
+                    borderBottom: "1px solid var(--border-default)" }}>
+        Fixed sample. No speech or datalink feed is connected, so these callsigns are
+        unrelated to the live traffic.
       </div>
 
       {/* Transcript Feed */}
