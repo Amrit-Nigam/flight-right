@@ -74,7 +74,8 @@ with this table.
 | **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. 7 Sep: checked against the other aircraft's 5 predicted paths and against all nearby traffic, so a fix that would cause a new conflict is rejected. ML ranker still deferred. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
 | **Backend (FastAPI server)** | **NOT STARTED**, but `server/app/ml/inference.py` now loads all models and runs the complete chain for a pair: rule → multi-path → classifier → tier → **Model 3 resolutions**. The API layer on top of it is the next job. |
-| **Frontend dashboard** | **ON THIS BRANCH** again as of 6 Sep 2026: `client/` restored from `main` (MapLibre version). Still runs on `mockData.js`; wiring to the backend is Section 8. |
+| **Alert feed (what the controller sees)** | **DONE** as of 7 Sep 2026: `ml_pipeline/utils/alert_feed.py`. Repeat suppression and low-confidence collapsing, both display-only. Interruptions down 63-65% on real traffic replay and prominent-list precision 0.386 -> 0.503, with **zero** pairs lost from the reported set. Not yet called by anything — the API layer and the frontend are still to come. |
+| **Frontend dashboard** | **ON THIS BRANCH** again as of 6 Sep 2026: `client/` restored from `main` (MapLibre version). Still runs on `mockData.js`; wiring to the backend is Section 8. The alert-feed contract it must honour is in that module's docstring: **render `active` in full**. |
 
 ### PART 3 — RULES THAT ARE NOT UP FOR DEBATE
 
@@ -184,9 +185,24 @@ Save time by not re-proposing these. All measured on our own data.
   which also improves precision. The cause: whether the dominant path combination is
   momentarily strengthening is noise (it moves about 0.04 per update with a quarter of
   steps jumping over 0.10), and noise cannot separate real conflicts from false ones.
-  **The false-alarm problem it targets is real and still open** -- roughly six alerts in
+  **The false-alarm problem it targets is real** -- roughly six alerts in
   ten are for conflicts that never happen. The supported levers are the recall-margin
   threshold table and suppressing repeat alerts for the same pair, not a trend filter.
+  **Repeat suppression is now built** (`ml_pipeline/utils/alert_feed.py`, 7 Sep):
+  interruptions down 63-65% on real traffic with zero pairs lost from the reported set.
+  The recall-margin decision is still open and still yours.
+- **The level-flight filter for false alarms.** Suppress a pair when both aircraft read
+  level and the predicted vertical gap already clears 1,000 ft. Targets the dominant
+  false-alarm mode: 64.8% of false alarms are pairs that closed laterally but stayed
+  stacked (median 2.44 NM / 1,930 ft real closest approach, against 1.69 NM / 535 ft for
+  true conflicts). Measured: cuts **46% of false alarms** and costs **21 real
+  conflicts** -- recall 0.9439 -> 0.875, headline **94.0% -> 86.6%**. The 21 read
+  0.00-0.33 m/s vertical rate at decision time and then descended; several predicted
+  2,200-2,450 ft apart ended 240-530 ft apart. EUROCONTROL run this filter as STCA
+  Option E using the **cleared flight level** from the flight data system, and warn in
+  the same sentence that it "reduces warning time in the event of level bust". Our proxy
+  is observed vertical rate, and level bust is exactly what a proxy misses. Not
+  retryable without flight-plan data.
 - **The hard ceiling:** two aircraft in an IDENTICAL situation end up 7.9 NM
   apart on average at 10 minutes, and 64% of such pairs end more than 5 NM
   apart. The outcome depends on a controller instruction we never receive. This
@@ -1796,6 +1812,135 @@ only ever remove options and never add them. The teammate's 8 unit tests and
 `inference_check.py` both still pass.
 
 
+### 2026-09-07 — Alert feed: repeat suppression and low-confidence collapsing, with the no-loss guarantee made structural
+
+**Measurement first, because it is what motivated the work.** On the held-out test split
+the classifier raises **740 alerts, of which 454 (61.4%) are false — precision 0.386**.
+Two decompositions matter more than that total:
+
+- **Only 41 of the 740 are tier 1**, the audible alarm that also carries resolutions.
+  27 are real and 14 false, precision **0.659**. The other 699 are tier 2 watch-list
+  rows at precision 0.371. **96.9% of all false alarms are silent watch-list rows.**
+- Feeding all 41 tier 1 alarms through Model 3: 1,066 candidate instructions evaluated,
+  31 alarms produce at least one option, 10 produce none, **77 instructions offered in
+  total — 36 for real conflicts and 41 for conflicts that never happen (53.2%)**.
+
+Replaying the rule detector over two real one-hour OpenSky sessions, the same encounter
+alerts **9.7x and 9.9x** over: 297 messages for 30 distinct encounters, 145 for 15.
+Nothing in the repo suppressed that. `grep` over `ml_pipeline/` and `server/` returned
+zero implementations, despite Section 12 requiring duplicate suppression and severity
+ranking, and Part 5 naming repeat suppression as one of only two supported levers.
+
+**New file `ml_pipeline/utils/alert_feed.py`.** Per-pair memory across updates, sitting
+between `assess_pair` and the dashboard. It does two things and neither is a detection
+change:
+
+1. **Repeat suppression.** A pair already on screen does not raise a new interruption
+   unless something got worse. Every escalation test in `_notification_decision` runs
+   ahead of every suppression test, so nothing below can veto a decision made above it.
+   Re-fires on: tier falling, severity rising, resolutions appearing, the option set
+   changing or emptying, crossing 120/60/30 s to CPA, the predicted CPA closing by
+   `REALERT_LATERAL_CLOSE_NM = 1.0`, probability rising by
+   `REALERT_PROBABILITY_STEP = 0.15`, and a `REALERT_SECONDS = 120` heartbeat so a long
+   encounter cannot go stale. A pair unseen for `FORGET_SECONDS = 300` is forgotten, so
+   a later encounter between the same two aircraft is announced as new.
+2. **Low-confidence collapsing.** A tier 2 pair below `LOW_CONFIDENCE_RAW_PROBABILITY
+   = 0.25` raw is grouped into a counted row instead of taking its own. Guarded four
+   ways, each a release valve rather than a filter: never tier 1, never a pair the
+   deterministic rule calls a conflict (Section 13's safety net outranks the
+   classifier), never severity high or critical, never a pair carrying resolutions.
+
+**THE GUARANTEE IS STRUCTURAL, NOT TESTED-FOR.** Every pair `escalate_pair` confirms is
+in `active` on every update; the module contains no code path that removes one.
+Suppression can only change `is_new_notification` and `display`. The frontend contract
+is stated in the module docstring: **render `active` in full**, use `attention` for
+prominence and `notifications` for sound, and never render `notifications` alone —
+that would turn a display rule into a detection rule.
+
+**Measured, on the held-out test split (lever B alone, one feed per row):**
+
+| | rows | real | false |
+|---|---|---|---|
+| alerts raised | 740 | 286 | 454 |
+| given a prominent row | 555 | 279 | 276 |
+| collapsed into the counted group | 185 | **7** | 178 |
+| **removed from the active list** | **0** | **0** | **0** |
+
+**39.2% of false alarms leave the prominent list; prominent-list precision goes 0.386
+-> 0.503.** The 7 real conflicts that collapse are **all tier 2, all still on the active
+list, with 6 to 9 minutes of real warning left** (360-540 s). The tier 2 guard releases
+each one into a full alarm as it closes inside three minutes, which is verified rather
+than asserted — see the "collapsed pair that closes to tier 1" check.
+
+**Measured, on real traffic replay (lever A alone, rule path, no classifier so nothing
+collapses):**
+
+| session | pairs reported before | pairs on active after | lost | interruptions before | after | cut |
+|---|---|---|---|---|---|---|
+| `session_20260905_003006` | 20 | 20 | **0** | 241 | 89 | 63.1% |
+| `session_c_20260903_204503` | 10 | 10 | **0** | 119 | 42 | 64.7% |
+
+Total active rows rendered equals the old message count exactly (241 and 119), which is
+the direct proof that no confirmed pair-update left the display.
+
+**The cut is 63-65%, not the 90% the raw episode count suggests, and that gap is
+deliberate.** Categorising the 131 remaining interruptions: 65 crossed a
+time-to-CPA boundary, 30 were genuinely new conflicts, 23 closed by more than 1 NM, 12
+escalated tier 2 to tier 1, 1 rose in severity, and **0 were the heartbeat** — the
+heartbeat is a pure backstop that never had to fire. Every remaining interruption is a
+real change of state. The ~25 points between 65% and 90% is what the safety re-fires
+cost, and they are worth it.
+
+**Not wired to anything yet.** `assess_pair` is unchanged and no caller constructs an
+`AlertFeed`; the API layer that would own one does not exist. This is deliberate —
+Section 11's build order puts the FastAPI layer next, and it can adopt the feed in one
+line when it arrives.
+
+**Verification:** `verify_pipeline.py` gained a section 10 with 23 checks and now runs
+**110 of 110**. Among them: a confirmed pair is on the active list on every update; each
+of six escalations overrides suppression; each of four guards refuses to collapse; a
+collapsed pair released into tier 1 announces again; `attention` is a prefix of `active`
+rather than a filter; the feed never promotes a pair `escalate_pair` has not confirmed;
+and the whole thing once through the real `ConflictEngine` rather than hand-built dicts.
+The teammate's 8 unit tests and `inference_check.py` both still pass.
+
+**No model, threshold, hyperparameter or gate was touched. The headline number is
+unmoved at 94.0%** — this layer runs after detection and cannot change what is detected.
+
+### 2026-09-07 — The level-flight filter: tested, failed, do not retry
+
+**The idea.** 64.8% of the classifier's false alarms are pairs that came close
+laterally but stayed stacked vertically — median real closest approach **2.44 NM /
+1,930 ft**, against 1.69 NM / 535 ft for true conflicts. So: suppress a pair when both
+aircraft read level and the predicted vertical gap already clears 1,000 ft. Two aircraft
+in level flight at different flight levels cannot lose vertical separation.
+
+**Measured on the held-out test split: it cuts 46% of false alarms and costs 21 real
+conflicts. Recall 0.9439 -> 0.875, headline 94.0% -> 86.6%.** Rejected.
+
+**Why it fails, which is the useful part.** Those 21 pairs reported 0.00-0.33 m/s
+vertical rate at the moment of the decision and then one aircraft descended. Several
+were predicted 2,200-2,450 ft apart and ended 240-530 ft apart. "Level now" does not
+mean "level in ten minutes" — the descent comes from a controller instruction we never
+receive, which is the same information ceiling recorded in Part 5.
+
+**This is a named, standard technique and it depends on data we do not have.**
+EUROCONTROL's STCA guidelines list it as Option E, *"Cleared and/or Selected Flight
+Level used for Vertical Prediction in Linear Prediction Filter — Reduces nuisance
+alerts, particularly for level off situations. Can give extra warning time, but reduces
+warning time in the event of level bust."* Real STCA runs this filter because the flight
+data processing system supplies the cleared level; our proxy is observed vertical rate,
+and the level-bust case is exactly what a proxy gets wrong. Their term for what we call
+a false alarm is also worth adopting: *"nuisance alert: alert which is correctly
+generated according to the rule set but is considered operationally inappropriate."*
+Source: <https://www.eurocontrol.int/sites/default/files/2019-09/eurocontrol-guidelines-159-part-iii-1.0.pdf>
+(read directly, not summarised from search).
+
+**Use this in the evaluation report.** "We restricted ourselves to display-layer
+suppression because the standard vertical filter needs cleared-flight-level data that
+ADS-B does not carry, and we measured what it costs without it" is a defensible finding,
+and the 21 lost conflicts are the evidence.
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -2516,3 +2661,190 @@ version is still underneath.
 found, not how many conflicts we find.
 
 **Checks:** 80 to 87, all passing.
+
+### 2026-09-07 — Counted what actually reaches the controller, and it is not what the headline suggests
+
+**Files:** none changed. This was measurement only.
+
+**What we did not know before.** We knew the classifier's precision was 0.386, which
+sounds like six alerts in ten are wrong. What nobody had counted was **which** alerts,
+and how often the same one repeats.
+
+**What the counting found.** Of 740 alerts on the held-out test data, **only 41 are
+actual alarms** — the kind that makes a noise and comes with suggested manoeuvres. The
+other 699 are silent watch-list rows for aircraft still five to ten minutes apart.
+**Almost 97% of the false alarms are in that silent list.** The alarms themselves are
+right about two thirds of the time, not one third.
+
+Of route-change suggestions, the system offers **77 individual instructions**, and **41
+of them — slightly over half — are for conflicts that never happen.** It also evaluated
+1,066 possible instructions to arrive at those 77, and on 10 of the 41 alarms it
+correctly concluded that nothing would work in time and said so.
+
+**The finding that mattered most.** Replaying real Mumbai traffic, the same pair of
+aircraft raises an alert roughly **ten times over** — once per radar update, for as long
+as the geometry lasts. One hour of real traffic produced 297 alert messages for **30
+actual encounters**. Nothing in the system remembered what it had already told the
+controller.
+
+**Headline number:** unmoved at 94.0%. Nothing was changed; this was counting.
+
+### 2026-09-07 — The system now remembers what it already told the controller
+
+**File:** `ml_pipeline/utils/alert_feed.py`, new.
+
+**Before.** Every ten seconds the system re-examined every pair of aircraft from
+scratch, with no memory. A pair converging for four minutes generated an alert every
+single update — about twenty-four alerts for one situation the controller understood
+after the first. Everything also arrived looking equally important: a critical alarm
+ninety seconds away and a low-confidence pair nine minutes away were the same size on
+screen.
+
+**Now.** Two changes, and **both are about presentation, not about detection.**
+
+First, a pair already on screen does not raise a *new* interruption unless something has
+actually got worse. Second, the least confident watch-list entries are gathered into one
+counted line the controller can expand, instead of taking a row each.
+
+**The safety rule, and how it is guaranteed rather than hoped for.** You asked that no
+real conflict be lost. Rather than test for that afterwards, the module is built so it
+cannot happen:
+
+> **Every confirmed pair stays on the active list, every update, always. There is no
+> code in the file that removes one.**
+
+All the module can change is whether a pair makes a *noise*, and whether it gets its own
+row or sits in a group. A conflict that stops interrupting is still on the screen. So
+"stop interrupting" and "stop reporting" are different things, and only the first one is
+possible here.
+
+On top of that, anything that gets worse breaks through immediately: the conflict moving
+into the three-minute alarm band, severity rising, suggested manoeuvres appearing or
+running out, the aircraft closing by more than a nautical mile, crossing two minutes,
+one minute or thirty seconds to closest approach, or the probability jumping. There is
+also a two-minute heartbeat so a long-running conflict is re-announced rather than
+quietly ageing off the top of the list.
+
+**Proved on real traffic, not asserted.** Two one-hour sessions were replayed twice,
+once with the feed and once without, and the two sets of reported aircraft pairs were
+compared:
+
+| | before | after |
+|---|---|---|
+| aircraft pairs reported | 30 | **30** |
+| pairs lost | — | **0** |
+| interruptions | 360 | **131** |
+
+**Nothing stopped being reported. Interruptions fell 64%.**
+
+**An honest number, not the flattering one.** A pure count of encounters suggests a 90%
+reduction is available. We got 64%, and the difference is the safety re-announcements
+doing their job. Breaking down the 131 that remained: 65 crossed into a shorter time
+band, 30 were genuinely new, 23 had closed by more than a mile, 12 escalated into the
+alarm band, 1 got more severe, and **none** were the heartbeat. Every remaining
+interruption is a real change. The 26 points we gave up are what the guarantee costs.
+
+**The collapsed group, and the seven conflicts in it.** On the test data, 185 of the 740
+alerts get grouped rather than given their own row — 178 false and **7 real**. That
+sounds alarming, so here is exactly what happens to those seven. All seven are watch-list
+entries with **six to nine minutes** before the aircraft are closest. All seven remain on
+the active list the whole time. And as each closes inside three minutes it stops
+qualifying for the group and becomes a full alarm — which is checked automatically, not
+assumed. The controller sees every one of them, with more than three minutes in hand,
+which is precisely what the headline metric measures.
+
+The benefit: **39% of false alarms leave the prominent list, and the precision of what
+remains prominent goes from 0.386 to 0.503.**
+
+**Four things can never be collapsed**, whatever the model says: a three-minute alarm, a
+pair the simple geometric rule calls a conflict, anything at high or critical severity,
+and anything carrying suggested manoeuvres. The geometric rule outranking the model is
+deliberate — it is the safety net, and it is not allowed to be overruled by a
+probability.
+
+**What is not done.** Nothing calls this yet. There is no web server to own it and the
+dashboard still runs on mock data. When the API is built it adopts the feed in one line.
+The dashboard's obligation is written at the top of the file: **draw the whole active
+list.** If it ever draws only the interruptions, the guarantee is broken — not by this
+module, but by the thing using it.
+
+**Headline number:** unmoved at 94.0%. This runs after detection, so it cannot change
+how many conflicts are found.
+
+**Checks:** 87 to 110, all passing.
+
+### 2026-09-07 — Tried the obvious fix for false alarms; it failed, and the reason is worth keeping
+
+**File:** none changed. This is a rejected experiment, recorded so nobody spends a week
+rediscovering it.
+
+**The idea, which is genuinely good.** Nearly two thirds of our false alarms are pairs
+that passed close side-to-side but stayed comfortably stacked in height — typically
+about 2.4 miles apart horizontally and 1,930 feet apart vertically. That is ordinary,
+legal, everyday traffic at different flight levels. So: if both aircraft are flying
+level and there is already more than 1,000 feet between them, say nothing.
+
+**It works, and it is not usable.** It removes **46% of false alarms** — and it also
+throws away **21 real conflicts**. The headline number drops from **94.0% to 86.6%**.
+
+**Why, and this is the part to tell a mentor.** Those 21 aircraft *were* flying level
+when we looked. Then one of them started descending. Several were predicted to pass over
+2,000 feet apart and actually ended up 240 to 530 feet apart. The descent came from a
+controller instruction that we never see, because we only receive position reports, not
+clearances.
+
+**Real systems do exactly this filter — using data we do not have.** EUROCONTROL's
+official guidance for short-term conflict alert lists it, and warns in the same sentence
+that it "reduces warning time in the event of level bust" — an aircraft leaving a level
+it was supposed to hold. Real systems get away with it because the flight data system
+tells them what level each aircraft has been cleared to. We are guessing from whether
+the aircraft happens to be climbing right now, and that is exactly the guess that fails.
+
+This is a clean, defensible argument for the report: it is a concrete measurement of why
+a production version would need flight-plan data, rather than a generic disclaimer.
+
+**Headline number:** unmoved at 94.0%, because the filter was measured and rejected, not
+applied.
+
+### 2026-09-07 — Two documents: the full evaluation, and a briefing for the people presenting
+
+**Files:** `evaluation.md` (new), `docs/figures/*.png` (13 new charts),
+`docs/metrics.json` (new), `docs/Flight_Right_Speaker_Briefing.pdf` (new).
+
+**Before.** The numbers existed, but scattered: some in this file's change log, some in
+`ml_pipeline/reports/`, some only in a training log, some only recoverable by re-running a
+script. There was no single place to look up how well anything works, and no chart of
+anything. There was also nothing a non-technical teammate could read before speaking about
+the project.
+
+**Now, two documents with different jobs.**
+
+`evaluation.md` is the technical record: every model's metrics beside the baseline it has
+to beat, the confusion matrix for the conflict classifier, **the confusion matrix for what
+actually reaches the controller's screen**, the rejected experiments with the numbers that
+killed them, and thirteen charts. Every figure is generated from the saved model files
+rather than typed in, so the document cannot drift away from the models. The raw values are
+in `docs/metrics.json`.
+
+`docs/Flight_Right_Speaker_Briefing.pdf` is fourteen pages for teammates who know what the
+project is but write no code and know no aviation, and who have to stand up and talk about
+it. It defines five aviation words, explains each model in plain language, and has three
+sections aimed squarely at questions: what the controller actually sees (because "six in ten
+warnings are false" sounds much worse than it is), a table of **what we said we would build
+against what we built and the measurement that changed our minds**, and the failed
+level-flight filter written up as a finding rather than a mistake. It also says which
+sentences to use and which to avoid — "we catch 94% of conflicts with three minutes of
+warning", never "our model is 94% accurate".
+
+**Why.** Two different failures were possible. The technical one: numbers that only exist
+in a terminal cannot be checked, compared between runs, or put in a report. The presentation
+one: someone answering "so how accurate is it?" with "63.6%" would be quoting a best-of-five
+figure as if it were accuracy, which is wrong and an examiner would catch it.
+
+**One thing that had to be fixed while building it.** The first version of the alert-funnel
+chart used a logarithmic scale, which made 303 real conflicts out of 4,690 pairs look like a
+clear majority of the bar. It was replaced with two linear panels. A chart whose proportions
+do not match its data is worse than no chart.
+
+**Headline number:** unmoved at 94.0%. Nothing was trained, tuned or changed — this was
+collecting and explaining what was already measured.

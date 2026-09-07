@@ -226,8 +226,9 @@ Both were rewritten on 5 September. Section 6 explains what was wrong and what c
 
 | File | Lines | What it does |
 |---|---|---|
-| `verify_pipeline.py` | 659 | **The automated check.** Runs 80 assertions across the whole pipeline and exits non-zero if any fails. |
-| `resolution_engine.py` | 699 | **Model 3.** Proposes, simulates, costs and explains ways out of a conflict. See section 7. |
+| `verify_pipeline.py` | 925 | **The automated check.** Runs 110 assertions across the whole pipeline and exits non-zero if any fails. |
+| `resolution_engine.py` | 842 | **Model 3.** Proposes, simulates, costs and explains ways out of a conflict. See section 7. |
+| `alert_feed.py` | 361 | **What the controller sees.** Stops a pair already on screen from re-interrupting, and groups the least confident watch-list rows. Display only: every confirmed pair stays on the active list, always. Added 7 September. |
 | `test_baseline_demo.py` | 65 | Sanity check that the physics baseline and CPA rules run on real data. |
 | `test_two_tier_demo.py` | 247 | Checks the two-tier alerting on three hand-built situations: a conflict hiding between horizons, a one-off bad reading, and a pair that safely passes. |
 
