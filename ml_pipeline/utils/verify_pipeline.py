@@ -705,6 +705,190 @@ def verify_resolution_against_traffic() -> None:
           f"{len(with_third['resolution']['options'])} with it")
 
 
+def verify_alert_feed() -> None:
+    """The display layer must never be able to lose a conflict.
+
+    alert_feed.py cuts repeat interruptions and collapses low-confidence watch-list rows.
+    Both are display decisions, and a display decision that can hide a real conflict is a
+    detection decision wearing a disguise. So the checks here are almost all of one
+    shape: something is suppressed, and the pair is still on the active list; or
+    something gets worse, and it announces again immediately.
+
+    The guarantee being verified: every pair escalate_pair confirms appears in `active`
+    on every update. Suppression may only change `is_new_notification` and `display`.
+    """
+    section("10. ALERT FEED -- suppression must never cost a reported conflict")
+    from ml_pipeline.utils.alert_feed import (
+        AlertFeed, FORGET_SECONDS, LOW_CONFIDENCE_RAW_PROBABILITY, REALERT_SECONDS)
+
+    def assessment(tier=2, severity="medium", ttc=300.0, lateral=4.0, probability=0.9,
+                   notify=True, rule_conflict=False, raw=0.9, suggest=False, options=()):
+        """One assess_pair result, built by hand so each behaviour can be set up exactly."""
+        return {
+            "rule": {"cpa_lateral_distance_nm": lateral, "cpa_vertical_separation_ft": 800.0,
+                     "is_conflict": rule_conflict, "severity": severity},
+            "classifier": {"raw_probability": raw, "conflict_probability": raw},
+            "escalation": {"tier": tier, "tier_name": f"tier {tier}", "time_to_cpa_seconds": ttc,
+                           "probability": probability, "notify": notify,
+                           "suggest_resolution": suggest, "reason": "test"},
+            "resolution": {"offered": bool(options),
+                           "options": [{"manoeuvre_type": kind} for kind in options],
+                           "reason": "test"},
+        }
+
+    # --- the core invariant, over a run of updates where nothing changes -------------
+    feed = AlertFeed()
+    steady = assessment()
+    active_every_update, notified = [], 0
+    for step in range(10):
+        out = feed.update({("A", "B"): steady}, now=step * 10.0)
+        active_every_update.append(len(out["active"]))
+        notified += out["counts"]["new_notifications"]
+    check("a confirmed pair is on the active list on EVERY update, not just the first",
+          all(count == 1 for count in active_every_update),
+          f"active per update: {active_every_update}")
+    check("an unchanged pair stops interrupting after the first announcement",
+          notified == 1, f"{notified} interruptions across 10 identical updates")
+
+    # --- everything that must break through suppression -------------------------------
+    escalations = [
+        ("tier 2 escalating to tier 1", assessment(tier=1, ttc=170.0)),
+        ("severity rising", assessment(severity="critical")),
+        ("resolution options becoming available", assessment(suggest=True, options=("altitude",))),
+        ("the closest approach closing by more than 1 NM", assessment(lateral=2.5)),
+        ("crossing inside 120 s to closest approach", assessment(ttc=110.0)),
+        ("the conflict probability jumping", assessment(probability=0.9 + 0.2)),
+    ]
+    for label, worse in escalations:
+        feed = AlertFeed()
+        feed.update({("A", "B"): steady}, now=0.0)
+        quiet = feed.update({("A", "B"): steady}, now=10.0)
+        after = feed.update({("A", "B"): worse}, now=20.0)
+        check(f"suppression is overridden by {label}",
+              quiet["counts"]["new_notifications"] == 0
+              and after["counts"]["new_notifications"] == 1,
+              after["notifications"][0]["notification_reason"] if after["notifications"]
+              else "did not re-announce")
+
+    feed = AlertFeed()
+    feed.update({("A", "B"): assessment(tier=1, suggest=True, options=("altitude", "heading"))}, now=0.0)
+    gone = feed.update({("A", "B"): assessment(tier=1, suggest=True, options=())}, now=10.0)
+    check("losing the last workable manoeuvre re-announces the pair",
+          gone["counts"]["new_notifications"] == 1,
+          gone["notifications"][0]["notification_reason"] if gone["notifications"] else "silent")
+
+    feed = AlertFeed()
+    feed.update({("A", "B"): steady}, now=0.0)
+    beat = feed.update({("A", "B"): steady}, now=REALERT_SECONDS + 1.0)
+    check("a long-running conflict is re-announced rather than going stale",
+          beat["counts"]["new_notifications"] == 1, f"heartbeat at {REALERT_SECONDS:.0f} s")
+
+    feed = AlertFeed()
+    feed.update({("A", "B"): steady}, now=0.0)
+    returning = feed.update({("A", "B"): steady}, now=FORGET_SECONDS + 10.0)
+    check("a pair that comes back after a long gap is treated as a new conflict",
+          returning["notifications"] and returning["notifications"][0]["notification_reason"]
+          == "New conflict.", f"forget window {FORGET_SECONDS:.0f} s")
+
+    # --- the low-confidence group may only ever collapse the harmless ------------------
+    low = LOW_CONFIDENCE_RAW_PROBABILITY / 2.0
+    never_collapse = [
+        ("a tier 1 alarm", assessment(tier=1, ttc=150.0, raw=low)),
+        ("a pair the deterministic rule calls a conflict", assessment(rule_conflict=True, raw=low)),
+        ("a high-severity pair", assessment(severity="high", raw=low)),
+        ("a pair carrying resolution options", assessment(suggest=True, raw=low, options=("altitude",))),
+    ]
+    for label, entry in never_collapse:
+        out = AlertFeed().update({("A", "B"): entry}, now=0.0)
+        check(f"the low-confidence group never collapses {label}",
+              out["active"][0]["display"] == "alert"
+              and out["counts"]["new_notifications"] == 1,
+              f"display={out['active'][0]['display']}")
+
+    out = AlertFeed().update({("A", "B"): assessment(raw=low)}, now=0.0)
+    check("a collapsed low-confidence row is still on the active list",
+          len(out["active"]) == 1 and out["active"][0]["display"] == "low_confidence"
+          and out["low_confidence"]["count"] == 1 and out["counts"]["new_notifications"] == 0,
+          f"active={len(out['active'])}, collapsed={out['low_confidence']['count']}")
+    check("every collapsed row is also reachable in the collapsed group's own rows",
+          {entry["pair"] for entry in out["low_confidence"]["rows"]}
+          <= {entry["pair"] for entry in out["active"]},
+          f"{len(out['low_confidence']['rows'])} rows")
+
+    # The release path, and the reason collapsing a real conflict is survivable. On the
+    # held-out test split 7 real conflicts land in the collapsed group; every one is
+    # tier 2 with six to nine minutes of warning left. This is the check that they get
+    # a full alarm on the way in, while there is still time to act.
+    feed = AlertFeed()
+    quiet = feed.update({("A", "B"): assessment(tier=2, ttc=420.0, raw=low)}, now=0.0)
+    closing = feed.update({("A", "B"): assessment(tier=1, ttc=170.0, raw=low)}, now=10.0)
+    check("a collapsed pair that closes to tier 1 is released and announced",
+          quiet["counts"]["new_notifications"] == 0
+          and quiet["active"][0]["display"] == "low_confidence"
+          and closing["counts"]["new_notifications"] == 1
+          and closing["active"][0]["display"] == "alert",
+          closing["notifications"][0]["notification_reason"] if closing["notifications"]
+          else "stayed silent -- a real conflict could reach CPA collapsed")
+
+    # --- ranking must order, never filter ---------------------------------------------
+    mixed = {
+        ("W", "X"): assessment(tier=2, severity="low", ttc=500.0),
+        ("Y", "Z"): assessment(tier=1, severity="critical", ttc=90.0),
+        ("P", "Q"): assessment(tier=2, severity="high", ttc=400.0),
+    }
+    out = AlertFeed(attention_rows=2).update(mixed, now=0.0)
+    check("the active list is ranked with tier 1 alarms first",
+          out["active"][0]["pair"] == ("Y", "Z") and out["active"][0]["tier"] == 1,
+          " then ".join(f"{e['pair']}/t{e['tier']}/{e['severity']}" for e in out["active"]))
+    check("the highlighted slice is a prefix of the active list, never a filter",
+          out["attention"] == out["active"][:2] and len(out["active"]) == 3,
+          f"{len(out['attention'])} highlighted of {len(out['active'])} active")
+
+    # --- the feed must not second-guess escalate_pair ---------------------------------
+    out = AlertFeed().update({("A", "B"): assessment(notify=False)}, now=0.0)
+    check("a pair escalate_pair has not confirmed is left alone, not promoted",
+          out["counts"]["active"] == 0 and out["counts"]["awaiting_confirmation"] == 1,
+          "the three-consecutive-updates rule stays where it is")
+
+    # --- and once through the real chain, not the hand-built dicts ---------------------
+    import math as _math
+    from server.app.ml.inference import ConflictEngine
+
+    engine = ConflictEngine.load()
+    metres_per_degree = 111320.0
+
+    def steady_history(latitude, longitude, speed, heading, callsign):
+        return [{"latitude": latitude - (speed * 10 * i * _math.cos(_math.radians(heading))) / metres_per_degree,
+                 "longitude": longitude - (speed * 10 * i * _math.sin(_math.radians(heading)))
+                              / (metres_per_degree * _math.cos(_math.radians(latitude))),
+                 "altitude_m": 10668.0, "velocity_ms": speed, "heading_deg": heading,
+                 "vertical_rate_ms": 0.0, "time_position": 1787600000 - i * 10, "callsign": callsign}
+                for i in range(10, -1, -1)]
+
+    speed, seconds = 230.0, 165.0
+    offset = (speed * 2 * seconds) / (metres_per_degree * _math.cos(_math.radians(19.0)))
+    a = steady_history(19.000, 72.0, speed, 90.0, "AI2841")
+    b = steady_history(19.003, 72.0 + offset, speed, 270.0, "6E455")
+
+    feed = AlertFeed()
+    history: list = []
+    confirmed_updates, active_updates, interruptions = 0, 0, 0
+    for step in range(6):
+        outcome = engine.assess_pair(a, b, history)
+        history.append(outcome)
+        if outcome["escalation"]["notify"]:
+            confirmed_updates += 1
+        rendered = feed.update({("AI2841", "6E455"): outcome}, now=step * 10.0)
+        active_updates += rendered["counts"]["active"]
+        interruptions += rendered["counts"]["new_notifications"]
+    check("through the real chain, every confirmed update is still on the active list",
+          active_updates == confirmed_updates and confirmed_updates > 0,
+          f"{confirmed_updates} confirmed updates, {active_updates} active rows")
+    check("through the real chain, the repeats collapse into fewer interruptions",
+          0 < interruptions < confirmed_updates,
+          f"{confirmed_updates} alerts today becomes {interruptions} interruptions")
+
+
 def main() -> int:
     print("FLIGHT RIGHT -- END-TO-END PIPELINE VERIFICATION")
     print("Checks that every stage runs and returns output of the right shape and magnitude.")
@@ -722,6 +906,7 @@ def main() -> int:
     verify_resolution_engine()
     verify_inference_bridge()
     verify_resolution_against_traffic()
+    verify_alert_feed()
 
     section("SUMMARY")
     failed = [name for name, passed, _ in results if not passed]

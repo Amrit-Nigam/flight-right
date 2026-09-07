@@ -40,7 +40,11 @@ Desktop.ini
 *~
 
 # OpenSky credential exports (contain live API secrets)
+# OpenSky account credentials, now under secrets/ (moved 8 Sep 2026).
+# The code does NOT read these - every ingestion script reads the project-root .env.
+# They are kept only as the original downloads from the OpenSky account pages.
 OpenSky Credentials_*.json
+secrets/opensky/*.json
 
 # Local env backups and file backups (may contain secrets)
 .env.*
