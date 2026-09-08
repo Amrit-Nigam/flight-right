@@ -11,3 +11,5 @@ fastapi
 uvicorn
 websockets
 python-multipart
+# PostgreSQL driver. The server itself is installed by scripts/postgres.py.
+psycopg[binary]

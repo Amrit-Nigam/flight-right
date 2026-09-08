@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.routes import router
 from .config import CORS_ORIGINS, DATA_MODE, POLL_SECONDS
 from .services.aircraft_service import aircraft_service
-from .services.audit_service import audit_service
+from .services.database import database
 from .services.conflict_service import conflict_service
 
 logging.basicConfig(level=logging.INFO,
@@ -49,8 +49,11 @@ async def _ingest_loop() -> None:
     while True:
         try:
             await asyncio.to_thread(aircraft_service.refresh)
-            await asyncio.to_thread(conflict_service.assess,
-                                    aircraft_service.histories_for_models())
+            assessment = await asyncio.to_thread(
+                conflict_service.assess, aircraft_service.histories_for_models())
+            # Persist what was raised. The audit log stays the append-only record of
+            # decisions; this is the working state behind /api/conflicts/history.
+            await asyncio.to_thread(database.record_conflicts, assessment.get("active", []))
             await _broadcast()
         except Exception as failure:                          # noqa: BLE001
             log.exception("Ingestion tick failed: %s", failure)
@@ -73,11 +76,25 @@ async def _broadcast() -> None:
 
 @app.websocket("/ws/stream")
 async def stream(socket: WebSocket) -> None:
-    """Aircraft states and conflict alerts on one socket.
+    """Aircraft states and conflict alerts on one socket. One, deliberately.
 
-    CLAUDE.md Section 5 lists /ws/aircraft and /ws/alerts separately. They are served
-    together here because the dashboard needs them consistent with each other: an alert
-    about two aircraft is meaningless if it arrives before the positions it refers to.
+    CLAUDE.md Section 5 listed /ws/aircraft and /ws/alerts separately. Archit chose a
+    single multiplexed connection on 8 Sep 2026, and the reason is consistency rather
+    than convenience:
+
+      * An alert says "these two aircraft will be 4.2 NM apart in 30 seconds". That is
+        only meaningful against the positions it was computed from. Two sockets give no
+        ordering guarantee between them, so an alert can arrive before the position
+        update it refers to and the map then draws the conflict against stale positions.
+      * The ingest loop computes both in the same tick, atomically. Splitting them at
+        the transport layer when they are produced as a unit is artificial.
+      * One connection means one reconnect path. With two, one can be connected while
+        the other is not, and the screen shows fresh aircraft with stale alerts.
+      * One message per tick means one React state update, so there is no torn render
+        showing half of one update and half of the next.
+
+    The message envelope is typed (`{"type": "update", "aircraft": ..., "conflicts": ...}`)
+    so a client can still route the two payloads separately if it wants to.
     """
     await socket.accept()
     _subscribers.add(socket)
@@ -95,8 +112,8 @@ async def stream(socket: WebSocket) -> None:
 
 @app.on_event("startup")
 async def startup() -> None:
-    audit_service.initialise()
-    log.info("Data mode: %s", DATA_MODE)
+    backend = database.initialise()
+    log.info("Data mode: %s | audit store: %s", DATA_MODE, backend)
     await asyncio.to_thread(conflict_service.load)
     await asyncio.to_thread(aircraft_service.refresh)
     # Model loading and the first refresh take time; start the replay clock now so the
@@ -107,10 +124,11 @@ async def startup() -> None:
     # than waiting a hundred seconds for ten updates to accumulate.
     await asyncio.to_thread(aircraft_service.warm_up)
     await asyncio.to_thread(conflict_service.assess, aircraft_service.histories_for_models())
-    audit_service.record({"level": "system", "source": "server",
+    database.record({"level": "system", "source": "server",
                           "action": "Backend started",
                           "detail": {"mode": aircraft_service.mode,
                                      "source": aircraft_service.source,
+                                     "store": database.backend(),
                                      "models": conflict_service.engine.status()
                                      if conflict_service.engine else {}}})
     app.state.ingest = asyncio.create_task(_ingest_loop())

@@ -11,7 +11,7 @@ import logging
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from ..services.aircraft_service import aircraft_service
-from ..services.audit_service import audit_service
+from ..services.database import database
 from ..services.conflict_service import conflict_service
 
 log = logging.getLogger("flightright.api")
@@ -45,7 +45,7 @@ def set_mode(mode: str = Body(..., embed=True)):
         aircraft_service.set_mode(mode)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    audit_service.record({"level": "audit", "source": "api:aircraft",
+    database.record({"level": "audit", "source": "api:aircraft",
                           "action": f"Data mode switched to {mode}", "decision": mode})
     return aircraft_source()
 
@@ -100,7 +100,7 @@ def accept_suggestion(payload: dict = Body(...)):
     CLAUDE.md Section 12 forbids any path that applies a manoeuvre without the
     controller, and there is no datalink here to apply one with.
     """
-    return {"ok": True, "recorded": audit_service.record({
+    return {"ok": True, "recorded": database.record({
         "level": "audit", "source": "controller",
         "action": payload.get("action") or "Accepted AI suggestion",
         "decision": "accepted",
@@ -115,7 +115,7 @@ def accept_suggestion(payload: dict = Body(...)):
 
 @router.post("/actions/dismiss")
 def dismiss_suggestion(payload: dict = Body(...)):
-    return {"ok": True, "recorded": audit_service.record({
+    return {"ok": True, "recorded": database.record({
         "level": "audit", "source": "controller",
         "action": payload.get("action") or "Dismissed AI suggestion",
         "decision": "dismissed",
@@ -129,14 +129,20 @@ def dismiss_suggestion(payload: dict = Body(...)):
 # ---------------------------------------------------------------------- audit
 @router.post("/audit")
 def write_audit(entry: dict = Body(...)):
-    return {"ok": True, "entry": audit_service.record(entry)}
+    return {"ok": True, "entry": database.record(entry)}
+
+
+@router.get("/conflicts/history")
+def conflict_history(limit: int = Query(100, ge=1, le=1000)):
+    """Conflicts that have been raised, newest first. Survives a restart."""
+    return {"ok": True, "conflicts": database.conflict_history(limit)}
 
 
 @router.get("/audit")
 def read_audit(limit: int = Query(200, ge=1, le=2000), level: str | None = None,
                conflictId: str | None = None, search: str | None = None):
-    entries = audit_service.query(limit=limit, level=level, conflict_id=conflictId, search=search)
-    return {"ok": True, "count": len(entries), "total": audit_service.count(), "entries": entries}
+    entries = database.query(limit=limit, level=level, conflict_id=conflictId, search=search)
+    return {"ok": True, "count": len(entries), "total": database.count(), "entries": entries}
 
 
 # ---------------------------------------------------------------------- health
@@ -153,5 +159,9 @@ def health():
                       "assessed": conflicts.get("pairsAssessed", 0),
                       "durationMs": conflicts.get("durationMs")},
         "models": conflicts.get("modelVersions", {}),
-        "auditEntries": audit_service.count(),
+        "auditEntries": database.count(),
+        # Which store is live, and whether the audit log's append-only guarantee is
+        # enforced by the database or is only a convention of this code. The connection
+        # string is deliberately not included: it carries a password.
+        "store": database.backend(),
     }

@@ -73,7 +73,7 @@ with this table.
 | **Model 2 — conflict detection** | **WORKING** as of 5 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table are coded; alerts unchanged. |
 | **Model 3 — resolution engine** | **DONE (rule-based)** as of 6 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. 7 Sep: checked against the other aircraft's 5 predicted paths and against all nearby traffic, so a fix that would cause a new conflict is rejected. ML ranker still deferred. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
-| **Backend (FastAPI server)** | **RUNNING** as of 8 Sep 2026. `server/app/` — 13 REST endpoints plus `/ws/stream`, OpenSky OAuth2 live mode, recorded-session replay with fallback, the full model chain per pair, the alert feed, and an append-only SQLite audit log. Start with `python -m uvicorn server.app.main:app --port 8000`. |
+| **Backend (FastAPI server)** | **RUNNING** as of 8 Sep 2026. `server/app/` — 14 REST endpoints plus `/ws/stream`, OpenSky OAuth2 live mode, recorded-session replay with fallback, the full model chain per pair, the alert feed, and a **PostgreSQL** store where the audit log is append-only *because the database refuses UPDATE and DELETE*, not because the code avoids them. SQLite remains an automatic fallback. See `RUNNING.md`. |
 | **Alert feed (what the controller sees)** | **DONE** as of 7 Sep 2026: `ml_pipeline/utils/alert_feed.py`. Repeat suppression and low-confidence collapsing, both display-only. Interruptions down 63-65% on real traffic replay and prominent-list precision 0.386 -> 0.503, with **zero** pairs lost from the reported set. Not yet called by anything — the API layer and the frontend are still to come. |
 | **Frontend dashboard** | **CONNECTED** as of 8 Sep 2026. Aircraft, conflicts, resolutions, suggestions, metrics, timeline and the audit trail all come from the backend over a WebSocket, with polling fallback. No mock data remains for anything a model produces. Runways, weather and the NLP transcript have no data source and are labelled DEMO on screen. |
 
@@ -2018,6 +2018,104 @@ where to begin in real data, not manufacturing anything.
 **Headline number unmoved at 94.0%.** No model, threshold, gate or hyperparameter was
 touched. `verify_pipeline.py` 110/110 and the 8 unit tests pass against the same artifacts.
 
+### 2026-09-08 - PostgreSQL, and the append-only audit log becomes enforced rather than promised
+
+**The decision and the reason to give for it.** Archit asked to move from SQLite to
+PostgreSQL. The reason offered was that Postgres is currently fashionable; that is the
+weakest available argument and would not survive an examiner asking a second question.
+The defensible one, and the one now implemented:
+
+> The audit log has to be append-only (Section 12). Under SQLite that was a *convention*
+> - "this module contains only INSERT and SELECT" - which anyone editing it could break
+> silently. Under PostgreSQL the application role is granted `INSERT, SELECT` on
+> `audit_logs` and nothing else, so the **database** refuses an UPDATE or DELETE
+> regardless of what the code asks for.
+
+Two supporting reasons: real `timestamptz` and `JSONB` instead of ISO strings and TEXT,
+so the detail blob is queryable and indexable; and Section 3 already specified
+PostgreSQL, so this removes a documented deviation rather than adding one.
+
+**`scripts/postgres.py`** manages a project-owned PostgreSQL 17.2 - the official
+EnterpriseDB binaries-only archive, no installer, no administrator rights, nothing on
+PATH. Subcommands: `install`, `init`, `start`, `stop`, `status`, `verify`, `psql`,
+`reset`. `init` creates the cluster, the two roles, the schema and the grants, and writes
+`DATABASE_URL` into `.env`.
+
+**It cannot go in the venv, and it must not go in the project folder.** A venv holds
+Python packages; only the driver (`psycopg`) belongs there. And the project sits inside
+OneDrive: a database data directory in a cloud-synced folder is slow and
+corruption-prone. **Measured: `initdb` into the project directory had not finished after
+400 s; into LOCALAPPDATA it took 7 s.** Everything therefore lives under
+`LOCALAPPDATA/FlightRight/postgres`.
+
+**Roles.** `flightright_owner` owns the schema and may change it (migrations).
+`flightright_app` is what the backend connects as: INSERT and SELECT on `audit_logs`,
+full access to `conflicts` and `resolution_options` (working state, upserted every tick).
+`scripts/postgres.py verify` runs 8 checks and proves the guarantee rather than asserting
+it - it attempts an UPDATE and a DELETE and both come back `permission denied for table
+audit_logs`.
+
+**`server/app/services/database.py`** replaces `audit_service.py`. One API, two possible
+backends: PostgreSQL when `DATABASE_URL` is set and reachable, SQLite otherwise. Which
+one is live is reported by `/api/health` under `store`, including
+`appendOnlyEnforced: false` when it has fallen back, so the weaker guarantee is never
+silently in force. The fallback follows the project's existing pattern - constant
+velocity under the LSTM, the CPA rule under the classifier, replay under live.
+
+**Section 6 schema now actually exists.** `conflicts` and `resolution_options` are
+persisted each ingest tick and served by the new `GET /api/conflicts/history`, so what
+the system raised survives a restart. Aircraft states deliberately stay in memory: at
+35 aircraft every ten seconds that is ~300,000 rows a day, and they are re-derivable
+from the feed.
+
+**Security, since this module is the only one taking arbitrary client input.** Every
+statement is parameterised, including the free-text audit search. `level` is checked
+against a fixed set. The `detail` blob is capped at 16 KB and text fields at 2,000
+characters. The connection string carries a password and is never returned by an endpoint
+or written to a log line - the fallback path logs the exception type and message only.
+The cluster listens on 127.0.0.1 and nothing else. There is still no authentication:
+Section 3 puts that out of MVP scope, and the recorded user is a server-side default
+rather than whatever the client claims.
+
+**THREE WINDOWS TRAPS, ALL OF WHICH COST REAL TIME. Recorded so nobody re-diagnoses them.**
+
+1. **Never capture a Postgres tool's output through a pipe.** `initdb` and `pg_ctl` spawn
+   children that inherit the parent's stdout and stderr handles. With
+   `subprocess.run(capture_output=True)`, Python waits for those handles to reach
+   end-of-file, and a lingering `postgres.exe` grandchild holds them open indefinitely -
+   so the call blocks *after the tool itself has already exited*. Six orphaned postgres
+   processes were found doing exactly this. Output now goes to a temporary file, and
+   every call carries a timeout.
+2. **Close stdin.** Otherwise `psql` prompts for a password and waits forever behind
+   captured output, which is indistinguishable from a hang. `psql` is also invoked with
+   `-w`, so it errors instead of prompting.
+3. **"pre-existing shared memory block is still in use"** means an orphaned `postgres.exe`
+   is still holding the segment. Kill it before `initdb`.
+
+**One WebSocket, and this is now a decision rather than a deviation.** Section 5 listed
+`/ws/aircraft` and `/ws/alerts` separately; Archit chose a single multiplexed
+`/ws/stream` on 8 Sep. The reason is consistency: an alert states a separation and a
+time, which is only meaningful against the positions it was computed from. Two sockets
+give no ordering guarantee between them, so an alert can arrive before the position
+update it refers to and the map draws the conflict against stale positions. The ingest
+loop computes both in the same tick; they are sent in the same message. The envelope is
+typed so a client can still route them separately.
+
+**A measurement worth keeping.** During testing the assessment appeared to slow from
+1.5 s to 22 s per tick. It had not: a backend left running from the previous session
+eight hours earlier was still holding port 8000, and every request was being answered by
+that stale process with its accumulated state. A fresh process measured 1.0-1.6 s for
+10-15 pairs. **Check for a stale server before investigating a performance regression.**
+
+**Verified end to end on the recorded session:** PostgreSQL selected, 33-40 aircraft,
+two genuine tier 1 alarms (`JZR533 x UAE325` and `UAE325 x ABY821`, both 1,100 ft
+vertical), 3 Model 3 options each, **6 resolution-option rows and both conflict rows
+persisted**, audit round-trip through the API confirmed, and the frontend streaming with
+zero console errors and zero mock leakage.
+
+**Headline number unmoved at 94.0%.** No model, threshold, gate or hyperparameter was
+touched. `verify_pipeline.py` 110/110 and the 8 unit tests pass.
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -2999,3 +3097,91 @@ them was invisible while the screen was showing made-up data:
 
 **Headline number:** unmoved at 94.0%. Not one model, threshold or setting was touched.
 This connected what already existed. The automatic checks still pass, 110 of 110.
+
+### 2026-09-08 - The record of decisions moved to a database that will not let anyone edit it
+
+**Files:** `scripts/postgres.py` (new), `server/app/services/database.py` (new, replaces
+`audit_service.py`), plus `config.py`, `main.py`, `api/routes.py`, `RUNNING.md`.
+
+**Before.** Every decision a controller made was written to a small file-based database
+called SQLite. That worked, and the file was only ever added to - but *only because the
+code happened not to contain any instruction that would change or delete a past entry*.
+Nothing stopped someone adding one later. The promise that the record could not be
+rewritten was a promise about the code, not about the storage.
+
+**Now.** The project runs its own PostgreSQL database. The important part is not the name
+on it. It is that the application now connects with an account that has been given
+permission to **add** rows to the decision log and **read** them, and no permission to
+change or remove one. If the program tried, the database itself would say no.
+
+You can watch it refuse:
+
+```
+[PASS] UPDATE on audit_logs is refused  --  permission denied for table audit_logs
+[PASS] DELETE on audit_logs is refused  --  permission denied for table audit_logs
+```
+
+**Why this is the answer to give, rather than "Postgres is popular".** An examiner who
+hears "we used Postgres because it is trending" will ask what it actually bought you.
+The answer is now concrete: *a record of safety decisions that the system itself cannot
+go back and alter.* That is a real property, it is demonstrable in one command, and it is
+what an audit trail is for. The popularity of the tool is not part of the argument.
+
+**Two smaller gains.** Dates are now stored as real dates rather than as text, so
+"everything between 14:00 and 15:00" is a proper question. And the details attached to
+each decision are stored as structured data rather than as a string, so they can be
+searched.
+
+**Where it lives, and why not where you asked.** You asked for it inside the virtual
+environment. That is not possible - a virtual environment holds Python code, and
+PostgreSQL is a separate program, not a Python package. What *is* possible, and what has
+been done, is to make it self-contained: the official PostgreSQL files, unpacked by a
+script, needing no installer and no administrator permission, and started and stopped by
+that same script.
+
+It sits in your local application folder rather than in the project folder, and that is
+deliberate. **This project lives inside OneDrive.** A database constantly writes thousands
+of small files, and OneDrive would try to upload them while they are being written -
+which is slow and can corrupt the database. It is not a theoretical worry: creating the
+database inside the project folder **had not finished after nearly seven minutes**; in the
+local folder it took **seven seconds**.
+
+**What happens if the database is not running.** The system falls back to the old
+file-based storage automatically and *says so on screen*, including a flag stating that
+the no-editing guarantee is not in force. It does not pretend. This is the same approach
+used everywhere else in the project: simple arithmetic underneath the neural network, the
+geometric rule underneath the classifier, recorded data underneath the live feed.
+
+**Something else that is now saved.** Conflicts and the manoeuvres suggested for them are
+written to the database too, so they survive a restart and can be reviewed afterwards.
+Aircraft positions are not - there are about 300,000 a day and they can be recreated from
+the recording, so storing them would be a lot of disk for no benefit.
+
+**One live connection, not two - your choice, and the right one.** The original plan had
+two separate live connections to the dashboard: one for aircraft positions, one for
+alerts. The trouble is that an alert says "these two aircraft will be 4.2 miles apart in
+30 seconds", and that sentence is only true about the positions it was worked out from.
+With two connections there is no guarantee which arrives first, so the screen can show an
+alert drawn against where the aircraft *used* to be. One connection carries both,
+calculated in the same instant, so they cannot disagree.
+
+**Three Windows problems that ate real time, written down so nobody repeats them.**
+
+1. The setup script kept freezing with no error at all. The cause: PostgreSQL's tools
+   start helper programs that inherit the pipes Python uses to read their output, and
+   Python waits for those pipes to close - which one lingering helper never did. Six
+   abandoned database processes were found holding them open. The fix was to write output
+   to a file instead of a pipe, and to put a time limit on every call.
+2. A second freeze was a password prompt nobody could see, waiting for an answer behind
+   captured output.
+3. A leftover database process blocks a new one from starting, with the message
+   "pre-existing shared memory block is still in use".
+
+**And one false alarm worth admitting.** Midway through, the conflict calculation appeared
+to slow from 1.5 seconds to 22. It had not. A backend left running from eight hours
+earlier still held the port, so every request was being answered by that old, stale copy.
+A fresh one was back to 1.5 seconds. Before investigating a slowdown, check you are
+talking to the program you think you are.
+
+**Headline number:** unmoved at 94.0%. No model, setting or threshold was touched. This
+changes where decisions are recorded and what stops them being altered.

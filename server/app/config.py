@@ -18,6 +18,13 @@ DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
 RAW_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "raw"
 AUDIT_DATABASE = Path(os.environ.get("FLIGHT_RIGHT_AUDIT_DB", DATA_ROOT / "server" / "audit.sqlite3"))
 
+# PostgreSQL connection string, written into .env by scripts/postgres.py. When it is set
+# and reachable the store uses Postgres, where the audit log is append-only because the
+# application role is not granted UPDATE or DELETE on it. When it is absent or the server
+# is down, the store falls back to the SQLite file above and says so on /api/health.
+# It contains a password: never log it, never return it from an endpoint.
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
 # Three data modes, exactly as CLAUDE.md Section 3 requires. "auto" tries live and falls
 # back to replay when OpenSky is unreachable or out of credits, which is the documented
 # behaviour ("always build a fallback to replay").
