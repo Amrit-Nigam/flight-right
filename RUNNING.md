@@ -6,10 +6,22 @@ Two processes: a Python backend on port 8000 and the React dashboard on port 517
 
 ```bash
 pip install -r server/requirements.txt
-cd client && npm install
+cd client && npm install && cd ..
+
+python scripts/postgres.py install   # downloads PostgreSQL 17.2 (~300 MB, once)
+python scripts/postgres.py init      # creates the cluster, roles and schema
+python scripts/postgres.py verify    # proves the audit log is append-only
 ```
 
-## Every time — two terminals
+`init` writes `DATABASE_URL` into the project-root `.env`. Nothing else needs configuring.
+
+## Every time — start the database first
+
+```bash
+python scripts/postgres.py start     # no-op if it is already running
+```
+
+Then two terminals
 
 **Terminal 1, backend:**
 ```bash
@@ -83,7 +95,15 @@ aircraft that really did converge over Mumbai.
 | POST | `/api/actions/accept` · `/dismiss` | Record a controller decision |
 | GET · POST | `/api/audit` | The append-only audit log |
 | GET | `/api/health` | Aircraft, conflicts, model versions, audit count |
+| GET | `/api/conflicts/history` | Conflicts raised, from the database |
 | WS | `/ws/stream` | Aircraft and conflicts pushed together |
+
+**Why one WebSocket and not two.** An alert says "these two aircraft will be 4.2 NM
+apart in 30 seconds", which is only meaningful against the positions it was computed
+from. Two sockets give no ordering guarantee between them, so an alert can arrive before
+the position update it refers to and the map draws the conflict against stale positions.
+The ingest loop computes both in the same tick, so they are sent in the same message. The
+envelope is typed, so a client can still route them separately.
 
 **A note on `/api/conflicts/active`:** render `active` in full. `notifications` is the
 subset that should interrupt. Rendering only `notifications` turns a display rule into a
@@ -108,3 +128,41 @@ appear in the list and the radar-sweep view.
 ```powershell
 Get-NetTCPConnection -LocalPort 8000 -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 ```
+Worth checking even when things merely seem slow: a backend left running from an earlier
+session keeps its accumulated state, and a stale one measured 22 s per assessment where a
+fresh one takes 1.5 s.
+
+---
+
+## The database
+
+```bash
+python scripts/postgres.py status | start | stop | verify | psql | reset
+```
+
+PostgreSQL 17.2, unpacked from the official binaries archive — no installer, no
+administrator rights, nothing added to PATH. It lives under
+`%LOCALAPPDATA%\FlightRight\postgres`, **not** in the project folder: this repository
+sits inside OneDrive, and a database data directory inside a cloud-synced folder is slow
+and corruption-prone. Measured here, `initdb` into the project had not finished after
+400 seconds; into `%LOCALAPPDATA%` it took 7.
+
+**Why Postgres rather than SQLite.** The audit log has to be append-only (Section 12).
+Under SQLite that was a convention — "this module only contains INSERT and SELECT" —
+which anyone could break later without noticing. Under Postgres the application role is
+granted `INSERT, SELECT` on `audit_logs` and nothing else, so the database itself refuses
+an UPDATE or DELETE. `python scripts/postgres.py verify` demonstrates it:
+
+```
+[PASS] UPDATE on audit_logs is refused  --  permission denied for table audit_logs
+[PASS] DELETE on audit_logs is refused  --  permission denied for table audit_logs
+```
+
+**If Postgres is not running** the backend falls back to SQLite automatically and says so
+on `/api/health` under `store`, including `appendOnlyEnforced: false`. Same pattern as the
+rest of the project: constant velocity under the LSTM, the CPA rule under the classifier,
+replay under live — every layer has something underneath that still works.
+
+**Tables:** `audit_logs` (append-only), `conflicts` and `resolution_options` (working
+state, upserted each tick, behind `/api/conflicts/history`). Aircraft states stay in
+memory — there are about 300,000 a day and they are re-derivable from the feed.

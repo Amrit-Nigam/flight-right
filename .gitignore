@@ -62,3 +62,8 @@ ml_pipeline/reports/logs/
 # backend runtime artifacts
 server/audit.sqlite3
 server/*.sqlite3
+
+# Embedded PostgreSQL: the 800 MB of official binaries and the cluster data dir.
+# Both are reproducible from scripts/postgres.py (which downloads and initialises
+# them), so neither belongs in the repository.
+.postgres/
