@@ -291,9 +291,47 @@ class ConflictEngine:
         return {key: float(state[key]) for key in
                 ("latitude", "longitude", "altitude_m", "velocity_ms", "heading_deg", "vertical_rate_ms")}
 
+    def multipath_candidates(self, histories: Mapping[str, Sequence[Mapping[str, float]]]
+                             ) -> dict[str, Any]:
+        """Candidate paths for many aircraft in ONE model call.
+
+        This exists purely for speed, and the speed matters. sklearn's
+        HistGradientBoostingClassifier walks every tree of every class on each call -
+        40 patterns x 300 trees = 12,000 tree evaluations - and that cost is paid per
+        CALL, almost regardless of how many rows are in it. Predicting one pair at a
+        time therefore costs the same as predicting the whole airspace at once.
+
+        Measured on this machine: per-pair prediction ran at ~3.0 s per pair, so a
+        30-pair update took over 45 seconds against a ten-second budget. Batching turns
+        N_pairs calls into one.
+
+        The output is identical either way - the model is deterministic and each row is
+        independent of the others, so this changes when the arithmetic happens, not what
+        it produces.
+        """
+        if self.multipath is None:
+            return {}
+        usable = {key: states for key, states in histories.items() if len(states) >= INPUT_STEPS}
+        if not usable:
+            return {}
+        keys = list(usable)
+        X = np.concatenate([window_from_states(usable[key]) for key in keys])
+        probabilities, positions, patterns = self.multipath.predict(X)
+        return {
+            key: {
+                "paths": self.multipath.paths_for_cpa(X, index, probabilities, positions),
+                "probabilities": probabilities[index],
+                "positions": positions[index],
+                "patterns": patterns[index],
+            }
+            for index, key in enumerate(keys)
+        }
+
     def assess_pair(self, history_a: Sequence[Mapping[str, float]], history_b: Sequence[Mapping[str, float]],
                     pair_history: Sequence[Mapping[str, Any]] = (),
-                    traffic: Sequence[Mapping[str, Any]] = ()) -> dict[str, Any]:
+                    traffic: Sequence[Mapping[str, Any]] = (),
+                    candidates_a: Mapping[str, Any] | None = None,
+                    candidates_b: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Everything the dashboard needs for one pair, with a reason for each number.
 
         history_* are each aircraft's recent states, oldest first, at least ten. The
@@ -319,11 +357,21 @@ class ConflictEngine:
         # 2. Multi-path conflict probability over K x K candidate combinations, densified.
         cpa_for_tiering = rule_cpa
         resolution_paths_a = resolution_paths_b = None
-        if self.multipath is not None and len(history_a) >= INPUT_STEPS and len(history_b) >= INPUT_STEPS:
-            X = np.concatenate([window_from_states(history_a), window_from_states(history_b)])
-            probabilities, positions, patterns = self.multipath.predict(X)
-            paths_a = self.multipath.paths_for_cpa(X, 0, probabilities, positions)
-            paths_b = self.multipath.paths_for_cpa(X, 1, probabilities, positions)
+        have_candidates = candidates_a is not None and candidates_b is not None
+        if self.multipath is not None and (have_candidates or (
+                len(history_a) >= INPUT_STEPS and len(history_b) >= INPUT_STEPS)):
+            if have_candidates:
+                # Already computed for the whole airspace in one call this tick; see
+                # multipath_candidates() for why that matters.
+                paths_a, paths_b = candidates_a["paths"], candidates_b["paths"]
+                probabilities = np.stack([candidates_a["probabilities"], candidates_b["probabilities"]])
+                positions = np.stack([candidates_a["positions"], candidates_b["positions"]])
+                patterns = np.stack([candidates_a["patterns"], candidates_b["patterns"]])
+            else:
+                X = np.concatenate([window_from_states(history_a), window_from_states(history_b)])
+                probabilities, positions, patterns = self.multipath.predict(X)
+                paths_a = self.multipath.paths_for_cpa(X, 0, probabilities, positions)
+                paths_b = self.multipath.paths_for_cpa(X, 1, probabilities, positions)
             current_a = (state_a["latitude"], state_a["longitude"], state_a["altitude_m"])
             current_b = (state_b["latitude"], state_b["longitude"], state_b["altitude_m"])
             multipath_cpa = compute_cpa_from_paths(paths_a, paths_b, current_a, current_b)
