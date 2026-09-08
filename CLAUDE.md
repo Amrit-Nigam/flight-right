@@ -2116,6 +2116,58 @@ zero console errors and zero mock leakage.
 **Headline number unmoved at 94.0%.** No model, threshold, gate or hyperparameter was
 touched. `verify_pipeline.py` 110/110 and the 8 unit tests pass.
 
+### 2026-09-08 - The multi-path model is asked once per airspace, not once per pair
+
+**A real defect, found by watching the clock rather than by a failing test.** With the
+backend running against the recorded session, the assessment time per update climbed to
+**46-53 seconds for 27-33 pairs** - about **1,600 ms per pair** - against a ten-second
+surveillance budget. Nothing failed and no check caught it; the ingest loop simply fell
+further behind on every tick.
+
+**Diagnosed with cProfile, not by inspection.** 97% of the time was one line:
+
+```
+36000 calls   7.9 s   sklearn/.../_hist_gradient_boosting/predictor.py:49(predict)
+```
+
+12,000 individual tree evaluations *per pair*. `HistGradientBoostingClassifier` walks
+every tree of every class on each call - 40 patterns x 300 trees - and that cost is paid
+**per call, almost regardless of how many rows are in it**. `assess_pair` was calling it
+once per pair with two rows, so a 30-pair update paid the full 12,000-tree cost thirty
+times over to score sixty rows.
+
+**The fix.** `ConflictEngine.multipath_candidates(histories)` predicts for every eligible
+aircraft in **one** call; `conflict_service` does that once per tick and hands the
+per-aircraft results to `assess_pair` through new optional `candidates_a` / `candidates_b`
+arguments. When they are absent - `verify_pipeline.py` and `inference_check.py` call
+`assess_pair` directly - the original per-pair path still runs unchanged, so nothing that
+depended on the old signature broke.
+
+**This changes when the arithmetic happens, not what it produces.** The model is
+deterministic and each row is independent of the others, so the batched and per-pair
+paths return identical candidates.
+
+| | before | after |
+|---|---|---|
+| per pair | 1,600-3,000 ms | **21-34 ms** |
+| per update (15 pairs) | ~24 s | **~350 ms** |
+| per update with two tier 1 alarms (26 pairs) | 46 s | **1.7 s** |
+
+Roughly **130x**, and stable rather than degrading. The 1.7 s figure includes Model 3
+flying 26 candidate manoeuvres for each of two alarms, which is the expected cost.
+
+**Verified unchanged afterwards:** the same two alarms (`JZR533 x UAE325`,
+`UAE325 x ABY821`), same tiers, same severities, 3 Model 3 options each, multi-path
+probability still computed, rows still persisted. `verify_pipeline.py` 110/110, 8 unit
+tests, `inference_check.py` all pass.
+
+**The lesson worth keeping.** A model that is cheap on a batch can be ruinous one row at
+a time, and nothing in the test suite notices - every check still passed while the system
+was thirty times over its time budget. Timing is a correctness property here, because an
+update that takes 46 seconds is an update the controller does not get.
+
+**Headline number unmoved at 94.0%.** No model, threshold or gate was touched.
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -3185,3 +3237,47 @@ talking to the program you think you are.
 
 **Headline number:** unmoved at 94.0%. No model, setting or threshold was touched. This
 changes where decisions are recorded and what stops them being altered.
+
+### 2026-09-08 - The system was doing the same expensive calculation thirty times over
+
+**Files:** `server/app/ml/inference.py`, `server/app/services/conflict_service.py`.
+
+**The problem, and how it showed up.** Watching the running system, the time to check the
+airspace crept up to **46 seconds**. New aircraft positions arrive every ten seconds, so
+it was falling further behind on every single update - the screen would have drifted
+minutes out of date. Nothing crashed. Every automated check still passed. It was only
+visible by looking at the clock.
+
+**What was actually happening.** One of the models - the one that predicts the five paths
+an aircraft might take - is expensive to ask a question of. Not expensive per *aircraft*:
+expensive **per question**. Asking it about one aircraft costs almost exactly as much as
+asking it about forty, because internally it walks through all 12,000 of its decision
+trees either way.
+
+The code was asking it separately for every pair of aircraft. With thirty pairs, that is
+thirty full trips through 12,000 trees to answer questions about sixty aircraft - most of
+them the same aircraft, asked about again and again.
+
+**The fix.** Ask once per update, about every aircraft at the same time, then hand the
+answers out to whichever pairs need them. One trip instead of thirty.
+
+| | before | after |
+|---|---|---|
+| a typical update | 24 seconds | **0.35 seconds** |
+| a busy update with two alarms | 46 seconds | **1.7 seconds** |
+
+About **130 times faster**, and it no longer gets worse the longer it runs.
+
+**Nothing about the answers changed**, and that is the point: the model gives the same
+result whether you ask about one aircraft or forty, so this changed only *when* the
+arithmetic happens. Checked afterwards: the same two conflicts were found, with the same
+severity and the same three suggested manoeuvres each. All 110 automated checks still
+pass.
+
+**Why no test caught it.** Every check in this project asks "is the answer right?" None of
+them asked "did the answer arrive in time?" For a system that is supposed to warn a
+controller three minutes before two aircraft get too close, an answer that takes 46
+seconds to produce is not really an answer. That is worth remembering when writing the
+next test.
+
+**Headline number:** unmoved at 94.0%. No model or setting was changed.

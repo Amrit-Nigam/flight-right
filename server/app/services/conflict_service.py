@@ -102,9 +102,19 @@ class ConflictService:
         assessments: dict[tuple, dict] = {}
         skipped = 0
 
+        # The multi-path model is asked once for the whole airspace rather than once per
+        # pair. sklearn's HistGradientBoosting walks 40 patterns x 300 trees on every
+        # call regardless of how many rows it is given, so per-pair prediction cost about
+        # 3.0 s per pair here - over 45 s for a 30-pair update, against a ten-second
+        # budget. One batched call produces the identical result.
+        needed = {key for _, a, b in pairs for key in (a, b)}
+        engine_histories = {key: [to_engine_state(state) for state in histories[key]]
+                            for key in needed}
+        candidates = self.engine.multipath_candidates(engine_histories)
+
         for _, key_a, key_b in pairs:
-            history_a = [to_engine_state(state) for state in histories[key_a]]
-            history_b = [to_engine_state(state) for state in histories[key_b]]
+            history_a = engine_histories[key_a]
+            history_b = engine_histories[key_b]
             if len(history_a) < 10 or len(history_b) < 10:
                 skipped += 1
                 continue
@@ -113,7 +123,9 @@ class ConflictService:
             pair_key = tuple(sorted((callsign_a, callsign_b)))
             previous = self.pair_histories.get(pair_key, [])
             try:
-                result = self.engine.assess_pair(history_a, history_b, previous)
+                result = self.engine.assess_pair(
+                    history_a, history_b, previous,
+                    candidates_a=candidates.get(key_a), candidates_b=candidates.get(key_b))
             except Exception as failure:                     # noqa: BLE001
                 log.exception("assess_pair failed for %s: %s", pair_key, failure)
                 continue

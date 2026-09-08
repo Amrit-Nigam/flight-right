@@ -77,7 +77,8 @@ aircraft that really did converge over Mumbai.
 ## What to expect
 
 - **33–38 aircraft**, of which **20–28** clear the 10,000 ft en-route floor.
-- **15–30 pairs** assessed per update, in **1.8–2.5 s** against a ten-second budget.
+- **15–30 pairs** assessed per update, in **0.3–1.7 s** against a ten-second budget
+  (the upper end is when Model 3 is simulating manoeuvres for a live alarm).
 - A tier 1 alarm needs the pair to qualify on **three consecutive updates**, so allow about
   30 seconds after startup before anything fires.
 
