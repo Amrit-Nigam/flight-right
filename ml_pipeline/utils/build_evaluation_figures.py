@@ -154,9 +154,15 @@ finish(ax, "Multi-path: chance that one of K offered paths is within 5 NM at ten
        "% where at least one path is within 5 NM", "Number of candidate paths offered (K)")
 fig.savefig(FIGS / "multipath_bestofk.png"); plt.close(fig)
 
-before = [(0.348, 0.238), (0.649, 0.276), (0.852, 0.410), (0.972, 0.674)]
+# Reliability bands, all ten candidate options pooled on test arrivals, measured by
+# reevaluate_models.py against the saved pickle: (mean stated probability, how often it
+# actually happened). Every band with at least 20 options is shown.
+before = [(0.007, 0.030), (0.071, 0.126), (0.143, 0.173), (0.245, 0.186), (0.348, 0.238),
+          (0.449, 0.247), (0.549, 0.299), (0.649, 0.276), (0.748, 0.394), (0.852, 0.410),
+          (0.972, 0.674)]
 after_bands = [(0.016, 0.021), (0.070, 0.085), (0.141, 0.167), (0.244, 0.217),
-               (0.346, 0.282), (0.447, 0.339), (0.549, 0.444)]
+               (0.346, 0.282), (0.447, 0.339), (0.549, 0.444), (0.650, 0.451),
+               (0.750, 0.541), (0.858, 0.731), (0.932, 0.855)]
 fig, ax = plt.subplots(figsize=(6.4, 4.6))
 ax.plot([0, 1], [0, 1], color=INK3, lw=1.2, ls="--", zorder=2, label="Perfectly honest")
 ax.plot([b[0] for b in before], [b[1] for b in before], color=S2, lw=2, marker="s", ms=8,
@@ -404,16 +410,20 @@ finish(ax, "Alert precision by the model's stated confidence",
 fig.savefig(FIGS / "precision_by_band.png"); plt.close(fig)
 
 # ---- interruptions before / after the alert feed (real traffic replay) -----------
+# Two recorded OpenSky sessions replayed through the rule detector twice, with and
+# without the feed, by reevaluate_models.py. active_rows equals interruptions_before in
+# both, which is the direct proof that no confirmed pair-update left the display.
 M["feed_replay"] = [
-    {"session": "05 Sep, 00:30 IST", "pairs_before": 20, "pairs_after": 20,
-     "interruptions_before": 241, "interruptions_after": 89},
-    {"session": "03 Sep, 20:45 IST", "pairs_before": 10, "pairs_after": 10,
-     "interruptions_before": 119, "interruptions_after": 42},
+    {"session": "05 Sep, 00:30 IST", "frames": 536, "pairs_before": 49, "pairs_after": 49,
+     "lost": 0, "interruptions_before": 680, "interruptions_after": 179, "active_rows": 680},
+    {"session": "03 Sep, 20:45 IST", "frames": 540, "pairs_before": 56, "pairs_after": 56,
+     "lost": 0, "interruptions_before": 909, "interruptions_after": 235, "active_rows": 909},
 ]
-M["feed_reasons"] = [("Crossed into a shorter time band", 65), ("Genuinely new conflict", 30),
-                     ("Closed by more than 1 NM", 23), ("Escalated to tier 1", 12),
-                     ("Severity rose", 1), ("Heartbeat", 0)]
-fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.9))
+M["feed_reasons"] = [("Crossed into a shorter time band", 175), ("Genuinely new conflict", 105),
+                     ("Closed by more than 1 NM", 62), ("Escalated to a shorter tier", 45),
+                     ("Severity rose", 21), ("Heartbeat", 6)]
+fig, axes = plt.subplots(1, 2, figsize=(11.2, 3.9), gridspec_kw={"width_ratios": [1, 1.25]})
+plt.subplots_adjust(wspace=0.62)
 ax = axes[0]
 labels = [r["session"] for r in M["feed_replay"]]
 xp = np.arange(2)
@@ -423,10 +433,10 @@ b2 = ax.bar(xp + 0.19, [r["interruptions_after"] for r in M["feed_replay"]], 0.3
             label="After (repeat suppression)", zorder=3)
 for bars in (b1, b2):
     for bar in bars:
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 5, f"{int(bar.get_height())}",
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 18, f"{int(bar.get_height())}",
                 ha="center", color=INK2, fontsize=9)
-ax.set_xticks(xp); ax.set_xticklabels(labels, fontsize=9); ax.set_ylim(0, 285)
-ax.legend(loc="upper right", fontsize=8.5)
+ax.set_xticks(xp); ax.set_xticklabels(labels, fontsize=9); ax.set_ylim(0, 1250)
+ax.legend(loc="upper center", fontsize=8.5, ncol=1)
 finish(ax, "Interruptions per hour", "Real traffic replay. Same pairs reported in both.",
        "Alert messages")
 ax = axes[1]
@@ -435,16 +445,22 @@ rv = [r[1] for r in M["feed_reasons"] if r[1] > 0][::-1]
 bars = ax.barh(rl, rv, 0.6, color=SEQ[3], zorder=3)
 for bar, v in zip(bars, rv):
     ax.text(v + 1.2, bar.get_y() + bar.get_height() / 2, str(v), va="center", color=INK2, fontsize=9)
-ax.set_xlim(0, 80); ax.grid(axis="y", visible=False)
-finish(ax, "Why the remaining 131 fired", "Every one is a real change of state.", None, "Count")
+ax.set_xlim(0, 215); ax.grid(axis="y", visible=False)
+finish(ax, f"Why the remaining {sum(v for _, v in M['feed_reasons'])} fired",
+       "Every one is a real change of state.", None, "Count")
 fig.savefig(FIGS / "feed_interruptions.png"); plt.close(fig)
 
 # ---- Model 3 ---------------------------------------------------------------------
-M["model3"] = {"alarms": 41, "candidates_evaluated": 1066, "alarms_with_options": 31,
-               "alarms_with_nothing": 10, "instructions_offered": 77,
-               "instructions_for_real": 36, "instructions_for_false": 41,
-               "rejected_ineffective": 565, "blocked_unsafe": 0,
-               "by_time": [("0–60 s", 6, 3, 0.50), ("60–120 s", 14, 22, 1.57), ("120–180 s", 21, 52, 2.48)]}
+# Measured by reevaluate_models.py: every tier 1 alarm the saved classifier raises on
+# the test split, run through the real engine on a geometry reconstructed from the row.
+M["model3"] = {"alarms": 41, "alarms_real": 27, "alarms_false": 14,
+               "candidates_evaluated": 1066, "alarms_with_options": 31,
+               "alarms_with_nothing": 10, "instructions_offered": 76,
+               "instructions_for_real": 38, "instructions_for_false": 38,
+               "rejected_ineffective": 591, "rejected_domino": 0, "blocked_unsafe": 2,
+               "by_kind": {"altitude": 31, "heading": 29, "speed": 16},
+               "by_time": [("0–60 s", 11, 7, 0.64), ("60–120 s", 10, 19, 1.90),
+                           ("120–180 s", 20, 50, 2.50)]}
 fig, ax = plt.subplots(figsize=(7.0, 3.8))
 bands3 = [b[0] for b in M["model3"]["by_time"]]
 means = [b[3] for b in M["model3"]["by_time"]]
