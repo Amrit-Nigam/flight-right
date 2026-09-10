@@ -166,6 +166,8 @@ ml_pipeline/
 scripts/postgres.py     project-owned PostgreSQL: install, init, start, verify, reset
 docs/                   all project documentation, plus the figures and metrics.json
                         backing evaluation.md
+CLAUDE.md               a pointer that imports docs/CLAUDE.md, so Claude Code loads
+                        the project instructions automatically
 ```
 
 **Not in the repository** (all gitignored, all reproducible): raw OpenSky data, processed
