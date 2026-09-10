@@ -34,7 +34,7 @@ Measured on held-out test data from later dates than anything the models trained
 | Rule at the alert volume (8 NM / 1500 ft) | 87.3% |
 | **XGBoost classifier** | **94.0%** |
 
-Full metrics, charts and the rejected experiments are in **[evaluation.md](evaluation.md)**.
+Full metrics, charts and the rejected experiments are in **[docs/evaluation.md](docs/evaluation.md)**.
 
 ---
 
@@ -96,7 +96,7 @@ falls back to SQLite and says so on `/api/health` under `store`, including
 
 ## Running it
 
-Full detail, including data modes and troubleshooting, is in **[RUNNING.md](RUNNING.md)**.
+Full detail, including data modes and troubleshooting, is in **[docs/RUNNING.md](docs/RUNNING.md)**.
 
 ### First time
 
@@ -164,7 +164,8 @@ ml_pipeline/
   utils/                  CPA detection, resolution engine, alert feed, verification
   tests/                  unit tests and an end-to-end smoke test on fake data
 scripts/postgres.py     project-owned PostgreSQL: install, init, start, verify, reset
-docs/                   figures and metrics.json backing evaluation.md
+docs/                   all project documentation, plus the figures and metrics.json
+                        backing evaluation.md
 ```
 
 **Not in the repository** (all gitignored, all reproducible): raw OpenSky data, processed
@@ -253,10 +254,11 @@ Stated here rather than left for a reviewer to find.
 
 | File | What it is |
 |---|---|
-| [RUNNING.md](RUNNING.md) | How to run everything, data modes, troubleshooting |
-| [evaluation.md](evaluation.md) | Every metric beside the baseline it has to beat, with charts |
-| [PROJECT_STATUS.md](PROJECT_STATUS.md) | Plain-English status, vocabulary, file-by-file walkthrough |
-| [CLAUDE.md](CLAUDE.md) | The full decision log — every choice, the measurement behind it, and the experiments that failed |
+| [docs/RUNNING.md](docs/RUNNING.md) | How to run everything, data modes, troubleshooting |
+| [docs/ISSUES.md](docs/ISSUES.md) | Known issues — what does not work yet, found by testing the running system |
+| [docs/evaluation.md](docs/evaluation.md) | Every metric beside the baseline it has to beat, with charts |
+| [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Plain-English status, vocabulary, file-by-file walkthrough |
+| [docs/CLAUDE.md](docs/CLAUDE.md) | The full decision log — every choice, the measurement behind it, and the experiments that failed |
 | [ml_pipeline/README_TRAINING.md](ml_pipeline/README_TRAINING.md) | Training the models end to end |
 
 ---
