@@ -3281,3 +3281,69 @@ seconds to produce is not really an answer. That is worth remembering when writi
 next test.
 
 **Headline number:** unmoved at 94.0%. No model or setting was changed.
+
+### 2026-09-08 - Every model re-scored from its saved file, and two published numbers turned out to be wrong
+
+**Files:** `ml_pipeline/utils/reevaluate_models.py` (new), `evaluation.md` (rewritten),
+`ml_pipeline/utils/build_evaluation_figures.py`, `docs/figures/*.png`, `docs/metrics.json`.
+
+**Before.** The numbers in `evaluation.md` came from the training run of 6 September. To
+check whether they still described the model files actually sitting on disk, you had to
+retrain everything - twenty minutes and a graphics card - because several of the figures
+lived only inside training scripts, and a few others were typed into the chart-building
+script by hand from a terminal window that no longer exists.
+
+**Now.** One command, `python ml_pipeline/utils/reevaluate_models.py`, opens every saved
+model in a fresh program that has no access to the training code, measures it again on the
+held-out data, and writes every number to a dated JSON file. It trains nothing and changes
+no setting. Five sections: the trajectory model against plain arithmetic, the multi-path
+model's five-option hit rate and honesty check, the conflict classifier's full scorecard,
+the suggestion engine run over all 41 alarms, and two hours of recorded Mumbai traffic
+replayed with and without the alert feed.
+
+**What it found: almost everything reproduced exactly.** The headline number, the recall,
+the precision, the confusion matrix, the calibration figures, the best-of-five rate - all
+identical to the recorded values, to every decimal place printed. That is the answer to
+"can you reproduce your results", and it is now a command rather than a claim.
+
+**Two published numbers did not survive, and both are corrected in `evaluation.md`.**
+
+1. **The explanation of *why* the classifier beats the geometric rule was partly wrong.**
+   The document said that on the conflicts the rule misses, the faster aircraft is climbing
+   or descending at "a median 2.60 m/s against 0.33 m/s across all rows - eight times
+   higher". Re-measured on the current test split, the median is **0.33 m/s in both
+   groups**, because most aircraft in both groups are flying level, so a median cannot
+   separate them. The effect is real but it is distributional, not a median shift:
+   **44.4% of the missed pairs have an aircraft climbing or descending faster than 2.5 m/s,
+   against 32.6% of all pairs.** The rest of the explanation stands and is if anything
+   stronger: **all 36** of the rule's misses are vertical misses (it predicts a median
+   2,534 ft gap where the real gap turns out to be 565 ft), and the model catches **21 of
+   those 36** while the rule catches only **2** of the model's 17 misses.
+2. **The alert-feed replay could not be reproduced as published.** The 7 September table
+   reported 20 and 10 aircraft pairs with a 63-65% cut in interruptions. The script that
+   produced it was never committed, so its pair pre-filter is unrecoverable. Re-run with
+   the pre-filter **the backend actually ships** (within 60 NM and 5,000 ft), the same two
+   sessions give 49 and 56 pairs and a **73.7% and 74.1%** cut. The two facts the table
+   exists to prove reproduce identically either way: **zero pairs lost**, and the number of
+   rows drawn on screen equalling the old message count exactly (680 and 909). The replay
+   now lives in the committed script.
+
+**Model 3's counts moved by one or two for the same reason** - the earlier sweep's geometry
+reconstruction was not kept either. The new one is committed and self-checking: it rebuilds
+each encounter's geometry from the row's own features and confirms the rebuild reproduces
+that row's predicted closest approach to a median of **0.004 NM**, about seven metres.
+Result: 41 alarms, 1,066 instructions simulated, 31 alarms with at least one workable
+option, 10 with none, **76 offered** (was 77), split 38 real / 38 false (was 36 / 41), and
+**2** instructions blocked for leaving the safe flight envelope (was 0).
+
+**`evaluation.md` was rewritten so every number is explained beside it**, in language
+aimed at someone who knows neither machine learning nor aviation: what recall and precision
+actually count, why accuracy is banned here (a model that says "no conflict" to everything
+scores 93.5%), what the four boxes of a confusion matrix mean, what a calibration error of
+0.019 is measuring, why best-of-five is not accuracy, and why the sideways error overtaking
+the along-track error at ten minutes is the number to worry about. Two charts were also
+rebuilt: the calibration chart had been drawn from four hand-copied points and now uses all
+eleven measured bands, and the interruptions chart had labels sitting on top of each other.
+
+**Headline number: unmoved at 94.0%**, and that is the main result - re-measuring the
+saved models from scratch returned the same figure. Nothing was trained, tuned or changed.
