@@ -5,7 +5,7 @@
         "horizon": "1 min",
         "n": 38110,
         "cv_mean_nm": 0.4924164946839603,
-        "lstm_mean_nm": 0.450251504073084,
+        "lstm_mean_nm": 0.4502506157045149,
         "gbt_mean_nm": 0.43,
         "cv_within5": 98.42561007609552,
         "lstm_within5": 98.46496982419312,
@@ -13,57 +13,57 @@
         "cv_within1": 89.08160587772238,
         "lstm_within1": 90.28076620309628,
         "gbt_within1": 90.8,
-        "lstm_cross_mae_nm": 0.1252677253134394,
-        "lstm_along_mae_nm": 0.3699792211100893,
-        "lstm_alt_mae_ft": 98.63253026327902
+        "lstm_cross_mae_nm": 0.1252669972816686,
+        "lstm_along_mae_nm": 0.3699789638351911,
+        "lstm_alt_mae_ft": 98.63343454397824
       },
       {
         "horizon": "3 min",
         "n": 32324,
         "cv_mean_nm": 1.6880998484684555,
-        "lstm_mean_nm": 1.3755428743144,
+        "lstm_mean_nm": 1.3755302770187414,
         "gbt_mean_nm": 1.27,
         "cv_within5": 89.46293775522831,
-        "lstm_within5": 91.9626283875758,
+        "lstm_within5": 91.95953471105062,
         "gbt_within5": 92.6,
         "cv_within1": 67.9000123747061,
-        "lstm_within1": 71.71142185373097,
+        "lstm_within1": 71.71451553025615,
         "gbt_within1": 73.4,
-        "lstm_cross_mae_nm": 0.8112052471933988,
-        "lstm_along_mae_nm": 0.8311057411750399,
-        "lstm_alt_mae_ft": 304.28829707706683
+        "lstm_cross_mae_nm": 0.8111920157150229,
+        "lstm_along_mae_nm": 0.8311022378693348,
+        "lstm_alt_mae_ft": 304.2594927875106
       },
       {
         "horizon": "5 min",
         "n": 27587,
         "cv_mean_nm": 3.65365631441447,
-        "lstm_mean_nm": 2.687808630663087,
+        "lstm_mean_nm": 2.6878650009516534,
         "gbt_mean_nm": 2.39,
         "cv_within5": 77.32990176532425,
         "lstm_within5": 82.9049914814949,
         "gbt_within5": 85.1,
         "cv_within1": 52.01725450393301,
-        "lstm_within1": 56.10613694856272,
+        "lstm_within1": 56.11338674013122,
         "gbt_within1": 60.1,
-        "lstm_cross_mae_nm": 1.7998370188021384,
-        "lstm_along_mae_nm": 1.4480845060042635,
-        "lstm_alt_mae_ft": 509.622650035664
+        "lstm_cross_mae_nm": 1.7998910685343503,
+        "lstm_along_mae_nm": 1.448093488955795,
+        "lstm_alt_mae_ft": 509.5806158741148
       },
       {
         "horizon": "10 min",
         "n": 18662,
         "cv_mean_nm": 10.304965389915518,
-        "lstm_mean_nm": 6.409400133581066,
+        "lstm_mean_nm": 6.40930729210663,
         "gbt_mean_nm": 5.57,
         "cv_within5": 50.50369735290966,
-        "lstm_within5": 61.32247347551173,
+        "lstm_within5": 61.311756510556215,
         "gbt_within5": 65.7,
         "cv_within1": 28.9947486871718,
-        "lstm_within1": 24.72403815239524,
+        "lstm_within1": 24.729396634873005,
         "gbt_within1": 33.1,
-        "lstm_cross_mae_nm": 4.957209028210325,
-        "lstm_along_mae_nm": 2.8064409967079635,
-        "lstm_alt_mae_ft": 1108.6249255197574
+        "lstm_cross_mae_nm": 4.956989784814763,
+        "lstm_along_mae_nm": 2.8066012591558898,
+        "lstm_alt_mae_ft": 1108.5739704360292
       }
     ]
   },
@@ -337,73 +337,87 @@
   "feed_replay": [
     {
       "session": "05 Sep, 00:30 IST",
-      "pairs_before": 20,
-      "pairs_after": 20,
-      "interruptions_before": 241,
-      "interruptions_after": 89
+      "frames": 536,
+      "pairs_before": 49,
+      "pairs_after": 49,
+      "lost": 0,
+      "interruptions_before": 680,
+      "interruptions_after": 179,
+      "active_rows": 680
     },
     {
       "session": "03 Sep, 20:45 IST",
-      "pairs_before": 10,
-      "pairs_after": 10,
-      "interruptions_before": 119,
-      "interruptions_after": 42
+      "frames": 540,
+      "pairs_before": 56,
+      "pairs_after": 56,
+      "lost": 0,
+      "interruptions_before": 909,
+      "interruptions_after": 235,
+      "active_rows": 909
     }
   ],
   "feed_reasons": [
     [
       "Crossed into a shorter time band",
-      65
+      175
     ],
     [
       "Genuinely new conflict",
-      30
+      105
     ],
     [
       "Closed by more than 1 NM",
-      23
+      62
     ],
     [
-      "Escalated to tier 1",
-      12
+      "Escalated to a shorter tier",
+      45
     ],
     [
       "Severity rose",
-      1
+      21
     ],
     [
       "Heartbeat",
-      0
+      6
     ]
   ],
   "model3": {
     "alarms": 41,
+    "alarms_real": 27,
+    "alarms_false": 14,
     "candidates_evaluated": 1066,
     "alarms_with_options": 31,
     "alarms_with_nothing": 10,
-    "instructions_offered": 77,
-    "instructions_for_real": 36,
-    "instructions_for_false": 41,
-    "rejected_ineffective": 565,
-    "blocked_unsafe": 0,
+    "instructions_offered": 76,
+    "instructions_for_real": 38,
+    "instructions_for_false": 38,
+    "rejected_ineffective": 591,
+    "rejected_domino": 0,
+    "blocked_unsafe": 2,
+    "by_kind": {
+      "altitude": 31,
+      "heading": 29,
+      "speed": 16
+    },
     "by_time": [
       [
         "0\u201360 s",
-        6,
-        3,
-        0.5
+        11,
+        7,
+        0.64
       ],
       [
         "60\u2013120 s",
-        14,
-        22,
-        1.57
+        10,
+        19,
+        1.9
       ],
       [
         "120\u2013180 s",
-        21,
-        52,
-        2.48
+        20,
+        50,
+        2.5
       ]
     ]
   }
