@@ -16,22 +16,13 @@ import {
 const VABB_LAT = 19.0896;
 const VABB_LNG = 72.8656;
 
-const INITIAL_FLIGHTS = [
-  { callsign: "AI6302", lat: 18.88, lng: 72.55, heading: 45, speed: 420, altitude: "FL280", status: "conflict", cpaPair: "SG881" },
-  { callsign: "SG881", lat: 18.82, lng: 73.15, heading: 320, speed: 210, altitude: "FL270", status: "holding", cpaPair: "AI6302" },
-  { callsign: "EK512", lat: 19.25, lng: 72.4, heading: 272, speed: 165, altitude: "4800ft", status: "landing" },
-  { callsign: "9W445", lat: 19.1, lng: 73.0, heading: 90, speed: 190, altitude: "1200ft", status: "takeoff" },
-  { callsign: "UK965", lat: 20.5, lng: 73.6, heading: 15, speed: 470, altitude: "FL350", status: "cruise" },
-  { callsign: "6E741", lat: 19.3, lng: 72.5, heading: 265, speed: 180, altitude: "6200ft", status: "approach" },
-  { callsign: "QR552", lat: 19.09, lng: 72.86, heading: 90, speed: 0, altitude: "GND", status: "departing" },
-  { callsign: "BA118", lat: 21.2, lng: 71.5, heading: 110, speed: 490, altitude: "FL390", status: "cruise" },
-  { callsign: "AA258", lat: 19.5, lng: 72.3, heading: 268, speed: 200, altitude: "9400ft", status: "approach" },
-  { callsign: "G8423", lat: 18.2, lng: 73.1, heading: 180, speed: 215, altitude: "FL140", status: "holding" },
-  { callsign: "TK718", lat: 22.1, lng: 72.0, heading: 120, speed: 480, altitude: "FL360", status: "cruise" },
-  { callsign: "IX304", lat: 19.15, lng: 72.55, heading: 270, speed: 155, altitude: "3100ft", status: "landing" },
-  { callsign: "LD501", lat: 19.12, lng: 72.92, heading: 95, speed: 210, altitude: "2400ft", status: "takeoff" },
-  { callsign: "SJ302", lat: 17.5, lng: 74.2, heading: 135, speed: 460, altitude: "FL370", status: "cruise" },
-];
+// Shape only. The map draws whatever the backend sends; there is no seeded traffic,
+// because a map that invents aircraft when the feed is quiet is worse than a blank one.
+const INITIAL_FLIGHTS: {
+  callsign: string; lat: number; lng: number; heading: number; speed: number;
+  altitude: string; status: string; cpaPair?: string | null;
+}[] = [];
+
 
 const STATUS_COLORS_DARK: Record<string, string> = {
   landing: "#00e5cc",
@@ -82,17 +73,15 @@ const APPROACH_PATHS = [
   ] as [number, number][] },
 ];
 
-const CONFLICT_PLAN = {
-  primary: "AI6302",
-  secondary: "SG881",
-  cpa: [19.14, 72.86] as [number, number],
-  cpaLabel: "CPA 2.1 NM / T-04:20",
-  minimum: "MIN SEP 3 NM",
-  actions: [
-    "AI6302: descend FL260, turn left heading 020",
-    "SG881: maintain FL270, turn right heading 350",
-    "Controller: contact AI6302 first, then SG881 readback",
-  ],
+
+// Built from the live conflict prop. Nothing here is hardcoded to a callsign any more.
+const EMPTY_PLAN = {
+  primary: null as string | null,
+  secondary: null as string | null,
+  cpa: null as [number, number] | null,
+  cpaLabel: "",
+  minimum: "MIN SEP 5 NM / 1000 FT (en-route)",
+  actions: [] as string[],
 };
 
 const FILTER_OPTS = ["ALL", "LANDING", "DEPARTING", "CONFLICTS"];
@@ -319,6 +308,7 @@ function FlightRadarGeoLayers({ isLight, hasActiveConflict }: { isLight: boolean
       });
 
       if (hasActiveConflict) {
+        if (!CONFLICT_PLAN.cpa) return;
         const [cpaLat, cpaLng] = CONFLICT_PLAN.cpa;
         const outerRing = circleRingLngLat(cpaLng, cpaLat, 5556);
         const innerRing = circleRingLngLat(cpaLng, cpaLat, 3889);
@@ -389,50 +379,63 @@ type PropFlight = {
 
 export default function FlightRadarMap({
   flights: propFlights,
+  conflict,
   selectedFlight,
   onSelectFlight,
   theme,
 }: {
   flights?: PropFlight[];
+  conflict?: any;
   selectedFlight: string | null;
   onSelectFlight?: (callsign: string, meta?: { surface?: string }) => void;
   theme: string;
 }) {
   const [liveFlights, setLiveFlights] = useState<LiveFlight[]>(INITIAL_FLIGHTS);
+
+  // The conflict overlay comes from the detection chain, not from a fixed scenario.
+  const CONFLICT_PLAN = useMemo(() => {
+    if (!conflict) return EMPTY_PLAN;
+    const primary = propFlights?.find((f) => f.callsign === conflict.flight1) as any;
+    const secondary = propFlights?.find((f) => f.callsign === conflict.flight2) as any;
+    const cpa: [number, number] | null =
+      primary?.lat != null && secondary?.lat != null
+        ? [(primary.lat + secondary.lat) / 2, (primary.lng + secondary.lng) / 2]
+        : null;
+    return {
+      primary: conflict.flight1,
+      secondary: conflict.flight2,
+      cpa,
+      cpaLabel: `CPA ${Number(conflict.cpaNM).toFixed(2)} NM / T-${Math.round(conflict.countdown)}s`,
+      minimum: EMPTY_PLAN.minimum,
+      actions: (conflict.resolution?.options || []).map((o: any) => o.explanation).slice(0, 3),
+    };
+  }, [conflict, propFlights]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [altFilter, setAltFilter] = useState("ALL ALT");
 
+  // The backend is the source of truth. The old version matched incoming flights
+  // against a fixed list by callsign and silently dropped everything that did not
+  // match, which meant real traffic never appeared on the map at all.
   useEffect(() => {
-    if (!propFlights?.length) return;
-    setLiveFlights((prev) =>
-      prev.map((lf) => {
-        const pf = propFlights.find((p) => p.callsign === lf.callsign);
-        if (!pf) return lf;
-        return {
-          ...lf,
-          status: (pf.status || lf.status).toLowerCase(),
-          altitude: pf.altitude || lf.altitude,
-          speed: parseInt(String(pf.speed), 10) || lf.speed,
-          heading: pf.heading ?? lf.heading,
-          cpaPair: pf.cpaPair ?? null,
-        };
-      }),
+    if (!propFlights) return;
+    setLiveFlights(
+      propFlights
+        .filter((p: any) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+        .map((p: any) => ({
+          callsign: p.callsign,
+          lat: p.lat,
+          lng: p.lng,
+          heading: p.heading ?? 0,
+          speed: Number(p.speedKt ?? parseInt(String(p.speed), 10)) || 0,
+          altitude: p.altitude || "GND",
+          status: String(p.status || "cruise").toLowerCase(),
+          cpaPair: p.cpaPair ?? null,
+        })),
     );
   }, [propFlights]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setLiveFlights((prev) =>
-        prev.map((f) => {
-          if (f.speed === 0) return f;
-          const hdRad = (f.heading * Math.PI) / 180;
-          const dist = (f.speed * 0.000290 * 2) / 3600;
-          return { ...f, lat: f.lat + dist * Math.cos(hdRad), lng: f.lng + dist * Math.sin(hdRad) };
-        }),
-      );
-    }, 2000);
-    return () => clearInterval(id);
-  }, []);
+  // No dead-reckoning between updates: positions come from the feed, and moving them
+  // ourselves would put the icon somewhere the aircraft is not.
 
   const isLight = theme === "light";
 
@@ -469,7 +472,7 @@ export default function FlightRadarMap({
   const tealAccent = isLight ? "#0f766e" : "#00e5cc";
   const bgColor = isLight ? "var(--bg-base)" : "#060608";
 
-  const [cpaLng, cpaLat] = [CONFLICT_PLAN.cpa[1], CONFLICT_PLAN.cpa[0]];
+  const [cpaLng, cpaLat] = CONFLICT_PLAN.cpa ? [CONFLICT_PLAN.cpa[1], CONFLICT_PLAN.cpa[0]] : [0, 0];
   const red = isLight ? "#b91c1c" : "#ff2d2d";
 
   return (
@@ -521,7 +524,7 @@ export default function FlightRadarMap({
                 .filter(Boolean) as LiveFlight[];
               if (conflictFlights.length < 2) return null;
               const [f1, f2] = conflictFlights;
-              const [cpaLat2, cpaLng2] = CONFLICT_PLAN.cpa;
+              const [cpaLat2, cpaLng2] = CONFLICT_PLAN.cpa || [0, 0];
               const cpaPt: [number, number] = [cpaLng2, cpaLat2];
               return (
                 <>

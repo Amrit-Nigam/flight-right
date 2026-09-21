@@ -1,0 +1,424 @@
+{
+  "model1": {
+    "horizons": [
+      {
+        "horizon": "1 min",
+        "n": 38110,
+        "cv_mean_nm": 0.4924164946839603,
+        "lstm_mean_nm": 0.4502506157045149,
+        "gbt_mean_nm": 0.43,
+        "cv_within5": 98.42561007609552,
+        "lstm_within5": 98.46496982419312,
+        "gbt_within5": 98.5,
+        "cv_within1": 89.08160587772238,
+        "lstm_within1": 90.28076620309628,
+        "gbt_within1": 90.8,
+        "lstm_cross_mae_nm": 0.1252669972816686,
+        "lstm_along_mae_nm": 0.3699789638351911,
+        "lstm_alt_mae_ft": 98.63343454397824
+      },
+      {
+        "horizon": "3 min",
+        "n": 32324,
+        "cv_mean_nm": 1.6880998484684555,
+        "lstm_mean_nm": 1.3755302770187414,
+        "gbt_mean_nm": 1.27,
+        "cv_within5": 89.46293775522831,
+        "lstm_within5": 91.95953471105062,
+        "gbt_within5": 92.6,
+        "cv_within1": 67.9000123747061,
+        "lstm_within1": 71.71451553025615,
+        "gbt_within1": 73.4,
+        "lstm_cross_mae_nm": 0.8111920157150229,
+        "lstm_along_mae_nm": 0.8311022378693348,
+        "lstm_alt_mae_ft": 304.2594927875106
+      },
+      {
+        "horizon": "5 min",
+        "n": 27587,
+        "cv_mean_nm": 3.65365631441447,
+        "lstm_mean_nm": 2.6878650009516534,
+        "gbt_mean_nm": 2.39,
+        "cv_within5": 77.32990176532425,
+        "lstm_within5": 82.9049914814949,
+        "gbt_within5": 85.1,
+        "cv_within1": 52.01725450393301,
+        "lstm_within1": 56.11338674013122,
+        "gbt_within1": 60.1,
+        "lstm_cross_mae_nm": 1.7998910685343503,
+        "lstm_along_mae_nm": 1.448093488955795,
+        "lstm_alt_mae_ft": 509.5806158741148
+      },
+      {
+        "horizon": "10 min",
+        "n": 18662,
+        "cv_mean_nm": 10.304965389915518,
+        "lstm_mean_nm": 6.40930729210663,
+        "gbt_mean_nm": 5.57,
+        "cv_within5": 50.50369735290966,
+        "lstm_within5": 61.311756510556215,
+        "gbt_within5": 65.7,
+        "cv_within1": 28.9947486871718,
+        "lstm_within1": 24.729396634873005,
+        "gbt_within1": 33.1,
+        "lstm_cross_mae_nm": 4.956989784814763,
+        "lstm_along_mae_nm": 2.8066012591558898,
+        "lstm_alt_mae_ft": 1108.5739704360292
+      }
+    ]
+  },
+  "model1b": {
+    "best_of_k": [
+      {
+        "method": "Constant velocity",
+        "arrivals": 15.8,
+        "all": 50.5
+      },
+      {
+        "method": "Single-answer LSTM",
+        "arrivals": 34.8,
+        "all": 61.3
+      },
+      {
+        "method": "Multi-path, 1 option",
+        "arrivals": 38.6,
+        "all": 64.0
+      },
+      {
+        "method": "Multi-path, 3 options",
+        "arrivals": 57.9,
+        "all": 79.0
+      },
+      {
+        "method": "Multi-path, 5 options",
+        "arrivals": 63.6,
+        "all": 83.0
+      },
+      {
+        "method": "Multi-path, 10 options",
+        "arrivals": 68.8,
+        "all": 86.5
+      }
+    ],
+    "temperature": 1.729,
+    "ece_arrivals": [
+      0.054,
+      0.019
+    ],
+    "ece_all": [
+      0.04,
+      0.012
+    ]
+  },
+  "model2": {
+    "rows": {
+      "train": 28746,
+      "val": 6564,
+      "test": 4690
+    },
+    "conflict_rate": {
+      "train": 0.0635914562026021,
+      "val": 0.06855575868372943,
+      "test": 0.06460554371002132
+    },
+    "decision_threshold": 0.08512286096811295,
+    "pr_auc": 0.8040280172158341,
+    "test": {
+      "threshold": 0.08512286096811295,
+      "recall": 0.9438943894389439,
+      "precision": 0.3864864864864865,
+      "f1": 0.548418024928092,
+      "fbeta_2": 0.7325819672131147,
+      "false_alarms_per_1000": 96.80170575692964,
+      "true_positive": 286,
+      "false_positive": 454,
+      "false_negative": 17,
+      "true_negative": 3933,
+      "alert_rate": 0.15778251599147122
+    },
+    "rule_alert_volume": {
+      "recall": 0.8811881188118812,
+      "precision": 0.4355628058727569,
+      "fbeta_2": 0.7315068493150685,
+      "false_alarms_per_1000": 73.77398720682304,
+      "false_negative": 36,
+      "alert_rate": 0.1307036247334755
+    },
+    "rule_legal_minimum": {
+      "recall": 0.8250825082508251,
+      "precision": 0.6203473945409429,
+      "fbeta_2": 0.7739938080495357,
+      "false_alarms_per_1000": 32.62260127931769,
+      "false_negative": 53,
+      "alert_rate": 0.0859275053304904
+    },
+    "headline_three_minute_warning": {
+      "rule_legal_minimum": {
+        "rate": 0.8169014084507042,
+        "caught": 232,
+        "total": 284
+      },
+      "rule_alert_volume": {
+        "rate": 0.8732394366197183,
+        "caught": 248,
+        "total": 284
+      },
+      "xgboost": {
+        "rate": 0.9401408450704225,
+        "caught": 267,
+        "total": 284
+      }
+    },
+    "calibration": {
+      "raw XGBoost": {
+        "brier": 0.029837502166628838,
+        "ece": 0.03215877057841497
+      },
+      "Platt-calibrated": {
+        "brier": 0.023613900481237154,
+        "ece": 0.007435716557759968
+      }
+    },
+    "gates": {
+      "gate_1_recall_floor": false,
+      "gate_2_beats_rule": true
+    },
+    "median_warning_seconds": 330.0,
+    "recall_margin_what_if": [
+      {
+        "margin": 0.0,
+        "threshold": 0.08512286096811295,
+        "validation_target_met": true,
+        "test_recall": 0.9438943894389439,
+        "test_precision": 0.3864864864864865,
+        "false_alarms_per_1000": 96.80170575692964,
+        "missed": 17,
+        "headline": 0.9401408450704225,
+        "gate_1": false
+      },
+      {
+        "margin": 0.005,
+        "threshold": 0.08090023696422577,
+        "validation_target_met": true,
+        "test_recall": 0.9438943894389439,
+        "test_precision": 0.3798140770252324,
+        "false_alarms_per_1000": 99.57356076759062,
+        "missed": 17,
+        "headline": 0.9401408450704225,
+        "gate_1": false
+      },
+      {
+        "margin": 0.01,
+        "threshold": 0.07167501002550125,
+        "validation_target_met": true,
+        "test_recall": 0.9438943894389439,
+        "test_precision": 0.3561643835616438,
+        "false_alarms_per_1000": 110.23454157782515,
+        "missed": 17,
+        "headline": 0.9401408450704225,
+        "gate_1": false
+      },
+      {
+        "margin": 0.02,
+        "threshold": 0.04794962331652641,
+        "validation_target_met": true,
+        "test_recall": 0.9636963696369637,
+        "test_precision": 0.30259067357512953,
+        "false_alarms_per_1000": 143.49680170575692,
+        "missed": 11,
+        "headline": 0.9612676056338029,
+        "gate_1": true
+      }
+    ],
+    "shap_top": [
+      [
+        "predicted_cpa_lateral_nm",
+        1.9542022943496704
+      ],
+      [
+        "current_vertical_separation_ft",
+        1.7917735576629639
+      ],
+      [
+        "predicted_cpa_vertical_ft",
+        1.1831574440002441
+      ],
+      [
+        "predicted_time_to_cpa_seconds",
+        0.42690321803092957
+      ],
+      [
+        "closing_speed_ms",
+        0.3336188793182373
+      ],
+      [
+        "vertical_convergence_rate_ms",
+        0.23981410264968872
+      ],
+      [
+        "min_distance_to_vabb_nm",
+        0.19396835565567017
+      ],
+      [
+        "a_altitude_ft",
+        0.1829681396484375
+      ]
+    ]
+  },
+  "frontend": {
+    "pairs_assessed": 4690,
+    "real_conflicts": 303,
+    "prominent": {
+      "n": 555,
+      "real": 279,
+      "false": 276,
+      "precision": 0.5027027027027027
+    },
+    "collapsed": {
+      "n": 185,
+      "real": 7,
+      "false": 178
+    },
+    "not_shown": {
+      "n": 3950,
+      "real": 17,
+      "false": 3933
+    },
+    "tier1": {
+      "n": 41,
+      "real": 27,
+      "false": 14
+    },
+    "tier2": {
+      "n": 699,
+      "real": 259,
+      "false": 440
+    },
+    "removed_from_active": 0
+  },
+  "bands": [
+    {
+      "band": "0.09\u20130.15",
+      "alerts": 171,
+      "real": 5,
+      "precision": 0.029239766081871343
+    },
+    {
+      "band": "0.15\u20130.25",
+      "alerts": 104,
+      "real": 6,
+      "precision": 0.057692307692307696
+    },
+    {
+      "band": "0.25\u20130.40",
+      "alerts": 54,
+      "real": 7,
+      "precision": 0.12962962962962962
+    },
+    {
+      "band": "0.40\u20130.60",
+      "alerts": 43,
+      "real": 10,
+      "precision": 0.23255813953488372
+    },
+    {
+      "band": "0.60\u20130.80",
+      "alerts": 36,
+      "real": 20,
+      "precision": 0.5555555555555556
+    },
+    {
+      "band": "0.80\u20131.00",
+      "alerts": 332,
+      "real": 238,
+      "precision": 0.7168674698795181
+    }
+  ],
+  "feed_replay": [
+    {
+      "session": "05 Sep, 00:30 IST",
+      "frames": 536,
+      "pairs_before": 49,
+      "pairs_after": 49,
+      "lost": 0,
+      "interruptions_before": 680,
+      "interruptions_after": 179,
+      "active_rows": 680
+    },
+    {
+      "session": "03 Sep, 20:45 IST",
+      "frames": 540,
+      "pairs_before": 56,
+      "pairs_after": 56,
+      "lost": 0,
+      "interruptions_before": 909,
+      "interruptions_after": 235,
+      "active_rows": 909
+    }
+  ],
+  "feed_reasons": [
+    [
+      "Crossed into a shorter time band",
+      175
+    ],
+    [
+      "Genuinely new conflict",
+      105
+    ],
+    [
+      "Closed by more than 1 NM",
+      62
+    ],
+    [
+      "Escalated to a shorter tier",
+      45
+    ],
+    [
+      "Severity rose",
+      21
+    ],
+    [
+      "Heartbeat",
+      6
+    ]
+  ],
+  "model3": {
+    "alarms": 41,
+    "alarms_real": 27,
+    "alarms_false": 14,
+    "candidates_evaluated": 1066,
+    "alarms_with_options": 31,
+    "alarms_with_nothing": 10,
+    "instructions_offered": 76,
+    "instructions_for_real": 38,
+    "instructions_for_false": 38,
+    "rejected_ineffective": 591,
+    "rejected_domino": 0,
+    "blocked_unsafe": 2,
+    "by_kind": {
+      "altitude": 31,
+      "heading": 29,
+      "speed": 16
+    },
+    "by_time": [
+      [
+        "0\u201360 s",
+        11,
+        7,
+        0.64
+      ],
+      [
+        "60\u2013120 s",
+        10,
+        19,
+        1.9
+      ],
+      [
+        "120\u2013180 s",
+        20,
+        50,
+        2.5
+      ]
+    ]
+  }
+}

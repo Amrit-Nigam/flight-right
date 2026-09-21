@@ -9,7 +9,7 @@ export default function RunwayStatusPanel() {
     <div className="panel p-5">
       <div className="flex items-center justify-between mb-6 gap-3">
         <h3 className="font-display text-[12px] sm:text-[13px] tracking-widest text-[var(--text-primary)] whitespace-nowrap">
-          RUNWAY UTILIZATION
+          RUNWAY UTILIZATION (DEMO DATA)
         </h3>
         <div className="flex items-center gap-3">
           {!isBalanced && (

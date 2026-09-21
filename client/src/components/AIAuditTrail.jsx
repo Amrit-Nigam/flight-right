@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { aiAuditLog } from "@/data/mockData";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { logActivity, logAudit } from "@/lib/siteLogger";
 import { History, ChevronDown, ChevronUp, RotateCcw, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 
@@ -11,23 +11,36 @@ const OUTCOME_STYLES = {
   pending:  { color: "var(--teal)",   icon: AlertCircle,   label: "Pending" },
 };
 
+// Map a stored audit row onto the shape this list renders. The outcome comes from the
+// controller's recorded decision, not from anything the system did on its own.
+function present(entry) {
+  const outcome = entry.decision === "accepted" ? "accepted"
+    : entry.decision === "dismissed" ? "rejected"
+    : entry.level === "system" ? "pending" : "modified";
+  return {
+    id: entry.id,
+    time: new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+    action: entry.action,
+    flight: entry.callsign || entry.conflictId || entry.source,
+    outcome,
+    by: entry.userId || entry.source,
+    confidence: entry.confidence != null ? `${Math.round(entry.confidence * 100)}%` : "--",
+  };
+}
+
 export default function AIAuditTrail({ isOpen, onToggle }) {
+  const { entries: raw, total, error } = useAuditLog({ limit: 40, poll: isOpen });
+  const entries = raw.map(present);
   const [undoneIds, setUndoneIds] = useState(new Set());
 
-  const handleUndo = (idx) => {
-    const entry = aiAuditLog[idx];
-    logAudit("ai:audit", "AI audit list UNDO control activated", {
-      index: idx,
-      flight: entry?.flight,
-      outcome: entry?.outcome,
+  const handleUndo = (id) => {
+    const entry = entries.find((e) => e.id === id);
+    logAudit("ai:audit", "Audit entry marked as reverted by the controller", {
+      id, flight: entry?.flight, outcome: entry?.outcome,
     });
-    logActivity("ai:audit", "Undo mock AI audit entry (session UI only)", {
-      index: idx,
-      flight: entry?.flight,
-      actionSnippet: entry?.action?.slice(0, 80),
-    });
-    setUndoneIds(p => new Set([...p, idx]));
-    window.dispatchEvent(new CustomEvent("show-toast", { detail: "AI Action reverted to manual controller state." }));
+    logActivity("ai:audit", "Controller marked an entry reverted", { id });
+    setUndoneIds(p => new Set([...p, id]));
+    window.dispatchEvent(new CustomEvent("show-toast", { detail: "Marked as reverted. The original entry is kept: the log is append-only." }));
   };
 
   return (
@@ -74,21 +87,26 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
                 <span className="font-display text-[12px] tracking-widest" style={{ color: 'var(--teal)' }}>AI AUDIT TRAIL</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="font-display text-[10px]" style={{ color: 'var(--text-muted)' }}>Current session · {aiAuditLog.length} actions</span>
+                <span className="font-display text-[10px]" style={{ color: 'var(--text-muted)' }}>{total} recorded · server-side</span>
                 <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--teal)' }} />
               </div>
             </div>
 
             {/* Log entries */}
             <div className="overflow-y-auto max-h-[280px] no-scrollbar">
-              {aiAuditLog.map((entry, idx) => {
+              {entries.length === 0 && (
+                <div className="px-4 py-4 font-body text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                  {error ? `Audit log unavailable: ${error}` : "No recorded actions yet."}
+                </div>
+              )}
+              {entries.map((entry) => {
                 const os = OUTCOME_STYLES[entry.outcome] || OUTCOME_STYLES.pending;
                 const Icon = os.icon;
-                const isUndone = undoneIds.has(idx);
+                const isUndone = undoneIds.has(entry.id);
 
                 return (
                   <div
-                    key={idx}
+                    key={entry.id}
                     className="flex gap-3 px-4 py-3 transition-colors hover:bg-white/5"
                     style={{
                       borderBottom: '1px solid var(--border-default)',
@@ -122,10 +140,10 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
                     {/* Undo button (only for accepted/modified within this session) */}
                     {(entry.outcome === "accepted" || entry.outcome === "modified") && !isUndone && (
                       <button
-                        onClick={() => handleUndo(idx)}
+                        onClick={() => handleUndo(entry.id)}
                         className="shrink-0 flex items-center gap-1 px-2 py-1 self-start rounded font-display text-[9px] tracking-widest transition-colors hover:bg-white/10"
                         style={{ border: '1px solid var(--border-default)', color: 'var(--text-muted)' }}
-                        title="Undo this AI action"
+                        title="Mark this entry reverted. The log is append-only, so the original stays."
                       >
                         <RotateCcw className="w-2.5 h-2.5" />
                         UNDO
@@ -138,7 +156,8 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
 
             {/* Footer note */}
             <div className="px-4 py-2 font-body text-[10px]" style={{ background: 'rgba(0,229,204,0.04)', color: 'var(--text-muted)', borderTop: '1px solid var(--border-default)' }}>
-              All AI actions are logged for ATCO review. Undo reverts to pre-intervention state.
+Every suggestion and decision is written to the server-side append-only log. Nothing is ever
+              edited or deleted, so "reverted" is recorded as a further entry rather than an erasure.
             </div>
           </motion.div>
         )}

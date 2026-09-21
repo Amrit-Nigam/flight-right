@@ -1,0 +1,69 @@
+# Secrets and local configuration
+secrets/*
+!secrets/.gitkeep
+# Also cover a secrets/ directory nested under server/ or client/, which the
+# rooted pattern above would miss once the backend grows its own config.
+**/secrets/*
+!**/secrets/.gitkeep
+.env
+
+# Python environments and bytecode
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+
+# ML data: retain directory placeholders only
+ml_pipeline/data/raw/*
+!ml_pipeline/data/raw/.gitkeep
+ml_pipeline/data/processed/*
+!ml_pipeline/data/processed/.gitkeep
+ml_pipeline/data/synthetic/*
+!ml_pipeline/data/synthetic/.gitkeep
+ml_pipeline/data/replay/*
+!ml_pipeline/data/replay/.gitkeep
+
+# Locally trained model artifacts: retain directory placeholder only
+server/app/ml/saved_models/*
+!server/app/ml/saved_models/.gitkeep
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OpenSky credential exports (contain live API secrets)
+# OpenSky account credentials, now under secrets/ (moved 8 Sep 2026).
+# The code does NOT read these - every ingestion script reads the project-root .env.
+# They are kept only as the original downloads from the OpenSky account pages.
+OpenSky Credentials_*.json
+secrets/opensky/*.json
+
+# Local env backups and file backups (may contain secrets)
+.env.*
+!.env.example
+*.bak
+*.bak[0-9]
+*.backup_*
+
+# Node dependencies (client and server)
+node_modules/
+
+# Training run logs are large and per-machine; the markdown reports beside them are kept.
+ml_pipeline/reports/logs/
+
+# backend runtime artifacts
+server/audit.sqlite3
+server/*.sqlite3
+
+# Embedded PostgreSQL: the 800 MB of official binaries and the cluster data dir.
+# Both are reproducible from scripts/postgres.py (which downloads and initialises
+# them), so neither belongs in the repository.
+.postgres/
