@@ -9,3 +9,5 @@ torch
 joblib
 fastapi
 uvicorn
+certifi
+openap

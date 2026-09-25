@@ -1,0 +1,677 @@
+{
+  "session": "session_20260905_003006_combined.parquet",
+  "label": "oracle clearances read from the recording",
+  "clearances": [
+    [
+      460,
+      {
+        "callsign": "IGO5197",
+        "action": "TURN",
+        "value": 20,
+        "valid_seconds": 3600
+      }
+    ]
+  ],
+  "submitted_rows": [
+    2
+  ],
+  "pairs": [
+    {
+      "pair": [
+        "FDB1345",
+        "IGO5197"
+      ],
+      "first_frame": 460,
+      "updates": 11,
+      "updates_moved": 0,
+      "gates": [
+        "separation-minimum"
+      ],
+      "tier_changes": 0,
+      "notify_changes": 0,
+      "max_probability_shift": 0.0,
+      "candidates_eliminated_total": 0,
+      "candidates_capped_total": 0,
+      "table": [
+        {
+          "frame": 460,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 240.0,
+            "multipath_probability": 0.973754036223017,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.8032732009887695,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 240.0,
+            "multipath_probability": 0.973754036223017,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.8032732009887695,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 461,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 240.0,
+            "multipath_probability": 0.9892574596009247,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.8076016306877136,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 240.0,
+            "multipath_probability": 0.9892574596009247,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.8076016306877136,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 462,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.99176657726549,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.7162494659423828,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.99176657726549,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.7162494659423828,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 463,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 240.0,
+            "multipath_probability": 1.0,
+            "combinations_breaching": 25,
+            "classifier_probability": 0.8165085315704346,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 240.0,
+            "multipath_probability": 1.0,
+            "combinations_breaching": 25,
+            "classifier_probability": 0.8165085315704346,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 464,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 465,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 466,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 467,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 468,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 469,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 470,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 225.0,
+            "multipath_probability": 0.959358897968465,
+            "combinations_breaching": 20,
+            "classifier_probability": 0.43761953711509705,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "801462",
+                    "action": "TURN",
+                    "value": 20.0,
+                    "callsign": "IGO5197",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288159.3643842,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO5197",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

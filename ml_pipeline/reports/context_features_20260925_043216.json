@@ -1,0 +1,68 @@
+{
+  "max_age_s": 300.0,
+  "coverage_share_non_missing": {
+    "train": {
+      "windows": 205757,
+      "sel_alt_delta_ft": 0.5174842168188689,
+      "fms_alt_delta_ft": 0.06257867290055745,
+      "sel_heading_delta_deg": 0.2538091049150211,
+      "intent_age_s": 0.5174842168188689,
+      "headwind_kt": 0.4944035925873725,
+      "crosswind_kt": 0.4944035925873725,
+      "oat_c": 0.42131251913665146,
+      "mtow_kg": 0.8242635730497626,
+      "cruise_mach": 0.8242635730497626,
+      "traffic_count": 1.0,
+      "nearest_nm": 0.9991640624620305
+    },
+    "val": {
+      "windows": 45637,
+      "sel_alt_delta_ft": 0.5117339001248986,
+      "fms_alt_delta_ft": 0.05234787562723229,
+      "sel_heading_delta_deg": 0.2537853057825887,
+      "intent_age_s": 0.5117339001248986,
+      "headwind_kt": 0.4873677060280036,
+      "crosswind_kt": 0.4873677060280036,
+      "oat_c": 0.4453404036198698,
+      "mtow_kg": 0.8634660472861933,
+      "cruise_mach": 0.8634660472861933,
+      "traffic_count": 1.0,
+      "nearest_nm": 0.999474110918772
+    },
+    "test": {
+      "windows": 39614,
+      "sel_alt_delta_ft": 0.5145655576311405,
+      "fms_alt_delta_ft": 0.04278790326652194,
+      "sel_heading_delta_deg": 0.2705104256071086,
+      "intent_age_s": 0.5145655576311405,
+      "headwind_kt": 0.48657040440248395,
+      "crosswind_kt": 0.48657040440248395,
+      "oat_c": 0.4164941687282274,
+      "mtow_kg": 0.8332407734639269,
+      "cruise_mach": 0.8332407734639269,
+      "traffic_count": 1.0,
+      "nearest_nm": 0.9994193971828141
+    }
+  },
+  "groups": {
+    "intent": [
+      "sel_alt_delta_ft",
+      "fms_alt_delta_ft",
+      "sel_heading_delta_deg",
+      "intent_age_s"
+    ],
+    "wind": [
+      "headwind_kt",
+      "crosswind_kt",
+      "oat_c"
+    ],
+    "type": [
+      "mtow_kg",
+      "cruise_mach"
+    ],
+    "traffic": [
+      "traffic_count",
+      "nearest_nm"
+    ]
+  }
+}

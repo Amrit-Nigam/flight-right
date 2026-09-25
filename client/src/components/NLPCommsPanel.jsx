@@ -58,7 +58,7 @@ export default function NLPCommsPanel({ feed }) {
                   <span className="text-[10px] uppercase tracking-widest" style={{ color: dotColor }}>{comm.type}</span>
                 </div>
                 {isInteractive && isApproved && (
-                  <span className="font-display text-[9px] px-2 border border-[var(--green)] text-[var(--green)]">SENT VIA DATALINK</span>
+                  <span className="font-display text-[9px] px-2 border border-[var(--green)] text-[var(--green)]">DECISION RECORDED</span>
                 )}
               </div>
               <div className="pl-4 leading-relaxed" style={{ color: textColor }}>
@@ -70,25 +70,25 @@ export default function NLPCommsPanel({ feed }) {
                 {isInteractive && !isApproved && (
                   <button 
                     onClick={() => {
-                      logAudit("comms:datalink", "APPROVE & TRANSMIT control activated on transcript line", {
+                      logAudit("comms:datalink", "Controller recorded a decision on a demo transcript line. Nothing was transmitted.", {
                         flight: comm.flight,
                         commId: comm.id ?? idx,
                       });
-                      logActivity("comms:datalink", "Approved mock datalink clearance (transcript)", {
+                      logActivity("comms:datalink", "Recorded a decision on a demo transcript line (nothing transmitted)", {
                         flight: comm.flight,
                         commId: comm.id ?? idx,
                       });
                       setApprovedIds(prev => new Set([...prev, comm.id || idx]));
-                      window.dispatchEvent(new CustomEvent("show-toast", { detail: `Datalink clearance transmitted to ${comm.flight}` }));
+                      window.dispatchEvent(new CustomEvent("show-toast", { detail: `Decision recorded for ${comm.flight}. Nothing transmitted.` }));
                     }}
                     className="mt-2 block w-full py-2 font-display text-[10px] tracking-widest text-[#050508] bg-[var(--teal)] transition-all hover:bg-white active:scale-95"
                   >
-                    APPROVE & TRANSMIT VIA DATALINK
+                    APPROVE — RECORD DECISION (DEMO)
                   </button>
                 )}
                 {isInteractive && isApproved && (
                   <div className="mt-2 block w-full py-1.5 font-display text-[10px] tracking-widest text-center text-[#050508] bg-[var(--green)] opacity-50 cursor-not-allowed">
-                    TRANSMITTED
+                    RECORDED
                   </div>
                 )}
               </div>

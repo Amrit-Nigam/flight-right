@@ -45,10 +45,25 @@ Everything else in this document is a supporting detail.
 
 **Read the basis, not just the number.** This was 93% before 5 September. That older
 figure was scored against an answer key the straight-line arithmetic had written
-itself, so it measured whether the arithmetic agreed with the arithmetic. The 93.7% is
+itself, so it measured whether the arithmetic agreed with the arithmetic. The 94.0% is
 scored against where real aircraft actually went. The two landing so close together is
 a coincidence, not a continuity. What genuinely improved is that the number now means
 something. On the same honest basis the straight-line rule scores 87.3%.
+
+**There are two numbers here, and as of 22 September both are measured.** The 94.0% scores
+the **classifier on its own**. What the **running system** catches is a separate question,
+and until 22 September the answer was **87.3%** — because the classifier was never consulted
+when the system decided to raise an alarm. That is now fixed and the running system catches
+**94.7%**. The model's number did not change; the system caught up with it. Say which one
+you mean whenever you quote either. Full detail in `evaluation.md`.
+
+**Corrected, then fixed, 24 September.** The 94.7% left out one step the backend took: for
+pairs more than three minutes out, the multi-path model's geometry replaced the straight
+line, including for the safety net. With that step the system actually caught **94.4%**
+(268 of 284), at 113.0 false alarms per 1,000 pairs. The same day the safety net was put
+back on the straight line (plan 3.2) and the Phase 3.1 per-mode offsets were switched on.
+The system as served now catches **94.7%** (269 of 284) at **101.1** false alarms per
+1,000, with one fewer false audible alarm. See `evaluation.md`, "Two numbers".
 
 Three minutes is not a round number chosen for neatness. It is how long the human
 loop physically takes:
@@ -66,7 +81,8 @@ So the minimum useful warning is about 90 seconds for a height change and about 
 seconds for a turn. Three minutes is that, with margin. A warning shorter than this
 is technically correct and operationally useless.
 
-**Where the 93.7% comes from.** It is measured by
+**Where the 94.0% comes from.** (It read 93.7% on the 5 September model; the retrain on
+6 September moved it to 94.0%, 267 of 284.) It is measured by
 `ml_pipeline/training/conflict_classifier/train_xgboost.py` on 4,690 held-out
 encounters from 4 and 5 September, all later in time than anything the model trained
 on. Both aircraft in every encounter are real, and the answer comes from their real
@@ -81,13 +97,13 @@ recorded positions.
 | Data collection from OpenSky | **WORKING.** 35 raw session files on disk; the last full run used 627,344 airborne positions. |
 | Model 1 — trajectory prediction (LSTM) | **DONE.** Beats the physics baseline at all four time horizons. |
 | Model 1b — multi-path prediction | **DONE.** Its confidence numbers were wrong (Section 5); the correction is now coded and will be measured on the next real training run. |
-| Model 2 — conflict classifier (XGBoost) | **WORKING** as of 5 Sep. Rebuilt so it no longer restates the rule it was handed. See Section 6. |
-| Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. |
-| Automated end-to-end check | **WORKING** as of 7 Sep. 87 of 87 checks pass. |
-| Model 3 — resolution recommendations | **DONE (rule-based)**. 7 Sep: every suggestion is checked against the other aircraft's five predicted paths and against all nearby traffic. |
+| Model 2 — conflict classifier (XGBoost) | **WORKING AND NOW GATING** as of 22 Sep. Rebuilt on 5 Sep so it no longer restates the rule it was handed (see Section 6). Until 22 Sep it was computed, displayed, and **ignored by the decision to raise an alarm**; it now gates that decision. |
+| Rule-based conflict detection | **WORKING.** This is the safety net and it is sound. It still outranks the classifier: a predicted breach of 5 NM / 1,000 ft alerts whatever any model says. |
+| Automated end-to-end check | **WORKING.** 110 of 110 checks pass. |
+| Model 3 — resolution recommendations | **DONE (rule-based), and live in production** as of 22 Sep. 7 Sep: every suggestion is checked against the other aircraft's five predicted paths and against all nearby traffic — **but the nearby-traffic list was never passed in by the backend until 22 Sep**, so that second check ran on an empty list outside the test suite. |
 | **Training pipeline** | **ONE COMMAND** since 6 Sep: `python ml_pipeline/run_pipeline.py`. See `ml_pipeline/README_TRAINING.md`. |
-| **Backend server (FastAPI)** | **NOT STARTED**, but `server/app/ml/inference.py` now runs the complete chain for a pair, ending in Model 3's ranked suggestions. The web API on top is next. |
-| **Frontend dashboard** | **Back on this branch** (6 Sep, restored from `main`). Runs on mock data until the backend exists. |
+| **Backend server (FastAPI)** | **RUNNING** since 8 Sep. `server/app/` — REST endpoints plus `/ws/stream`, live OpenSky and recorded replay, the full model chain per pair, the alert feed, and a PostgreSQL store whose audit log is append-only because the database refuses UPDATE and DELETE. See `RUNNING.md`. |
+| **Frontend dashboard** | **CONNECTED** since 8 Sep. Aircraft, conflicts, resolutions, metrics, timeline and audit trail all come from the backend over a WebSocket. Runways, weather and the radio transcript have no data source and are labelled DEMO on screen. |
 
 ### The backend, specifically, since you asked
 
@@ -368,9 +384,9 @@ all later in time than every training example.
 | Time ahead | Physics baseline | **LSTM** | Tree reference |
 |---|---|---|---|
 | 1 minute | 98.4% | **98.5%** | 98.5% |
-| 3 minutes | 89.5% | **92.1%** | 92.6% |
-| 5 minutes | 77.3% | **83.2%** | 85.1% |
-| 10 minutes | 50.5% | **60.9%** | 65.7% |
+| 3 minutes | 89.5% | **92.0%** | 92.6% |
+| 5 minutes | 77.3% | **82.9%** | 85.1% |
+| 10 minutes | 50.5% | **61.3%** | 65.7% |
 
 The figures are the percentage of predictions landing within 5 NM of the truth. The
 LSTM beats the physics baseline at every horizon, which is the gate, and it passes.
@@ -378,15 +394,15 @@ LSTM beats the physics baseline at every horizon, which is the gate, and it pass
 **Three honest caveats, none of which should be hidden:**
 
 1. **A simpler non-neural model is still better.** A gradient-boosted tree reaches
-   65.7% at ten minutes against the LSTM's 60.9%. It has beaten the LSTM on all three
+   65.7% at ten minutes against the LSTM's 61.3%. It has beaten the LSTM on all three
    test splits measured so far, by between 2 and 8 points. Do not describe the LSTM
    as the best available.
 2. **One metric went backwards.** At ten minutes the LSTM lands within 1 NM only
-   25.2% of the time, against the physics baseline's 29.0%. It pulls the whole error
+   24.7% of the time, against the physics baseline's 29.0%. It pulls the whole error
    distribution inward — average error drops from 10.30 to 6.41 NM — but sacrifices
    some already-near-perfect predictions to do it.
-3. **The hard cases stay hard.** At ten minutes: sharp turns 22.8%, fast climbs and
-   descents 28.6%, traffic near the airport 35.8%, against 67.9% for cruising
+3. **The hard cases stay hard.** At ten minutes: sharp turns 21.2%, fast climbs and
+   descents 32.8%, traffic near the airport 34.8%, against 68.3% for cruising
    traffic. Neither model knows the aircraft's intended route or its clearance.
 
 ### 4f. The ceiling nobody can train past
@@ -415,7 +431,7 @@ Measured on arrivals into Mumbai at ten minutes:
 | Method | Within 5 NM |
 |---|---|
 | Physics baseline | 15.8% |
-| Single-answer LSTM | 35.8% |
+| Single-answer LSTM | 34.8% |
 | Multi-path, best of 5 | **63.6%** |
 
 **Do not misreport this.** 63.6% means *one of the five* candidates was close. The
@@ -519,8 +535,8 @@ same false-alarm cost as the rule, on held-out later data:
 
 | | Straight-line rule | **The model** |
 |---|---|---|
-| Real conflicts caught | 88.1% | **93.7%** |
-| Headline metric, caught with 3 minutes to spare | 87.3% | **93.3%** |
+| Real conflicts caught | 88.1% | **94.1%** |
+| Headline metric, caught with 3 minutes to spare | 87.3% | **93.7%** |
 | False alarms per 1,000 pairs | 73.8 | 73.8 |
 
 The leakage check now reads **95.60%** where it used to read 100%, and the score is
@@ -535,7 +551,8 @@ name, so one cannot be picked up by accident and quietly undo the fix.
 ### 6d. One gate is still failing, on purpose
 
 The project requires the classifier to catch at least 95% of real conflicts. It catches
-**94.06%**. It fails by six tenths of a point, and it has been left failing.
+**94.39%** (94.06% before the 6 September retrain). It fails by six tenths of a point, and
+it has been left failing.
 
 **This is not the model falling short.** It is how the alarm sensitivity gets picked. The
 script chooses the least twitchy setting that still reaches 95% on the practice data,

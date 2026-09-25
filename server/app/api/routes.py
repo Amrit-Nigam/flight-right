@@ -13,6 +13,7 @@ from fastapi import APIRouter, Body, HTTPException, Query
 from ..services.aircraft_service import aircraft_service
 from ..services.database import database
 from ..services.conflict_service import conflict_service
+from ..services.clearance_service import clearance_service
 
 log = logging.getLogger("flightright.api")
 router = APIRouter(prefix="/api")
@@ -92,6 +93,23 @@ def resolution_for(pair: str = Query(..., description="Two callsigns joined by a
 
 
 # ---------------------------------------------------------------------- actions
+def _served_model_versions() -> dict | None:
+    """The versions of the models actually running, from the server, never the client.
+
+    ISSUES.md H2 (fixed 25 Sep 2026): modelVersion was null on every audit row. The
+    resolve modal sent `conflict.sources` (names, not versions) and the suggestions panel
+    sent nothing. Section 12 requires the model version on every entry, and the server is
+    the only party that knows it for certain, so it stamps it here. Whatever the client
+    sent is kept in the detail.
+    """
+    engine = conflict_service.engine
+    if engine is None:
+        return None
+    status = engine.status()
+    return {k: v for k, v in status.items() if k in ("trajectory_residual", "trajectory_multipath",
+                                                      "xgboost_conflict", "rule_path")}
+
+
 @router.post("/actions/accept")
 def accept_suggestion(payload: dict = Body(...)):
     """The controller accepted a suggestion. Nothing is transmitted to any aircraft.
@@ -107,9 +125,9 @@ def accept_suggestion(payload: dict = Body(...)):
         "callsign": payload.get("callsign"),
         "conflictId": payload.get("conflictId"),
         "confidence": payload.get("confidence"),
-        "modelVersion": payload.get("modelVersion"),
+        "modelVersion": _served_model_versions() or payload.get("modelVersion"),
         "userId": payload.get("userId", "demo-controller"),
-        "detail": payload.get("detail", payload),
+        "detail": {**(payload.get("detail") or payload), "clientModelVersion": payload.get("modelVersion")},
     })}
 
 
@@ -121,14 +139,47 @@ def dismiss_suggestion(payload: dict = Body(...)):
         "decision": "dismissed",
         "callsign": payload.get("callsign"),
         "conflictId": payload.get("conflictId"),
+        "modelVersion": _served_model_versions() or payload.get("modelVersion"),
         "userId": payload.get("userId", "demo-controller"),
         "detail": payload.get("detail", payload),
     })}
 
 
 # ---------------------------------------------------------------------- audit
+# ---------------------------------------------------------------------- clearances
+@router.post("/clearances")
+def submit_clearance(payload: dict = Body(...)):
+    """A known instruction to one aircraft: {"callsign" or "icao24", "action", "value"}.
+
+    Actions: CLIMB / DESCEND (value in feet), TURN (heading in degrees), DIRECT (fix), SPEED
+    (knots). A level caps that aircraft's predicted altitude; a heading removes candidate
+    paths that contradict it; the others are recorded only. Source is always "manual"
+    here; the speech chain submits through the same service with its own source. The
+    result says whether it was applied and why, and is recorded either way.
+    """
+    result = clearance_service.submit(payload, aircraft_service.snapshot()["flights"], source="manual")
+    if not result["ok"]:
+        raise HTTPException(status_code=422, detail=result)
+    return result
+
+
+@router.get("/clearances")
+def list_clearances(limit: int = Query(100, ge=1, le=1000)):
+    return {"ok": True, "supported": clearance_service.supported(),
+            "inForce": {k: [c.to_dict() for c in v] for k, v in clearance_service.in_force().items()},
+            "history": database.clearance_history(limit)}
+
+
+@router.delete("/clearances")
+def withdraw_clearances(icao24: str | None = None):
+    """Withdraw clearances from the model chain. The records in the database remain."""
+    return {"ok": True, "withdrawn": clearance_service.clear(icao24)}
+
+
 @router.post("/audit")
 def write_audit(entry: dict = Body(...)):
+    if not entry.get("modelVersion"):
+        entry = {**entry, "modelVersion": _served_model_versions()}
     return {"ok": True, "entry": database.record(entry)}
 
 

@@ -53,6 +53,21 @@ TIER_2_PROBABILITY_THRESHOLD = 0.60
 # One noisy position report should not raise an alarm, and an alert that flickers on
 # and off is worse than no alert. A pair must qualify on this many updates in a row.
 CONSECUTIVE_UPDATES_TO_NOTIFY = 3
+
+# When the XGBoost conflict classifier has given a verdict on a pair, it rides on the
+# CPA result under these keys so that escalate_pair can use it AND so the
+# three-consecutive-updates walk sees the same verdict for past updates that it saw
+# when they were current. Absent, escalation behaves exactly as it did before, which
+# is what keeps the rule-only path (and every existing test) working unchanged.
+CLASSIFIER_ALERT_KEY = "classifier_alert"
+CLASSIFIER_PROBABILITY_KEY = "classifier_probability"
+# When the geometry a pair is tiered on came from a MODEL (the multi-path representative,
+# used outside tier 1), the straight-line rule's own closest approach rides along under
+# this key, and the safety net checks it instead. Section 13: the deterministic rule is
+# the safety net. Letting the model's worst path combination stand in for it was measured
+# on 24 Sep 2026 (offsets_ab_test.py, 4,690 labelled test pairs) to add 86-111 false alarms
+# for 0-2 real conflicts, and to DROP a real conflict whose rule geometry breached.
+RULE_GEOMETRY_KEY = "rule_geometry"
 # Two consecutive increases in separation, so a single jittery reading cannot retire
 # a pair that is still converging.
 DIVERGING_UPDATES_TO_DROP = 2
@@ -220,6 +235,22 @@ def is_inside_alert_volume(cpa_result: Mapping[str, Any]) -> bool:
     )
 
 
+def breaches_separation_minimum(cpa_result: Mapping[str, Any]) -> bool:
+    """Whether the predicted closest approach breaches the LEGAL minimum, 5 NM / 1000 ft.
+
+    This is the deterministic safety net, and it is deliberately narrower than the
+    8 NM / 1500 ft alert volume. Section 13 keeps the CPA rule in place alongside the
+    classifier and never lets a model overrule it, so a predicted breach of the legal
+    minimum raises an alert whatever the classifier says. Measured on the held-out
+    test split (21 Sep): it rescues 2 real conflicts the classifier misses, which is
+    what takes system recall from 0.9439 to 0.9505.
+    """
+    return (
+        float(cpa_result["cpa_lateral_distance_nm"]) < SEPARATION_LATERAL_NM
+        and float(cpa_result["cpa_vertical_separation_ft"]) < SEPARATION_VERTICAL_FT
+    )
+
+
 def conflict_probability(cpa_result: Mapping[str, Any]) -> float:
     """How likely this pair is to actually conflict, from 0.0 to 1.0.
 
@@ -383,16 +414,47 @@ def tier_probability_threshold(tier: int) -> float:
     return 1.1
 
 
+def alert_gate(cpa_result: Mapping[str, Any]) -> tuple[bool, str]:
+    """Whether this pair qualifies on its own, and which route decided it.
+
+    Three routes, in strict priority order:
+
+    1. **The deterministic safety net.** A predicted breach of the legal 5 NM /
+       1000 ft minimum qualifies whatever any model says. The rule is never
+       overruled by a model (Section 13). It is judged on the straight-line rule's
+       geometry (RULE_GEOMETRY_KEY when the tiering geometry came from a model), so
+       a low-probability model path can neither raise nor suppress it.
+    2. **The conflict classifier**, when a verdict is attached. It is the model the
+       94.0% headline is measured on, and it answers exactly this question. It
+       carries its OWN calibrated threshold, applied before the verdict reaches
+       here. It is emphatically NOT compared against TIER_1/TIER_2_PROBABILITY_
+       THRESHOLD: those are 0.85 and 0.60, chosen for the multi-path joint
+       probability, while the classifier's own conflict line sits at 0.0285
+       calibrated -- roughly thirty times lower. Measured on the held-out split
+       (21 Sep), comparing the classifier against 0.85 would drop test recall from
+       0.9439 to 0.1881 and the headline metric from 94.0% to 19.0%.
+    3. **The probability route**, unchanged: the multi-path joint probability where
+       one exists, else the blunt 1.0/0.0 alert-volume rule. This is what runs when
+       no classifier verdict is attached, so the rule-only path and every existing
+       test behave exactly as before.
+    """
+    tier = assign_tier(cpa_result)["tier"]
+    if tier == 0:
+        return False, "tier-0"
+    if breaches_separation_minimum(cpa_result.get(RULE_GEOMETRY_KEY, cpa_result)):
+        return True, "separation-minimum"
+    if CLASSIFIER_ALERT_KEY in cpa_result:
+        return bool(cpa_result[CLASSIFIER_ALERT_KEY]), "classifier"
+    return conflict_probability(cpa_result) >= tier_probability_threshold(tier), "probability"
+
+
 def meets_alert_conditions(cpa_result: Mapping[str, Any]) -> bool:
     """Conditions 1 and 2 of the escalation rule, for one update on its own.
 
     Condition 3 -- persistence -- cannot be judged from a single update, so it is
     applied by escalate_pair over the history.
     """
-    tier = assign_tier(cpa_result)["tier"]
-    if tier == 0:
-        return False
-    return conflict_probability(cpa_result) >= tier_probability_threshold(tier)
+    return alert_gate(cpa_result)[0]
 
 
 def consecutive_alert_updates(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, Any]] = ()) -> int:
@@ -425,6 +487,7 @@ def escalate_pair(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, 
     tier = tier_result["tier"]
     probability = conflict_probability(cpa_result)
     threshold = tier_probability_threshold(tier)
+    qualifies, gate = alert_gate(cpa_result)
     updates = consecutive_alert_updates(cpa_result, history)
     notify = updates >= CONSECUTIVE_UPDATES_TO_NOTIFY
 
@@ -432,8 +495,14 @@ def escalate_pair(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, 
     # dashboard never has to display an alert it cannot explain.
     if tier == 0:
         reason = f"Closest approach {tier_result['time_to_cpa_seconds']:.0f} s away is outside the {TIER_2_MAX_SECONDS} s look-ahead."
-    elif probability < threshold:
-        reason = f"Predicted closest approach stays outside the {ALERT_LATERAL_NM:.0f} NM / {ALERT_VERTICAL_FT:.0f} ft alert volume."
+    elif not qualifies:
+        if gate == "classifier":
+            reason = (f"The conflict classifier puts this pair at "
+                      f"{float(cpa_result.get(CLASSIFIER_PROBABILITY_KEY, 0.0)) * 100:.1f}%, "
+                      f"below the level at which it calls a conflict, and the predicted closest "
+                      f"approach stays outside {SEPARATION_LATERAL_NM:.0f} NM / {SEPARATION_VERTICAL_FT:.0f} ft.")
+        else:
+            reason = f"Predicted closest approach stays outside the {ALERT_LATERAL_NM:.0f} NM / {ALERT_VERTICAL_FT:.0f} ft alert volume."
     elif not notify:
         reason = f"Held for {updates} of {CONSECUTIVE_UPDATES_TO_NOTIFY} consecutive updates; waiting for confirmation."
     else:
@@ -442,6 +511,24 @@ def escalate_pair(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, 
             f"{cpa_result['cpa_vertical_separation_ft']:.0f} ft in {tier_result['time_to_cpa_seconds']:.0f} s, "
             f"confirmed on {updates} consecutive updates."
         )
+        # ISSUES.md C4: never present the classifier's explanation as the justification
+        # for an alert the classifier did not raise. When the deterministic rule fired
+        # and the classifier disagrees, say which one is speaking. The rule wins, but
+        # the controller is told the models are not of one mind.
+        # The geometry above may be the multi-path model's; the net fired on the
+        # straight line, so quote the numbers that actually raised it.
+        rule = cpa_result.get(RULE_GEOMETRY_KEY)
+        if gate == "separation-minimum" and rule is not None:
+            reason += (
+                f" The straight-line prediction that raised it: {float(rule['cpa_lateral_distance_nm']):.2f} NM / "
+                f"{float(rule['cpa_vertical_separation_ft']):.0f} ft in {float(rule['time_to_cpa_seconds']):.0f} s."
+            )
+        if gate == "separation-minimum" and cpa_result.get(CLASSIFIER_ALERT_KEY) is False:
+            reason += (
+                f" Raised by the separation rule, not by the classifier, which puts this pair at "
+                f"{float(cpa_result.get(CLASSIFIER_PROBABILITY_KEY, 0.0)) * 100:.1f}% and would not "
+                f"have alerted; the deterministic rule is never overruled by a model."
+            )
 
     return {
         "tier": tier,
@@ -449,6 +536,12 @@ def escalate_pair(cpa_result: Mapping[str, Any], history: Sequence[Mapping[str, 
         "time_to_cpa_seconds": tier_result["time_to_cpa_seconds"],
         "probability": probability,
         "probability_threshold": threshold,
+        # Which of the three routes in alert_gate() decided this, so the dashboard and
+        # the audit log can say WHY a pair qualified rather than only that it did.
+        "gate": gate,
+        "qualifies_this_update": qualifies,
+        "classifier_probability": (float(cpa_result[CLASSIFIER_PROBABILITY_KEY])
+                                   if CLASSIFIER_PROBABILITY_KEY in cpa_result else None),
         "consecutive_updates": updates,
         "notify": notify,
         # Tier 2 is a watch list. Suggesting a manoeuvre on a ten-minute prediction

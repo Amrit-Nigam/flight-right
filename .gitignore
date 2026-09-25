@@ -24,6 +24,10 @@ ml_pipeline/data/synthetic/*
 !ml_pipeline/data/synthetic/.gitkeep
 ml_pipeline/data/replay/*
 !ml_pipeline/data/replay/.gitkeep
+ml_pipeline/data/archive/*
+!ml_pipeline/data/archive/.gitkeep
+ml_pipeline/data/adsblol/*
+ml_pipeline/data/routes/*
 
 # Locally trained model artifacts: retain directory placeholder only
 server/app/ml/saved_models/*

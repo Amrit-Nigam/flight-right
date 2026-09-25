@@ -34,4 +34,7 @@ and the real file governs.
 | `docs/PROJECT_STATUS.md` | Plain-English status and file-by-file walkthrough |
 | `docs/RUNNING.md` | How to run the backend, the dashboard and the database |
 | `docs/evaluation.md` | Every metric beside the baseline it has to beat |
+| `docs/ablation.md` | The generated ablation table (plan Phase 8) — never edit by hand; run `ml_pipeline/utils/ablation.py` |
+| `docs/claims.md` | What may and may not be claimed, each number with its source |
+| `docs/DECISIONS_FOR_ARCHIT.md` | Everything measured and waiting on Archit's decision or hands |
 | `README.md` | The public GitHub front page |

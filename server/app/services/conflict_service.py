@@ -33,6 +33,7 @@ from pathlib import Path
 from ..config import (CONFLICT_MIN_ALTITUDE_FT, CONFLICT_MIN_VELOCITY_MS,
                       MAX_PAIRS_PER_UPDATE, PAIR_PREFILTER_FT, PAIR_PREFILTER_NM,
                       PROJECT_ROOT)
+from .clearance_service import clearance_service
 from .normalizer import to_engine_state
 
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -108,9 +109,20 @@ class ConflictService:
         # 3.0 s per pair here - over 45 s for a 30-pair update, against a ten-second
         # budget. One batched call produces the identical result.
         needed = {key for _, a, b in pairs for key in (a, b)}
+        # Model 3's secondary-conflict ("domino") check needs every OTHER aircraft near
+        # the pair, not just the two in it, so the eligible traffic is converted too.
+        # Until 21 Sep this was never passed and the check ran on an empty list in
+        # production -- it worked only inside verify_pipeline.py.
+        eligible_keys = {key for key, window in histories.items()
+                         if window and self.eligible(window[-1]) and len(window) >= 10}
         engine_histories = {key: [to_engine_state(state) for state in histories[key]]
-                            for key in needed}
-        candidates = self.engine.multipath_candidates(engine_histories)
+                            for key in needed | eligible_keys}
+        # Known clearances (manual today, heard by the speech chain later) adjust the
+        # candidate paths of the aircraft they apply to. Keys are icao24, as here.
+        in_force = {key: value for key, value in clearance_service.in_force().items() if key in engine_histories}
+        candidates = self.engine.multipath_candidates(engine_histories, clearances=in_force)
+        current_states = {key: window[-1] for key, window in histories.items()
+                          if key in eligible_keys}
 
         for _, key_a, key_b in pairs:
             history_a = engine_histories[key_a]
@@ -122,9 +134,22 @@ class ConflictService:
             callsign_b = histories[key_b][-1]["callsign"]
             pair_key = tuple(sorted((callsign_a, callsign_b)))
             previous = self.pair_histories.get(pair_key, [])
+            # Everything else eligible and near enough to either aircraft to be put at
+            # risk by a manoeuvre aimed at resolving this pair.
+            traffic = []
+            for key in eligible_keys:
+                if key in (key_a, key_b):
+                    continue
+                other = current_states[key]
+                near = (_separation_nm(current_states.get(key_a, other), other) < PAIR_PREFILTER_NM
+                        or _separation_nm(current_states.get(key_b, other), other) < PAIR_PREFILTER_NM)
+                if near:
+                    traffic.append({"callsign": histories[key][-1]["callsign"],
+                                    "history": engine_histories[key],
+                                    "candidates": candidates.get(key)})
             try:
                 result = self.engine.assess_pair(
-                    history_a, history_b, previous,
+                    history_a, history_b, previous, traffic=traffic,
                     candidates_a=candidates.get(key_a), candidates_b=candidates.get(key_b))
             except Exception as failure:                     # noqa: BLE001
                 log.exception("assess_pair failed for %s: %s", pair_key, failure)
@@ -148,6 +173,7 @@ class ConflictService:
                 "ok": True,
                 "pairsConsidered": len(pairs),
                 "pairsAssessed": len(assessments),
+                "clearancesInForce": {key: [c.to_dict() for c in value] for key, value in in_force.items()},
                 "pairsSkippedShortHistory": skipped,
                 "eligibleAircraft": sum(1 for w in histories.values() if w and self.eligible(w[-1])),
                 "durationMs": round(self.last_duration_ms, 1),
@@ -199,6 +225,7 @@ class ConflictService:
             "notificationsSoFar": entry["notifications_so_far"],
             "sources": assessment.get("sources", []),
             "multipathProbability": multipath.get("conflict_probability"),
+            "clearanceEffect": [c for c in (multipath.get("clearance_a"), multipath.get("clearance_b")) if c],
             "combinationsBreaching": multipath.get("combinations_breaching"),
             "explanation": classifier.get("explanation", []),
             "resolution": {

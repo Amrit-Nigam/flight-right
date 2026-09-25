@@ -138,7 +138,7 @@ export default function HomePage() {
         detail: { pair: suggestion.flights, tier: suggestion.tier },
       });
       setAcceptedCount((c) => c + 1);
-      setHandledIds((prev) => new Set([...prev, suggestion.id]));
+      setHandledIds((prev) => new Set([...prev, suggestion.episodeKey]));
       showToast(suggestion.actionToast);
     } catch (error) {
       showToast(`Could not record the decision: ${error.message}`);
@@ -154,7 +154,7 @@ export default function HomePage() {
         detail: { pair: suggestion?.flights },
       });
     } catch { /* recorded failures surface on the audit page */ }
-    setHandledIds((prev) => new Set([...prev, id]));
+    setHandledIds((prev) => new Set([...prev, suggestion?.episodeKey ?? id]));
   };
 
   const handleSelectFlight = (callsign, meta = {}) => {
@@ -185,7 +185,7 @@ export default function HomePage() {
     logActivity("dashboard", `Dashboard connected (${connection}, ${feed.source || "no source"})`);
   }, [connection, feed.source, feed.mode]);
 
-  const visibleSuggestions = suggestions.filter((s) => !handledIds.has(s.id));
+  const visibleSuggestions = suggestions.filter((s) => !handledIds.has(s.episodeKey));
 
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>

@@ -62,6 +62,9 @@ from generate_synthetic_scenarios import (  # noqa: E402
     manoeuvre_summary,
 )
 from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
+    CLASSIFIER_ALERT_KEY,
+    CLASSIFIER_PROBABILITY_KEY,
+    RULE_GEOMETRY_KEY,
     assign_tier,
     classify_conflict,
     compute_cpa_from_paths,
@@ -71,12 +74,24 @@ from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
 # Model 3. Pure rules and kinematics, no saved model file, so it is imported directly
 # like the other project modules rather than loaded and version-checked.
 from ml_pipeline.utils.resolution_engine import generate_resolutions  # noqa: E402
+# Plan Phase 7: a known clearance adjusts that aircraft's candidate paths.
+from ml_pipeline.utils.clearance import apply_clearance  # noqa: E402
 
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
 SAVED_MODELS = DATA_ROOT / "server" / "app" / "ml" / "saved_models"
 TRAJECTORY_PATH = SAVED_MODELS / "trajectory_residual.pt"
 MULTIPATH_PATH = SAVED_MODELS / "trajectory_multipath.pkl"
 CONFLICT_PATH = SAVED_MODELS / "xgboost_conflict.json"
+# Which offset Model 1b applies to each candidate pattern. "table" is the per-pattern
+# average shipped on 6 Sep 2026; "per_mode" is the per-aircraft regression added in
+# Phase 3.1 (23 Sep). Default "per_mode" since 24 Sep, switched on with sign-off after
+# offsets_ab_test.py measured it on 4,690 labelled test pairs: with the rule-geometry
+# safety net, same alerts as "table" and one fewer false tier 1 alarm (17 vs 18).
+# Unset, a pickle without offset_models falls back to "table" so an old model file still
+# starts the backend; ASKING for "per_mode" on one is refused (see MultiPathPredictor).
+_OFFSETS_ENV = os.environ.get("FLIGHT_RIGHT_MULTIPATH_OFFSETS")
+MULTIPATH_OFFSETS = (_OFFSETS_ENV or "per_mode").strip().lower()
+MULTIPATH_OFFSETS_EXPLICIT = _OFFSETS_ENV is not None
 
 INPUT_STEPS = 10
 HORIZON_LABELS = {60: "1min", 180: "3min", 300: "5min", 600: "10min"}
@@ -164,7 +179,7 @@ class TrajectoryPredictor:
 class MultiPathPredictor:
     """Top-K route patterns per aircraft, probabilities calibrated by temperature scaling."""
 
-    def __init__(self, path: Path = MULTIPATH_PATH) -> None:
+    def __init__(self, path: Path = MULTIPATH_PATH, offsets: str | None = None) -> None:
         import multipath
 
         with path.open("rb") as handle:
@@ -173,17 +188,30 @@ class MultiPathPredictor:
         self.classifier = bundle["classifier"]
         self.kmeans = bundle["kmeans"]
         self.pattern_residuals = bundle["pattern_residuals"]
+        explicit = offsets is not None or MULTIPATH_OFFSETS_EXPLICIT
+        offsets = MULTIPATH_OFFSETS if offsets is None else offsets
+        if offsets == "per_mode" and not explicit and bundle.get("offset_models") is None:
+            offsets = "table"  # the default, on a pre-Phase-3.1 pickle: run what it has
+        if offsets not in ("table", "per_mode"):
+            raise ValueError(f"FLIGHT_RIGHT_MULTIPATH_OFFSETS must be 'table' or 'per_mode', got {offsets!r}")
+        # Asking for per_mode on an old pickle is refused rather than silently served the
+        # table: a reader would otherwise believe the per-aircraft offsets were running.
+        if offsets == "per_mode" and bundle.get("offset_models") is None:
+            raise ValueError(f"{path.name} has no offset_models; retrain multipath.py or use 'table'")
+        self.offsets = offsets
+        self.offset_models = bundle.get("offset_models") if offsets == "per_mode" else None
         # Older pickles (before 6 Sep 2026) have no temperature: 1.0 reproduces them exactly.
         self.temperature = float(bundle.get("temperature", 1.0))
         self.calibration = bundle.get("calibration", {})
         self.config = bundle["config"]
         self.top_k = int(self.config.get("top_k", 5))
-        self.version = f"trajectory_multipath@{path.stat().st_mtime_ns}"
+        self.version = f"trajectory_multipath@{path.stat().st_mtime_ns}+{offsets}"
 
     def predict(self, X: np.ndarray, top_k: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Return (probabilities (N, k), positions (N, k, 4, 3), pattern ids (N, k))."""
         probabilities, positions, patterns, _ = self._multipath.candidate_paths(
-            self.classifier, self.kmeans, self.pattern_residuals, X, top_k or self.top_k, self.temperature
+            self.classifier, self.kmeans, self.pattern_residuals, X, top_k or self.top_k, self.temperature,
+            offset_models=self.offset_models,
         )
         return probabilities, positions, patterns
 
@@ -291,8 +319,8 @@ class ConflictEngine:
         return {key: float(state[key]) for key in
                 ("latitude", "longitude", "altitude_m", "velocity_ms", "heading_deg", "vertical_rate_ms")}
 
-    def multipath_candidates(self, histories: Mapping[str, Sequence[Mapping[str, float]]]
-                             ) -> dict[str, Any]:
+    def multipath_candidates(self, histories: Mapping[str, Sequence[Mapping[str, float]]],
+                             clearances: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Candidate paths for many aircraft in ONE model call.
 
         This exists purely for speed, and the speed matters. sklearn's
@@ -308,6 +336,12 @@ class ConflictEngine:
         The output is identical either way - the model is deterministic and each row is
         independent of the others, so this changes when the arithmetic happens, not what
         it produces.
+
+        clearances maps the same keys to a `Clearance` (ml_pipeline/utils/clearance.py) for
+        aircraft whose instruction is known -- typed in now, heard by the speech chain
+        later (plan Phase 7). A level clearance caps each candidate's altitude at the
+        cleared level; a heading clearance eliminates candidates that contradict it. The
+        report of what was done rides along under "clearance", so nothing changes silently.
         """
         if self.multipath is None:
             return {}
@@ -317,15 +351,27 @@ class ConflictEngine:
         keys = list(usable)
         X = np.concatenate([window_from_states(usable[key]) for key in keys])
         probabilities, positions, patterns = self.multipath.predict(X)
-        return {
-            key: {
-                "paths": self.multipath.paths_for_cpa(X, index, probabilities, positions),
-                "probabilities": probabilities[index],
-                "positions": positions[index],
-                "patterns": patterns[index],
-            }
-            for index, key in enumerate(keys)
-        }
+        out: dict[str, Any] = {}
+        for index, key in enumerate(keys):
+            entry = {"paths": self.multipath.paths_for_cpa(X, index, probabilities, positions),
+                     "probabilities": probabilities[index], "positions": positions[index],
+                     "patterns": patterns[index]}
+            given = (clearances or {}).get(key)
+            if given:
+                # An aircraft can hold a level and a heading clearance at once; each is
+                # applied in turn to what the previous one left.
+                altitude = float(usable[key][-1]["altitude_m"])
+                reports = []
+                for clearance in (given if isinstance(given, (list, tuple)) else [given]):
+                    kept_p, kept_pos, kept, report = apply_clearance(
+                        entry["probabilities"], entry["positions"], altitude, clearance)
+                    entry.update(probabilities=kept_p, positions=kept_pos, patterns=entry["patterns"][kept])
+                    reports.append(report)
+                entry["paths"] = [(float(p), _horizon_dict(pos))
+                                  for p, pos in zip(entry["probabilities"], entry["positions"])]
+                entry["clearance"] = reports
+            out[key] = entry
+        return out
 
     def assess_pair(self, history_a: Sequence[Mapping[str, float]], history_b: Sequence[Mapping[str, float]],
                     pair_history: Sequence[Mapping[str, Any]] = (),
@@ -364,9 +410,11 @@ class ConflictEngine:
                 # Already computed for the whole airspace in one call this tick; see
                 # multipath_candidates() for why that matters.
                 paths_a, paths_b = candidates_a["paths"], candidates_b["paths"]
-                probabilities = np.stack([candidates_a["probabilities"], candidates_b["probabilities"]])
-                positions = np.stack([candidates_a["positions"], candidates_b["positions"]])
-                patterns = np.stack([candidates_a["patterns"], candidates_b["patterns"]])
+                # Per aircraft, not stacked: a heading clearance can leave the two aircraft
+                # with different numbers of candidates.
+                probabilities = [candidates_a["probabilities"], candidates_b["probabilities"]]
+                positions = [candidates_a["positions"], candidates_b["positions"]]
+                patterns = [candidates_a["patterns"], candidates_b["patterns"]]
             else:
                 X = np.concatenate([window_from_states(history_a), window_from_states(history_b)])
                 probabilities, positions, patterns = self.multipath.predict(X)
@@ -382,10 +430,13 @@ class ConflictEngine:
                 "cpa_lateral_distance_nm": multipath_cpa["cpa_lateral_distance_nm"],
                 "cpa_vertical_separation_ft": multipath_cpa["cpa_vertical_separation_ft"],
                 "time_to_cpa_seconds": multipath_cpa["time_to_cpa_seconds"],
-                "candidates_a": [{"probability": p, "pattern": int(patterns[0, i]), "positions": _horizon_dict(positions[0, i])}
+                "candidates_a": [{"probability": p, "pattern": int(patterns[0][i]), "positions": _horizon_dict(positions[0][i])}
                                  for i, p in enumerate(probabilities[0])],
-                "candidates_b": [{"probability": p, "pattern": int(patterns[1, i]), "positions": _horizon_dict(positions[1, i])}
+                "candidates_b": [{"probability": p, "pattern": int(patterns[1][i]), "positions": _horizon_dict(positions[1][i])}
                                  for i, p in enumerate(probabilities[1])],
+                # What a known clearance did to each aircraft's fan (plan Phase 7), if any.
+                "clearance_a": (candidates_a or {}).get("clearance"),
+                "clearance_b": (candidates_b or {}).get("clearance"),
                 "model_version": self.multipath.version,
                 "probabilities_calibrated": self.multipath.temperature != 1.0,
             }
@@ -396,7 +447,11 @@ class ConflictEngine:
             # Tier 1 (<= 180 s) stays on the rule path by decision (CLAUDE.md Section 3);
             # the multi-path probability drives tier 2, where constant velocity degrades.
             if assign_tier(rule_cpa)["tier"] != 1:
-                cpa_for_tiering = multipath_cpa
+                # The model supplies the tier and the displayed geometry; the safety net
+                # still judges the straight line (RULE_GEOMETRY_KEY, alert_gate).
+                cpa_for_tiering = {**multipath_cpa, RULE_GEOMETRY_KEY: {
+                    key: float(rule_cpa[key]) for key in
+                    ("cpa_lateral_distance_nm", "cpa_vertical_separation_ft", "time_to_cpa_seconds")}}
 
         # 3. XGBoost: will these two ACTUALLY lose separation, given the prediction?
         if self.classifier is not None:
@@ -405,6 +460,18 @@ class ConflictEngine:
             features = encounter_features(state_a, state_b, manoeuvre_a, manoeuvre_b, rule_cpa)
             result["classifier"] = self.classifier.predict([features])[0]
             result["sources"].append("XGBoost conflict classifier (calibrated, SHAP-explained)")
+            # The classifier GATES escalation (see alert_gate in cpa_conflict_detection).
+            # It rides on the CPA result rather than being passed as an argument so that
+            # the three-consecutive-updates walk over pair_history sees the same verdict
+            # for each past update that it saw when that update was current -- the
+            # history entries are stored from cpa_for_tiering at the end of this method.
+            # Copied rather than mutated: rule_cpa is also handed to Model 3 and returned
+            # to the dashboard, and neither should acquire classifier fields.
+            cpa_for_tiering = {
+                **cpa_for_tiering,
+                CLASSIFIER_ALERT_KEY: bool(result["classifier"]["alert"]),
+                CLASSIFIER_PROBABILITY_KEY: float(result["classifier"]["conflict_probability"]),
+            }
 
         # 4. Tiering and escalation with the anti-flicker rule.
         escalation = escalate_pair(cpa_for_tiering, [h.get("_cpa_for_tiering", h) for h in pair_history])
@@ -425,13 +492,25 @@ class ConflictEngine:
         callsign_b = str(history_b[-1].get("callsign") or "AIRCRAFT B").strip()
         # Every OTHER aircraft nearby, with its own predicted paths where the model can
         # supply them, so a manoeuvre is tested against the whole picture.
+        #
+        # Only assembled when a manoeuvre will actually be proposed. generate_resolutions
+        # obeys escalation["suggest_resolution"] and ignores traffic entirely for a tier 2
+        # advisory or an unconfirmed tier 1 pair, so building neighbours for those pairs
+        # is pure cost -- and on a quiet update that is every pair.
         neighbours = []
-        for entry in traffic:
+        for entry in (traffic if escalation.get("suggest_resolution") else ()):
             neighbour_history = entry.get("history") or ()
             if not neighbour_history:
                 continue
             neighbour_paths = None
-            if self.multipath is not None and len(neighbour_history) >= INPUT_STEPS:
+            supplied = entry.get("candidates")
+            if supplied is not None:
+                # Computed for the whole airspace in one call this tick. Asking the
+                # model per neighbour instead costs ~3 s a time and is what made a
+                # 30-pair update take 46 s before 8 Sep; doing it per neighbour per
+                # pair is that same mistake multiplied by the neighbour count.
+                neighbour_paths = supplied["paths"]
+            elif self.multipath is not None and len(neighbour_history) >= INPUT_STEPS:
                 nx = window_from_states(neighbour_history)
                 np_prob, np_pos, _ = self.multipath.predict(nx)
                 neighbour_paths = self.multipath.paths_for_cpa(nx, 0, np_prob, np_pos)

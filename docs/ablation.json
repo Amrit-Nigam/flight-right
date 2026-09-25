@@ -1,0 +1,1209 @@
+{
+  "generated_utc": "2026-09-25T11:41:23.462954+00:00",
+  "test_windows": 39614,
+  "rows": [
+    {
+      "name": "constant velocity",
+      "note": "baseline",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 15.805679096818338,
+          "top1_both": 14.676702018474169
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 50.50369735290966,
+          "top1_both": 41.86046511627907
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 54.22318556845196
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 50.0
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 37.234878240377064
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 7.57020757020757
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 63.978978978978986
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 22.40421987784564
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 5.517241379310345
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 15.805679096818338
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 33.85568513119534
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 61.82377837629858
+        }
+      }
+    },
+    {
+      "name": "single-answer LSTM",
+      "note": "not served as a candidate source; the tree beats it",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 34.79302086897024,
+          "top1_both": 25.761204242216902
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 61.311756510556215,
+          "top1_both": 50.46082949308756
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 64.33365962802405
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 63.13932980599647
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 49.88216810683425
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 21.245421245421245
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 70.04504504504504
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 42.80955024986119
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 32.758620689655174
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 34.79302086897024
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 56.559766763848394
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 68.28010773374375
+        }
+      }
+    },
+    {
+      "name": "tree reference (single answer)",
+      "note": "reference only",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 40.47211768730756,
+          "top1_both": 30.00342114266165
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 65.6628442824992,
+          "top1_both": 52.50241131711499
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 69.1162075234233
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 64.37389770723104
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 52.47446975648076
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 29.426129426129428
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 73.64114114114115
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 47.94558578567462
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 41.26436781609195
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 40.47211768730756
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 59.876093294460645
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 72.55098114659484
+        }
+      }
+    },
+    {
+      "name": "multi-path, pattern table",
+      "note": "served until 24 Sep 2026",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 38.624700650017104,
+          "top1_both": 16.216216216216218,
+          "best5_5nm": 63.56483065343825,
+          "best5_both": 21.176873075607254
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 63.99635623191512,
+          "top1_both": 44.32000857357196,
+          "best5_5nm": 82.99753509806023,
+          "best5_both": 52.213053263315835
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 67.4451125716683,
+          "best5_5nm": 86.02992588449167
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 63.00705467372134,
+          "best5_5nm": 82.98059964726632
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 50.35349567949725,
+          "best5_5nm": 73.05577376276511
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 27.716727716727718,
+          "best5_5nm": 45.543345543345545
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 73.22822822822823,
+          "best5_5nm": 89.61711711711712
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 44.50305385896724,
+          "best5_5nm": 67.60133259300389
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 33.678160919540225,
+          "best5_5nm": 64.19540229885058
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 38.624700650017104,
+          "best5_5nm": 63.56483065343825
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 52.22303206997084,
+          "best5_5nm": 70.59037900874635
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 72.18930357829935,
+          "best5_5nm": 89.98845709888418
+        }
+      }
+    },
+    {
+      "name": "+ per-mode offsets",
+      "note": "SERVED since 24 Sep 2026",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 44.16695176188847,
+          "top1_both": 31.885049606568593,
+          "best5_5nm": 71.46767020184743,
+          "best5_both": 44.064317482039
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 66.65416354088522,
+          "top1_both": 53.79380559425571,
+          "best5_5nm": 86.57700139320545,
+          "best5_both": 66.0165041260315
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 70.0181792756258,
+          "best5_5nm": 89.29520346804642
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 64.19753086419753,
+          "best5_5nm": 84.70017636684304
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 53.33857030636292,
+          "best5_5nm": 77.14061272584446
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 35.40903540903541,
+          "best5_5nm": 58.97435897435898
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 74.24174174174173,
+          "best5_5nm": 91.15615615615616
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 51.16601887840089,
+          "best5_5nm": 75.98556357579123
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 40.632183908045974,
+          "best5_5nm": 73.44827586206897
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 44.16695176188847,
+          "best5_5nm": 71.46767020184743
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 57.68950437317785,
+          "best5_5nm": 78.06122448979592
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 73.60523278183916,
+          "best5_5nm": 91.77375913813005
+        }
+      }
+    },
+    {
+      "name": "+ candidate pruning (90% mass)",
+      "note": "measured, not adopted (plan 3.2)",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 44.16695176188847,
+          "top1_both": 31.885049606568593,
+          "best5_5nm": 65.99384194320903,
+          "best5_both": 41.498460485802255
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 66.65416354088522,
+          "top1_both": 53.79380559425571,
+          "best5_5nm": 82.37059264816205,
+          "best5_both": 63.2033008252063
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 70.0181792756258,
+          "best5_5nm": 85.16990630681023
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 64.19753086419753,
+          "best5_5nm": 80.51146384479718
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 53.33857030636292,
+          "best5_5nm": 72.58444619010213
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 35.40903540903541,
+          "best5_5nm": 53.84615384615385
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 74.24174174174173,
+          "best5_5nm": 87.41741741741743
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 51.16601887840089,
+          "best5_5nm": 70.68295391449195
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 40.632183908045974,
+          "best5_5nm": 67.93103448275862
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 44.16695176188847,
+          "best5_5nm": 65.99384194320903
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 57.68950437317785,
+          "best5_5nm": 73.83381924198251
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 73.60523278183916,
+          "best5_5nm": 87.85686802616391
+        }
+      }
+    },
+    {
+      "name": "+ more data (OpenSky archive)",
+      "note": "measured, not adopted (alert chain: one real tier 1 alarm lost on validation)",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 46.835443037974684,
+          "top1_both": 33.80088949709203,
+          "best5_5nm": 75.43619568936025,
+          "best5_both": 46.52754019842627
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 67.79552030864859,
+          "top1_both": 55.015539599185516,
+          "best5_5nm": 88.0613010395456,
+          "best5_both": 67.13642696388384
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 70.64746189344147,
+          "best5_5nm": 89.99440637673052
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 66.62257495590829,
+          "best5_5nm": 88.13932980599647
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 58.2089552238806,
+          "best5_5nm": 81.06834249803615
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 36.14163614163614,
+          "best5_5nm": 64.95726495726495
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 75.15765765765767,
+          "best5_5nm": 92.05705705705705
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 52.88728484175458,
+          "best5_5nm": 79.20599666851749
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 42.298850574712645,
+          "best5_5nm": 75.80459770114942
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 46.835443037974684,
+          "best5_5nm": 75.43619568936025
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 60.932944606414,
+          "best5_5nm": 81.0131195335277
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 73.95921508272413,
+          "best5_5nm": 92.38938053097345
+        }
+      }
+    }
+  ],
+  "oracle": {
+    "name": "+ heard clearance (ORACLE: level cap + heading filter)",
+    "label": "UPPER BOUND, assuming perfect clearance recognition",
+    "windows": "test windows with a 5- and 10-minute truth",
+    "baseline_same_windows": {
+      "arrivals": {
+        "n": 2597,
+        "top1_5nm": 42.818636888717755,
+        "top1_both": 30.997304582210244,
+        "best5_5nm": 70.38891028109356,
+        "best5_both": 43.357720446669234
+      },
+      "all": {
+        "n": 17189,
+        "top1_5nm": 66.874163709349,
+        "top1_both": 54.10436907324452,
+        "best5_5nm": 86.70079702135087,
+        "best5_both": 66.55419163418466
+      }
+    },
+    "with_oracle": {
+      "arrivals": {
+        "n": 2597,
+        "top1_5nm": 45.090489025798995,
+        "top1_both": 36.041586445899114,
+        "best5_5nm": 70.27339237581826,
+        "best5_both": 53.75433192144783
+      },
+      "all": {
+        "n": 17189,
+        "top1_5nm": 67.26394787364012,
+        "top1_both": 57.32736052126361,
+        "best5_5nm": 86.68334399906918,
+        "best5_both": 72.13915876432603
+      }
+    }
+  },
+  "variance": {
+    "served_per_mode_and_table": {
+      "source": "multipath_seeds_20260925_012526.json",
+      "seeds": [
+        "seed_42",
+        "seed_1",
+        "seed_2",
+        "seed_3"
+      ],
+      "per_mode_best5_arrivals": {
+        "mean": 71.96373588778651,
+        "sd": 0.40719742436667755,
+        "min": 71.46767020184743,
+        "max": 72.42559014710913,
+        "ci95": [
+          71.31588478561913,
+          72.61158698995389
+        ],
+        "n": 4
+      },
+      "per_mode_top1_arrivals": {
+        "mean": 43.645227505986995,
+        "sd": 0.8188736809411047,
+        "min": 42.59322613752993,
+        "max": 44.4064317482039,
+        "ci95": [
+          42.342399479609696,
+          44.94805553236429
+        ],
+        "n": 4
+      },
+      "table_best5_arrivals": {
+        "mean": 63.41087923366404,
+        "sd": 1.2863071790887177,
+        "min": 61.68320218953131,
+        "max": 64.79644201163188,
+        "ci95": [
+          61.36436451173389,
+          65.45739395559418
+        ],
+        "n": 4
+      },
+      "table_top1_arrivals": {
+        "mean": 38.33390352377694,
+        "sd": 1.1819870483746333,
+        "min": 37.05097502565857,
+        "max": 39.822100581594256,
+        "ci95": [
+          36.453362129812895,
+          40.214444917740984
+        ],
+        "n": 4
+      }
+    },
+    "archive": {
+      "source": "multipath_archive_seeds_20260925_030354.json",
+      "seeds": [
+        "seed_42",
+        "seed_1",
+        "seed_2",
+        "seed_3"
+      ],
+      "per_mode_best5_arrivals": {
+        "mean": 75.60725282244269,
+        "sd": 0.5628446882998294,
+        "min": 74.88881286349641,
+        "max": 76.12042422169004,
+        "ci95": [
+          74.71176692335766,
+          76.50273872152772
+        ],
+        "n": 4
+      },
+      "per_mode_top1_arrivals": {
+        "mean": 46.69859733150873,
+        "sd": 0.3860488283683592,
+        "min": 46.32227163872734,
+        "max": 47.17755730413958,
+        "ci95": [
+          46.08439364557467,
+          47.31280101744279
+        ],
+        "n": 4
+      },
+      "table_best5_arrivals": {
+        "mean": 63.78720492644544,
+        "sd": 1.110510847748193,
+        "min": 62.16216216216216,
+        "max": 64.65959630516592,
+        "ci95": [
+          62.020382167678065,
+          65.55402768521282
+        ],
+        "n": 4
+      },
+      "table_top1_arrivals": {
+        "mean": 40.69449196031474,
+        "sd": 0.602030389500082,
+        "min": 40.13000342114266,
+        "max": 41.32740335271981,
+        "ci95": [
+          39.73666161062011,
+          41.652322310009374
+        ],
+        "n": 4
+      }
+    }
+  },
+  "headline_intervals": {
+    "classifier_alone_94_0": {
+      "caught": 267,
+      "total": 284,
+      "wilson95": [
+        90.62,
+        96.23
+      ],
+      "source": "docs/metrics.json model2.headline_three_minute_warning.xgboost"
+    },
+    "running_system_94_7": {
+      "caught": 269,
+      "total": 284,
+      "wilson95": [
+        91.47,
+        96.77
+      ],
+      "source": "offsets_ab_20260924_181140.json, per_mode rule_only"
+    }
+  },
+  "context_rows": {
+    "source": "context_ablation_20260925_050255.json",
+    "none": {
+      "extra_features": [],
+      "arrivals_best5_5nm": 71.46767020184743,
+      "arrivals_top1_5nm": 44.16695176188847,
+      "all_best5_5nm": 86.57700139320545,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1413.6672026686208,
+          "top1_within_1000ft": 54.327745466985974,
+          "best5_within_1000ft": 72.35716729387616,
+          "top1_both": 31.885049606568593,
+          "best5_both": 44.064317482039
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1116.0079737791114,
+          "top1_within_1000ft": 71.14993033972779,
+          "best5_within_1000ft": 78.53927767656201,
+          "top1_both": 53.79380559425571,
+          "best5_both": 66.0165041260315
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "intent": {
+      "extra_features": [
+        "sel_alt_delta_ft",
+        "fms_alt_delta_ft",
+        "sel_heading_delta_deg",
+        "intent_age_s"
+      ],
+      "arrivals_best5_5nm": 71.5360930550804,
+      "arrivals_top1_5nm": 43.551146082791654,
+      "all_best5_5nm": 86.69488800771622,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1416.5258918588893,
+          "top1_within_1000ft": 52.925076975709885,
+          "best5_within_1000ft": 71.05713308244954,
+          "top1_both": 30.687649674991448,
+          "best5_both": 43.619568936024635
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1125.66456116777,
+          "top1_within_1000ft": 70.86593076840639,
+          "best5_within_1000ft": 78.44282499196228,
+          "top1_both": 53.32225913621262,
+          "best5_both": 65.84503268674311
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "wind": {
+      "extra_features": [
+        "headwind_kt",
+        "crosswind_kt",
+        "oat_c"
+      ],
+      "arrivals_best5_5nm": 72.01505302771125,
+      "arrivals_top1_5nm": 43.89326034895655,
+      "all_best5_5nm": 86.71632193762726,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1482.3887176910575,
+          "top1_within_1000ft": 52.41190557646254,
+          "best5_within_1000ft": 69.8255217242559,
+          "top1_both": 30.242901128977078,
+          "best5_both": 42.490591857680464
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1126.6500550835783,
+          "top1_within_1000ft": 70.7801950487622,
+          "best5_within_1000ft": 77.76229771728647,
+          "top1_both": 53.370485478512485,
+          "best5_both": 65.7485800021434
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "type": {
+      "extra_features": [
+        "mtow_kg",
+        "cruise_mach"
+      ],
+      "arrivals_best5_5nm": 71.94663017447827,
+      "arrivals_top1_5nm": 43.58535750940814,
+      "all_best5_5nm": 86.63594470046083,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1463.5296950215723,
+          "top1_within_1000ft": 52.13821416353062,
+          "best5_within_1000ft": 70.09921313718782,
+          "top1_both": 30.961341087923365,
+          "best5_both": 43.209031816626755
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1131.8595627435298,
+          "top1_within_1000ft": 70.20683742364162,
+          "best5_within_1000ft": 78.07308970099668,
+          "top1_both": 53.23116493409067,
+          "best5_both": 65.64141035258815
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "traffic": {
+      "extra_features": [
+        "traffic_count",
+        "nearest_nm"
+      ],
+      "arrivals_best5_5nm": 71.60451590831339,
+      "arrivals_top1_5nm": 44.030106055422515,
+      "all_best5_5nm": 86.57700139320545,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1419.3171118269026,
+          "top1_within_1000ft": 53.02771125555936,
+          "best5_within_1000ft": 69.1070817653096,
+          "top1_both": 30.995552514539852,
+          "best5_both": 42.69586041737941
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1143.4195639477114,
+          "top1_within_1000ft": 70.77483656628442,
+          "best5_within_1000ft": 77.68192048012003,
+          "top1_both": 53.40799485585682,
+          "best5_both": 65.52888222055515
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "all": {
+      "extra_features": [
+        "sel_alt_delta_ft",
+        "fms_alt_delta_ft",
+        "sel_heading_delta_deg",
+        "intent_age_s",
+        "headwind_kt",
+        "crosswind_kt",
+        "oat_c",
+        "mtow_kg",
+        "cruise_mach",
+        "traffic_count",
+        "nearest_nm"
+      ],
+      "arrivals_best5_5nm": 71.67293876154636,
+      "arrivals_top1_5nm": 43.24324324324324,
+      "all_best5_5nm": 86.5126996034723,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1440.5618311274243,
+          "top1_within_1000ft": 52.24084844338008,
+          "best5_within_1000ft": 68.1491618200479,
+          "top1_both": 30.687649674991448,
+          "best5_both": 44.201163188504964
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1115.6607354060022,
+          "top1_within_1000ft": 71.12849640981675,
+          "best5_within_1000ft": 77.88018433179722,
+          "top1_both": 53.62233415496731,
+          "best5_both": 66.01114564355375
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "selected_level_cap": {
+      "windows_with_selected_level": 20384,
+      "cap_applied": 9020,
+      "served": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1413.6672026686208,
+          "top1_both": 31.885049606568593,
+          "best5_both": 44.064317482039,
+          "best5_within_1000ft": 72.35716729387616
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1116.0079737791114,
+          "top1_both": 53.79380559425571,
+          "best5_both": 66.0165041260315,
+          "best5_within_1000ft": 78.53927767656201
+        },
+        "with a selected level": {
+          "top1_altitude_mean_ft": 1509.0157307506072,
+          "top1_both": 42.57032542746828,
+          "best5_both": 52.619966905681196,
+          "best5_within_1000ft": 70.7446221731936
+        }
+      },
+      "served + selected-level cap": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 3778.6865764986783,
+          "top1_both": 21.21108450222374,
+          "best5_both": 26.06910708176531,
+          "best5_within_1000ft": 40.30106055422511
+        },
+        "all": {
+          "top1_altitude_mean_ft": 1838.58389497693,
+          "top1_both": 51.012753188297076,
+          "best5_both": 61.35462437037831,
+          "best5_within_1000ft": 69.90140392240917
+        },
+        "with a selected level": {
+          "top1_altitude_mean_ft": 2996.573573154765,
+          "top1_both": 36.84500827357971,
+          "best5_both": 43.02261445118588,
+          "best5_within_1000ft": 52.96194153337011
+        }
+      }
+    }
+  },
+  "classifier_intent": {
+    "source": "classifier_intent_20260925_050817.json",
+    "coverage": {
+      "a_sel_alt_delta_ft": 0.395425,
+      "b_sel_alt_delta_ft": 0.391525,
+      "sel_level_separation_ft": 0.159375
+    },
+    "seeds": [
+      42,
+      1,
+      2,
+      3
+    ],
+    "per_seed": {
+      "42": {
+        "baseline_retrained": {
+          "threshold": 0.09836401045322418,
+          "recall": 0.9405940594059405,
+          "precision": 0.41125541125541126,
+          "f1": 0.572289156626506,
+          "fbeta_2": 0.7480314960629921,
+          "false_alarms_per_1000": 86.99360341151386,
+          "true_positive": 285,
+          "false_positive": 408,
+          "false_negative": 18,
+          "true_negative": 3979,
+          "alert_rate": 0.14776119402985075,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9366197183098591,
+            "caught": 266,
+            "total": 284
+          }
+        },
+        "plus_intent": {
+          "threshold": 0.10335702449083328,
+          "recall": 0.9438943894389439,
+          "precision": 0.4447900466562986,
+          "f1": 0.6046511627906976,
+          "fbeta_2": 0.77088948787062,
+          "false_alarms_per_1000": 76.11940298507461,
+          "true_positive": 286,
+          "false_positive": 357,
+          "false_negative": 17,
+          "true_negative": 4030,
+          "alert_rate": 0.1371002132196162,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9401408450704225,
+            "caught": 267,
+            "total": 284
+          }
+        },
+        "plus_intent_at_baseline_false_alarm_rate": {
+          "threshold": 0.08798199892044067,
+          "recall": 0.9504950495049505,
+          "precision": 0.41379310344827586,
+          "f1": 0.5765765765765766,
+          "fbeta_2": 0.7547169811320755,
+          "false_alarms_per_1000": 86.99360341151386,
+          "true_positive": 288,
+          "false_positive": 408,
+          "false_negative": 15,
+          "true_negative": 3979,
+          "alert_rate": 0.14840085287846483,
+          "headline": {
+            "rate": 0.9471830985915493,
+            "caught": 269,
+            "total": 284
+          }
+        },
+        "false_alarms_in_stacked_mode": {
+          "baseline": 273,
+          "plus_intent": 222
+        },
+        "real_conflicts_lost_vs_baseline": 1,
+        "real_conflicts_gained_vs_baseline": 2
+      },
+      "1": {
+        "baseline_retrained": {
+          "threshold": 0.07180758565664291,
+          "recall": 0.9471947194719472,
+          "precision": 0.35964912280701755,
+          "f1": 0.5213442325158947,
+          "fbeta_2": 0.7139303482587065,
+          "false_alarms_per_1000": 108.95522388059702,
+          "true_positive": 287,
+          "false_positive": 511,
+          "false_negative": 16,
+          "true_negative": 3876,
+          "alert_rate": 0.1701492537313433,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9436619718309859,
+            "caught": 268,
+            "total": 284
+          }
+        },
+        "plus_intent": {
+          "threshold": 0.1215749979019165,
+          "recall": 0.9405940594059405,
+          "precision": 0.47420965058236275,
+          "f1": 0.6305309734513275,
+          "fbeta_2": 0.7859900717043574,
+          "false_alarms_per_1000": 67.3773987206823,
+          "true_positive": 285,
+          "false_positive": 316,
+          "false_negative": 18,
+          "true_negative": 4071,
+          "alert_rate": 0.1281449893390192,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9366197183098591,
+            "caught": 266,
+            "total": 284
+          }
+        },
+        "plus_intent_at_baseline_false_alarm_rate": {
+          "threshold": 0.06535500288009644,
+          "recall": 0.9603960396039604,
+          "precision": 0.3628428927680798,
+          "f1": 0.5266968325791855,
+          "fbeta_2": 0.7224428997020854,
+          "false_alarms_per_1000": 108.95522388059702,
+          "true_positive": 291,
+          "false_positive": 511,
+          "false_negative": 12,
+          "true_negative": 3876,
+          "alert_rate": 0.17100213219616206,
+          "headline": {
+            "rate": 0.9577464788732394,
+            "caught": 272,
+            "total": 284
+          }
+        },
+        "false_alarms_in_stacked_mode": {
+          "baseline": 369,
+          "plus_intent": 187
+        },
+        "real_conflicts_lost_vs_baseline": 4,
+        "real_conflicts_gained_vs_baseline": 2
+      },
+      "2": {
+        "baseline_retrained": {
+          "threshold": 0.09050967544317245,
+          "recall": 0.9504950495049505,
+          "precision": 0.38247011952191234,
+          "f1": 0.5454545454545454,
+          "fbeta_2": 0.732824427480916,
+          "false_alarms_per_1000": 99.14712153518124,
+          "true_positive": 288,
+          "false_positive": 465,
+          "false_negative": 15,
+          "true_negative": 3922,
+          "alert_rate": 0.16055437100213218,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9471830985915493,
+            "caught": 269,
+            "total": 284
+          }
+        },
+        "plus_intent": {
+          "threshold": 0.11272846162319183,
+          "recall": 0.9405940594059405,
+          "precision": 0.4596774193548387,
+          "f1": 0.6175514626218852,
+          "fbeta_2": 0.7778384279475983,
+          "false_alarms_per_1000": 71.42857142857143,
+          "true_positive": 285,
+          "false_positive": 335,
+          "false_negative": 18,
+          "true_negative": 4052,
+          "alert_rate": 0.13219616204690832,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9366197183098591,
+            "caught": 266,
+            "total": 284
+          }
+        },
+        "plus_intent_at_baseline_false_alarm_rate": {
+          "threshold": 0.07621800154447556,
+          "recall": 0.9504950495049505,
+          "precision": 0.3829787234042553,
+          "f1": 0.5459715639810426,
+          "fbeta_2": 0.7331975560081466,
+          "false_alarms_per_1000": 98.93390191897655,
+          "true_positive": 288,
+          "false_positive": 464,
+          "false_negative": 15,
+          "true_negative": 3923,
+          "alert_rate": 0.1603411513859275,
+          "headline": {
+            "rate": 0.9471830985915493,
+            "caught": 269,
+            "total": 284
+          }
+        },
+        "false_alarms_in_stacked_mode": {
+          "baseline": 327,
+          "plus_intent": 202
+        },
+        "real_conflicts_lost_vs_baseline": 4,
+        "real_conflicts_gained_vs_baseline": 1
+      },
+      "3": {
+        "baseline_retrained": {
+          "threshold": 0.08861207962036133,
+          "recall": 0.9504950495049505,
+          "precision": 0.3972413793103448,
+          "f1": 0.5603112840466926,
+          "fbeta_2": 0.743417656169334,
+          "false_alarms_per_1000": 93.17697228144989,
+          "true_positive": 288,
+          "false_positive": 437,
+          "false_negative": 15,
+          "true_negative": 3950,
+          "alert_rate": 0.15458422174840086,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9471830985915493,
+            "caught": 269,
+            "total": 284
+          }
+        },
+        "plus_intent": {
+          "threshold": 0.08205705136060715,
+          "recall": 0.9537953795379538,
+          "precision": 0.39917127071823205,
+          "f1": 0.5628042843232717,
+          "fbeta_2": 0.7463842975206612,
+          "false_alarms_per_1000": 92.75053304904051,
+          "true_positive": 289,
+          "false_positive": 435,
+          "false_negative": 14,
+          "true_negative": 3952,
+          "alert_rate": 0.15437100213219615,
+          "validation_floor_met": true,
+          "headline": {
+            "rate": 0.9507042253521126,
+            "caught": 270,
+            "total": 284
+          }
+        },
+        "plus_intent_at_baseline_false_alarm_rate": {
+          "threshold": 0.08155900239944458,
+          "recall": 0.9537953795379538,
+          "precision": 0.39807162534435264,
+          "f1": 0.5617103984450923,
+          "fbeta_2": 0.7456140350877193,
+          "false_alarms_per_1000": 93.17697228144989,
+          "true_positive": 289,
+          "false_positive": 437,
+          "false_negative": 14,
+          "true_negative": 3950,
+          "alert_rate": 0.15479744136460555,
+          "headline": {
+            "rate": 0.9507042253521126,
+            "caught": 270,
+            "total": 284
+          }
+        },
+        "false_alarms_in_stacked_mode": {
+          "baseline": 297,
+          "plus_intent": 299
+        },
+        "real_conflicts_lost_vs_baseline": 0,
+        "real_conflicts_gained_vs_baseline": 1
+      }
+    },
+    "summary": {
+      "baseline_retrained": {
+        "recall": {
+          "mean": 0.9471947194719472,
+          "min": 0.9405940594059405,
+          "max": 0.9504950495049505
+        },
+        "precision": {
+          "mean": 0.3876540082236715,
+          "min": 0.35964912280701755,
+          "max": 0.41125541125541126
+        },
+        "false_alarms_per_1000": {
+          "mean": 97.06823027718549,
+          "min": 86.99360341151386,
+          "max": 108.95522388059702
+        }
+      },
+      "plus_intent": {
+        "recall": {
+          "mean": 0.9447194719471947,
+          "min": 0.9405940594059405,
+          "max": 0.9537953795379538
+        },
+        "precision": {
+          "mean": 0.44446209682793303,
+          "min": 0.39917127071823205,
+          "max": 0.47420965058236275
+        },
+        "false_alarms_per_1000": {
+          "mean": 76.91897654584221,
+          "min": 67.3773987206823,
+          "max": 92.75053304904051
+        }
+      },
+      "lost_real_per_seed": [
+        1,
+        4,
+        4,
+        0
+      ],
+      "gained_real_per_seed": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "headline_caught": {
+        "baseline_retrained": [
+          266,
+          268,
+          269,
+          269
+        ],
+        "plus_intent": [
+          267,
+          266,
+          266,
+          270
+        ]
+      }
+    }
+  }
+}

@@ -17,6 +17,9 @@ for extra in (PROJECT_ROOT, PROJECT_ROOT / "ml_pipeline" / "training" / "traject
     sys.path.insert(0, str(extra))
 
 from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
+    CLASSIFIER_ALERT_KEY,
+    RULE_GEOMETRY_KEY,
+    alert_gate,
     compute_cpa,
     compute_cpa_from_paths,
     cpa_grid_times,
@@ -64,6 +67,73 @@ class DensifyPathTests(unittest.TestCase):
         self.assertEqual(dense["time_to_cpa_seconds"], 240)
         self.assertEqual(sparse["conflict_probability"], 0.0)
         self.assertEqual(dense["conflict_probability"], 1.0)
+
+
+class SafetyNetGeometryTests(unittest.TestCase):
+    """The safety net judges the straight-line rule, never a model path (24 Sep 2026)."""
+
+    @staticmethod
+    def pair(model_nm, model_ft, rule_nm, rule_ft):
+        return {"cpa_lateral_distance_nm": model_nm, "cpa_vertical_separation_ft": model_ft,
+                "time_to_cpa_seconds": 300.0, CLASSIFIER_ALERT_KEY: False,
+                RULE_GEOMETRY_KEY: {"cpa_lateral_distance_nm": rule_nm,
+                                    "cpa_vertical_separation_ft": rule_ft, "time_to_cpa_seconds": 300.0}}
+
+    def test_model_breach_alone_does_not_fire_the_net(self):
+        self.assertEqual(alert_gate(self.pair(1.0, 200.0, 12.0, 3000.0)), (False, "classifier"))
+
+    def test_rule_breach_fires_the_net_even_when_the_model_path_is_clear(self):
+        self.assertEqual(alert_gate(self.pair(12.0, 3000.0, 1.0, 200.0)), (True, "separation-minimum"))
+
+    def test_without_rule_geometry_the_result_itself_is_judged(self):
+        plain = {"cpa_lateral_distance_nm": 1.0, "cpa_vertical_separation_ft": 200.0,
+                 "time_to_cpa_seconds": 300.0, CLASSIFIER_ALERT_KEY: False}
+        self.assertEqual(alert_gate(plain), (True, "separation-minimum"))
+
+
+class ClearanceTests(unittest.TestCase):
+    """Plan Phase 7: what a known clearance may and may not do to candidate paths."""
+
+    @staticmethod
+    def fan():
+        from ml_pipeline.utils.clearance import FT_PER_M
+        # Three candidates from 20,000 ft, heading north: level, descending to 12,000,
+        # and descending through 8,000. Positions at 1/3/5/10 min.
+        def path(final_ft, east_deg=0.0):
+            alt = np.linspace(20_000, final_ft, 4) / FT_PER_M
+            return np.column_stack([19.0 + np.array([0.05, 0.15, 0.25, 0.5]),
+                                    72.8 + np.array([0, 0, 0, east_deg]), alt])
+        return np.array([0.5, 0.3, 0.2]), np.stack([path(20_000), path(12_000), path(8_000, east_deg=0.4)]), 20_000 / FT_PER_M
+
+    def test_level_clearance_caps_altitude_and_eliminates_nothing(self):
+        from ml_pipeline.utils.clearance import FT_PER_M, Clearance, apply_clearance
+        probs, pos, alt = self.fan()
+        p, q, kept, report = apply_clearance(probs, pos, alt, Clearance("abc", "DESCEND", 10_000))
+        self.assertTrue(report["applied"])
+        self.assertEqual(len(p), 3)
+        self.assertTrue(np.all(q[..., 2] * FT_PER_M >= 10_000 - 1e-6), "no candidate may pass the cleared level")
+        self.assertAlmostEqual(float(q[1, 3, 2] * FT_PER_M), 12_000, delta=1e-3)
+
+    def test_heading_clearance_eliminates_and_renormalises(self):
+        from ml_pipeline.utils.clearance import Clearance, apply_clearance
+        probs, pos, alt = self.fan()
+        p, q, kept, report = apply_clearance(probs, pos, alt, Clearance("abc", "TURN", 0.0))
+        self.assertEqual(kept.tolist(), [0, 1])
+        self.assertAlmostEqual(float(p.sum()), 1.0)
+
+    def test_never_returns_an_empty_fan(self):
+        from ml_pipeline.utils.clearance import Clearance, apply_clearance
+        probs, pos, alt = self.fan()
+        p, q, kept, report = apply_clearance(probs, pos, alt, Clearance("abc", "TURN", 180.0))
+        self.assertEqual(len(p), 3)
+        self.assertFalse(report["applied"])
+
+    def test_implausible_value_is_rejected_not_applied(self):
+        from ml_pipeline.utils.clearance import Clearance, apply_clearance
+        probs, pos, alt = self.fan()
+        p, q, kept, report = apply_clearance(probs, pos, alt, Clearance("abc", "DESCEND", 310_000))
+        self.assertFalse(report["applied"])
+        self.assertTrue(np.array_equal(q, pos))
 
 
 class PlattCalibratorTests(unittest.TestCase):

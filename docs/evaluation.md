@@ -7,14 +7,56 @@ be right or wrong, that is a bug in the document.
 
 **Models trained:** 6 September 2026, run
 `ml_pipeline/reports/training_report_20260906_140317.md`.
-**Re-measured:** 8 September 2026 by `python ml_pipeline/utils/reevaluate_models.py`,
-which loads each saved model in a fresh process and scores it again without retraining
-anything. Every figure below was regenerated from those artifacts on the same day.
+**Re-measured:** 8 September 2026, and again on **21 September 2026**, by
+`python ml_pipeline/utils/reevaluate_models.py`, which loads each saved model in a fresh
+process and scores it again without retraining anything. The two runs are **identical to
+every decimal place** — the report files differ only in their timestamp. Every figure
+below was regenerated from those artifacts.
 **Reproduce:** `python ml_pipeline/utils/reevaluate_models.py` (re-score, ~6 min) or
 `python ml_pipeline/run_pipeline.py` (full retrain, ~20 min on an RTX 4050), then
 `python ml_pipeline/utils/verify_pipeline.py` (110 checks, ~1 min).
 **Figures:** `python ml_pipeline/utils/build_evaluation_figures.py`; raw values in
-[`metrics.json`](metrics.json).
+[`metrics.json`](metrics.json). The tree-reference columns come from
+`ml_pipeline/data/processed/eval_tree_reference.csv`, written by
+`reference_benchmark.py`; until 21 September they were typed into the figure script by
+hand, which is the one thing this project's rules forbid. Re-checked on 21 September: the
+hand-typed values were correct to one decimal in all twelve cases, so nothing published
+here was ever wrong — but nothing enforced it either, and now something does.
+
+---
+
+## Which number belongs to which model file
+
+**This document and [`metrics.json`](metrics.json) are authoritative.** Everything else in
+the repository quotes them.
+
+That matters because `docs/CLAUDE.md` contains three different figures for the same
+metric — the LSTM's ten-minute within-5-NM rate reads **60.9%**, **60.8%** and **61.3%**
+in different places. They are not a contradiction and none of them is a typo. **They are
+three different model files**, and only one of them still exists:
+
+| Figure | Which file produced it | Still on disk? |
+|---|---|---|
+| 35.8% arrivals / 60.9% overall | the 5 September model (best epoch 19, validation loss 0.235965) | no, overwritten |
+| 60.8% overall | a 6 September morning re-run of the training script | no, overwritten |
+| **34.8% arrivals / 61.3% overall** | **`trajectory_residual.pt`, written 6 September 14:02:25 — the file the system actually runs** | **yes** |
+
+The evidence that the third row is the shipped one: the model file's own timestamp is
+*earlier* than the start of the 6 September 14:03 pipeline run, because that run resumed
+from a training step that had already succeeded and written its model before crashing on
+shutdown. The `multipath.log` from that same run, reading that same file, prints
+`single-answer residual LSTM  34.8%  61.3%` — and re-scoring the file today returns
+34.8 / 61.3 again.
+
+`CLAUDE.md` explains the 60.8-versus-60.9 gap as graphics-card rounding, which is right.
+It never mentions the further step to 61.3, because it never recorded evaluating the model
+it shipped. The entries in that file are dated historical records and are **left exactly as
+they were written** — rewriting them would destroy the evidence trail. When the two
+disagree, this document wins.
+
+For the same reason, `CLAUDE.md` says "all 36 raw parquets" in its 5 September entry and
+"the current 35 raw parquets" in its 6 September one. There are **35** on disk today, and
+the later entry is the correction.
 
 ---
 
@@ -38,6 +80,79 @@ Read these once and the rest of the document is readable.
 > That is 267 out of 284. The best rule-based detector catches 87.3% of the same 284.
 
 ![Headline metric](figures/headline_metric.png)
+
+### Two numbers, and which one this document means
+
+This document quotes **94.0%** throughout. That is the **conflict classifier scored on its
+own**: give the model every pair in the held-out test data, apply its own threshold, count
+what it would catch. It is the model's number and it is what the project's gates are defined
+against.
+
+There is a second number, and until 22 September 2026 it was very different. The classifier
+does not raise alarms by itself — it sits inside a system that also has a geometric rule, a
+tier assignment and a three-consecutive-updates anti-flicker rule. **What that whole system
+catches is a separate measurement**, and it was not being taken:
+
+| What is being scored | Conflicts caught | With ≥3 min warning |
+|---|---|---|
+| The classifier on its own — **the number this document quotes** | 0.9439 | **94.0%** (267 of 284) |
+| The running system, before 22 Sep 2026 | 0.8812 | **87.3%** (248 of 284) |
+| The running system, now | 0.9505 | **94.7%** (269 of 284) |
+
+**Why the middle row was so much worse.** The classifier was computed, displayed on the
+dashboard, and then **not consulted** when the system decided whether to raise an alarm —
+that decision ran on geometry alone. So the dashboard was not the system this document
+described. That is recorded as issue C3 in `ISSUES.md` and was fixed on 22 September; the
+classifier now gates the decision.
+
+**Nothing about the model changed.** Its weights, its threshold and its gates are untouched,
+which is why the top row is identical before and after. Both numbers are now produced by
+every run of `reevaluate_models.py` (under `model2.escalation_runtime`) so the gap cannot
+reopen without showing up.
+
+**Correction, 24 September 2026: the bottom row leaves out one step the running system
+takes.** `reevaluate_models.py` scores the gate on the straight-line geometry only. The
+backend does something more: for any pair not already inside three minutes, it takes the
+time and distance from the **multi-path model** (five candidate paths per aircraft) instead,
+and the 5 NM / 1,000 ft safety net then checks the *closest* of the 25 path combinations.
+`ml_pipeline/utils/offsets_ab_test.py` measures that step on the same 4,690 labelled test
+pairs:
+
+| What is being scored | Alerts | Conflicts caught | With ≥3 min warning | False alarms per 1,000 | Tier 1 real / false |
+|---|---|---|---|---|---|
+| Running system without the multi-path step (the row above) | 762 | 0.9505 | 94.7% (269 of 284) | 101.1 | 27 / 14 |
+| Running system as served **until 24 Sep** (per-pattern average offsets; net checks the model's worst path) | 817 | 0.9472 | 94.4% (268 of 284) | 113.0 | 28 / 18 |
+| **Running system as served from 24 Sep** (per-mode offsets; net checks the straight line) | **762** | **0.9505** | **94.7%** (269 of 284) | **101.1** | **28 / 17** |
+
+Until 24 September the honest figure for what the controller got was **94.4%**, not 94.7%.
+The multi-path step added 55 alerts and dropped one caught conflict. The safety net was
+checking the model's *closest* path combination, even one the model barely believed in:
+403 safety-net alarms without it, 464 with it. On the one dropped conflict, the straight
+line breached the legal minimum but the model's path did not, so the net stayed silent.
+
+**Fixed and switched on 24 September (plan 3.2, with sign-off).** The net now always judges
+the straight-line prediction, as Section 13 of `CLAUDE.md` requires. The multi-path model
+still decides alarm versus watch list and still feeds Model 3's checks. Per-mode offsets
+(Phase 3.1) serve by default. Against the old configuration: the same conflicts are caught
+plus one, **55 fewer alerts** (all false), and one fewer false audible alarm. Against no
+multi-path step at all, the alerts are identical and the model moves one real conflict up
+into the audible tier 1 alarm.
+
+**Plan 3.2's candidate pruning was measured and not adopted.** Keeping each aircraft's paths
+up to 90% of probability, dropping paths under 0.10, or dropping combinations under 0.05
+all cut most of the extra alarms. Letting the model's paths *add* to the net (straight line
+OR model) catches up to 2 more real conflicts with per-mode offsets (271 of 284), at 18.3
+more false alarms per 1,000 pairs. Under the adoption rule fixed before the numbers were
+seen (no loss in catches, recall or real tier 1 alarms; then fewest false alarms), the
+straight-line net wins. The full 21-configuration table is in
+`ml_pipeline/reports/offsets_ab_20260924_181140.json`.
+
+Sources: `ml_pipeline/utils/offsets_ab_test.py`. One training seed for the per-mode offsets
+(plan 3.3 owes three). The 94.0% model figure is unaffected.
+
+**When quoting either, say which one it is.** "94.0% of conflicts caught with three minutes
+of warning" is the defensible sentence for the model. "The running system catches 94.7%" is
+the defensible sentence for the system. Merging them is not defensible.
 
 **How to read 94.0%.** Take every real conflict in the test data that still had three or
 more minutes to run when we looked at it — there are 284 of them. We raised an alert on
@@ -226,7 +341,7 @@ shapes for the aircraft in front of it.
 | Single-answer residual LSTM | 34.8% | 61.3% |
 | Multi-path, 1 option | 38.6% | 64.0% |
 | Multi-path, 3 options | 57.9% | 79.0% |
-| **Multi-path, 5 options (shipped)** | **63.6%** | **83.0%** |
+| **Multi-path, 5 options (served until 24 Sep 2026; see per-mode below)** | **63.6%** | **83.0%** |
 | Multi-path, 10 options | 68.8% | 86.5% |
 
 **Reading it.** Every number is "% of cases where a prediction landed within 5 NM of the
@@ -250,6 +365,88 @@ time, our single-answer model 34.8%, and offering five options 63.6%.
 path multiplies the pairwise conflict check — checking two aircraft means comparing every
 path of one against every path of the other, so 5×5 = 25 comparisons and 10×10 = 100. Five
 buys most of the benefit at a quarter of the cost.
+
+## Per-mode offsets — served from 24 September 2026, checked across four seeds
+
+**What changed (Phase 3.1).** The table above moves every aircraft on a route shape by that
+shape's *average* offset. The per-mode version predicts the offset *for this aircraft*,
+given the shape and its own recent motion. The shapes, their probabilities and the
+five-candidate ranking are unchanged. Only where each candidate lands moves. It serves by
+default since 24 September.
+
+**Is the gain real, or one lucky training run? (Phase 3.3).** Trained four times, each with
+a different random starting point for every part of the model (route shapes, shape
+classifier, offset models), on identical data splits. Seed 42 is the served model, and
+retraining it reproduced every printed metric exactly.
+
+| Arrivals, ten minutes, within 5 NM | seed 42 (served) | seed 1 | seed 2 | seed 3 | mean ± spread |
+|---|---|---|---|---|---|
+| Per-mode, 5 options | 71.5% | 72.1% | 72.4% | 71.8% | **72.0% ± 0.4** |
+| Pattern table, 5 options | 63.6% | 63.6% | 61.7% | 64.8% | 63.4% ± 1.3 |
+| Per-mode, 1 option | 44.2% | 42.6% | 43.4% | 44.4% | **43.7% ± 0.8** |
+| Pattern table, 1 option | 38.6% | 37.8% | 37.1% | 39.8% | 38.3% ± 1.2 |
+| Per-mode, 5 options, all test traffic | 86.6% | 86.9% | 86.8% | 87.1% | 86.9% ± 0.2 |
+
+Per-mode beats the table on **every** seed: by 7.0 to 10.7 points with five options and by
+4.6 to 6.4 with one. Every gate passes on every seed. The served model is the *lowest* of the
+four with five options, so its 71.5% is not a lucky draw. The best seed was deliberately not
+swapped in; that would be picking a result. The single likeliest path also beats straight
+lines at every horizon on every seed (mean error at ten minutes 5.65 to 5.73 NM, against
+10.30). Source: `ml_pipeline/reports/multipath_seeds_20260925_012526.json`.
+
+The best-of-5 warning above applies unchanged: 72% is "one of five was close", and 44% is
+"the single likeliest was close".
+
+## Height as well as position — measured for the first time on 25 September 2026
+
+**Every multi-path figure above is horizontal only.** "Within 5 NM" says nothing about height,
+but a conflict needs both: closer than 5 NM **and** closer than 1,000 ft. The multi-path model
+does predict altitude, but until 25 September nothing scored it.
+`ml_pipeline/utils/multipath_3d_eval.py` now does, on the same test split
+(`ml_pipeline/reports/multipath_3d_20260925_030155.json`):
+
+| Ten minutes ahead | Straight line | Pattern table | **Per-mode (served)** |
+|---|---|---|---|
+| Likeliest path's height error, mean, all traffic | 2,231 ft | 2,224 ft | **1,116 ft** |
+| Likeliest path within 1,000 ft of the real height, all traffic | 62.6% | 57.0% | **71.1%** |
+| Arrivals: one of 5 within 5 NM | 15.8% | 63.6% | 71.5% |
+| Arrivals: one of 5 within 1,000 ft | 26.9% | 43.9% | 72.4% |
+| **Arrivals: one of 5 within 5 NM AND 1,000 ft** | 14.7% | 21.2% | **44.1%** |
+| All traffic: one of 5 within 5 NM AND 1,000 ft | 41.9% | 52.2% | **66.0%** |
+
+Two things follow. First, **the pattern table predicted height no better than a straight
+line**, and worse at ten minutes (57.0% vs 62.6% within 1,000 ft). Its route shapes are grouped
+on horizontal movement only, so each shape's height correction averages climbing and
+descending aircraft into roughly nothing. Per-mode offsets fix this: the height error halves.
+That is a second, previously unmeasured benefit of the 24 September switch. Second, the honest
+three-dimensional figure for arrivals is **44.1%, not 71.5%**. Quote it whenever the question
+is about conflicts rather than about where an aircraft will be on a map.
+
+## More data: the OpenSky archive (Phase 3.3), measured and not served
+
+The same model was trained with 400,000 extra windows from 12 archive days (February 2025 to
+July 2026). All of them come from before the validation period, so nothing from the future
+leaks in. Validation and test are unchanged. Four runs with different seeds
+(`ml_pipeline/reports/multipath_archive_seeds_20260925_030354.json`):
+
+| Arrivals, ten minutes | Per-mode, 4 runs | + archive, 4 runs |
+|---|---|---|
+| One of 5 within 5 NM | 72.0% (71.5–72.4) | **75.6%** (74.9–76.1) |
+| Likeliest within 5 NM | 43.7% (42.6–44.4) | **46.7%** (46.3–47.2) |
+| One of 5 within 5 NM AND 1,000 ft | 44.1% (served run) | **46.4–46.9%** |
+| One of 5 within 1,000 ft | 72.4% (served run) | 65.5–67.2% (lower) |
+
+Better on position and on the combined measure. The five paths cover a narrower range of
+heights, so "one of five within 1,000 ft" falls. The pattern classifier trained on more data
+is also much less over-confident before calibration (temperature 1.73 → 1.07).
+
+**Not served, because it did not help the controller.** Scored through the served alert chain
+on labelled pairs (`ml_pipeline/reports/alert_prominence_compare_20260924_213320.json`), the
+alerts were identical on test. On validation, one real conflict lost its audible tier 1 alarm
+and one false one gained it. Every tier change sits at the 180-second boundary, and several are
+decided by a path combination that does not conflict at all. The swap reshuffles borderline
+pairs rather than improving anything a controller sees. The adoption rule, set before the
+result, required no real conflict to lose its alarm.
 
 ## Calibration — are the stated probabilities honest?
 
@@ -485,6 +682,14 @@ seeing it.
 | **1. Recall ≥ 0.95** | **FAIL — 0.9439** |
 | 2. Beats the rule-based detector on F-β(2) | PASS — 0.7326 vs 0.7315 |
 
+**One thing must not be misread here.** Since 22 September the *running system's* recall is
+**0.9505**, which is above the floor — reported in "What actually reaches the controller"
+above. That does **not** pass Gate 1. Gate 1 is defined on the classifier measured **in
+isolation**, and on that measurement it is still 0.9439. The system clears 0.95 partly
+because the geometric safety net catches pairs the classifier misses, which is the safety
+net doing its job, not the model meeting its bar. Two different measurements; only one of
+them is what this gate asks about.
+
 **Gate 1 fails by six-tenths of a percentage point, and was not tuned away.** The cause is
 diagnosed and it is not a defect in the model. The threshold is chosen as the *highest*
 sensitivity setting that still reaches 0.95 recall on validation data — which by construction
@@ -594,6 +799,37 @@ because that earlier sweep used an ad-hoc reconstruction that was not kept; this
 This is the section that matters operationally, and it is **not** what a precision of 0.386
 suggests on its own.
 
+## First gate: what qualifies as an alert at all
+
+Before anything reaches the feed, `escalate_pair` decides whether a pair qualifies. Since
+22 September that runs through three routes in strict priority order — the geometric safety
+net (a predicted breach of 5 NM / 1,000 ft alerts whatever any model says), then the
+classifier, then the older probability route where no classifier verdict exists.
+
+Measured on the held-out test split, this is what that gate changed:
+
+| | Total alerts | Recall | Precision | ≥3 min warning | Tier 1 alarms | Tier 1 false |
+|---|---|---|---|---|---|---|
+| Geometry only (before) | 613 | 0.8812 | 0.436 | 87.3% | 51 | 24 |
+| Classifier-gated (now) | 762 | **0.9505** | 0.378 | **94.7%** | **41** | **14** |
+
+**Tier 1 — the audible alarm, and the only tier that carries suggested manoeuvres —
+strictly improves.** The same **27** real conflicts are caught, and the false alarms beside
+them fall from 24 to 14. Ten fewer interruptions for conflicts that were never going to
+happen, with nothing real given up.
+
+**And something got worse, which matters more than the improvement for how this is
+reported.** Total alerts rise and overall precision falls. Every bit of that is in **tier 2,
+the silent watch list**: its real rows rise 240 → 261 and its false rows rise 322 → 460. The
+system now watches 21 more genuine conflicts at the cost of 138 more watch-list rows that
+come to nothing.
+
+That trade is defensible but it is a trade. Tier 2 makes no sound, suggests no manoeuvre,
+and is exactly what the alert feed below exists to keep manageable — which is the reason the
+next subsection is not optional garnish.
+
+## Then: the alert feed
+
 Between detection and the dashboard sits `ml_pipeline/utils/alert_feed.py`. It suppresses
 repeat interruptions and collapses low-confidence watch-list rows. **Both are display
 decisions, not detection decisions.** The guarantee is structural rather than tested-for:
@@ -644,6 +880,17 @@ to 9 minutes of real warning left** (360–540 s), all seven stay on the active 
 and each is released into a full alarm as it closes inside three minutes. That release is
 verified by an automated check, not assumed. So all seven reach the controller with more than
 three minutes in hand — which is precisely what the headline metric measures.
+
+**Correction, 24 September 2026: that last sentence overstates it.** With more than three
+minutes left, the seven are on the active list only as part of the collapsed group's
+*count*. They get a prominent row of their own once they are inside three minutes. The
+headline counts them as caught because detection caught them. What the controller sees
+prominently with three minutes or more is a smaller set. Re-measured on the configuration
+served since 24 September: **7 real conflicts in the group on test, 10 on validation.** A
+stricter group (collapse only when the multi-path model also puts the conflict under 10%)
+would cut that to 3, at the cost of 50 more false rows shown prominently on test. That is a
+safety-versus-noise decision left to Archit (`ISSUES.md` H5,
+`ml_pipeline/reports/alert_prominence_20260924_193159.json`).
 
 **Four things can never be collapsed**, whatever the model says: a tier 1 alarm, a pair the
 deterministic geometric rule calls a conflict, anything at high or critical severity, and
@@ -763,7 +1010,10 @@ conflicts are the evidence.
    critical, 5.0 NM for high) rather than deriving them from its own threshold parameters.
    Passing terminal thresholds would give a correct `is_conflict` and a wrong severity.
 4. **Tier thresholds (0.85 / 0.60) have not been revisited** against the now-calibrated
-   probabilities.
+   probabilities. They apply to the multi-path joint probability only. They are emphatically
+   **not** applied to the conflict classifier, whose own calibrated conflict line is 0.0285 —
+   about thirty times lower. Comparing the classifier against 0.85 was measured and would
+   collapse recall from 0.9439 to 0.1881 and the headline from 94.0% to 19.0%.
 5. **Model 1's numbers drift about 0.1 points between runs** from GPU floating-point
    non-determinism — the same arithmetic done in a slightly different order. Stages 1, 3, 5 and
    6 of the pipeline reproduce bit-for-bit.

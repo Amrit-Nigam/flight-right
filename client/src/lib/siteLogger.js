@@ -1,3 +1,5 @@
+import { postAuditLog } from "./api.js";
+
 const STORAGE_KEY = "flight-right-site-logs-v1";
 const BOOT_FLAG_KEY = "flight-right-logger-boot-v1";
 const MAX_ENTRIES = 2500;
@@ -68,17 +70,59 @@ export function logActivity(source, message, detail) {
   });
 }
 
+let lastPersistWarning = 0;
+
+/**
+ * Send one audit entry to the server's append-only audit log (ISSUES.md H1, fixed 25 Sep
+ * 2026). Until then `logAudit` wrote only to sessionStorage, which is erased when the tab
+ * closes: 44 call sites across 15 files, and `postAuditLog` was exported and never called.
+ * Fire-and-forget so the UI never waits on it; a failure is reported honestly in the tab
+ * log (at most once a minute) instead of being hidden.
+ */
+function persistAudit(source, message, detail) {
+  let parsed = detail;
+  if (typeof detail === "string") {
+    try {
+      parsed = JSON.parse(detail);
+    } catch {
+      parsed = { text: detail };
+    }
+  }
+  const body = parsed && typeof parsed === "object" ? parsed : {};
+  postAuditLog({
+    level: "audit",
+    source: `ui:${source}`,
+    action: message,
+    callsign: body.callsign || body.flightId || undefined,
+    conflictId: body.conflictId || body.conflict_id || undefined,
+    detail: body,
+  }).catch((error) => {
+    const now = Date.now();
+    if (now - lastPersistWarning > 60_000) {
+      lastPersistWarning = now;
+      appendSiteLog({
+        level: "warning",
+        source: "audit",
+        message: `Audit entries are NOT reaching the server audit log (${error?.message || "backend unreachable"}); they are kept in this tab only until it recovers.`,
+      });
+    }
+  });
+}
+
 /**
  * User / operator control audit (level "audit") — navigation, chrome, log viewer, and explicit UI actions.
+ * Recorded in this tab for the live view AND sent to the server's append-only audit log.
  * Use alongside `logActivity` for scenario semantics where both are needed.
  */
 export function logAudit(source, message, detail) {
-  return appendSiteLog({
+  const entry = appendSiteLog({
     level: "audit",
     source: String(source),
     message: String(message),
     detail: detail != null ? (typeof detail === "string" ? detail : JSON.stringify(detail)) : undefined,
   });
+  persistAudit(String(source), String(message), detail);
+  return entry;
 }
 
 export function getSiteLogs() {

@@ -1,0 +1,293 @@
+{
+  "note": "Phase 3.3 seed variance for Model 1b. Each run varies the WHOLE model: balanced sample + KMeans + pattern classifier (FLIGHT_RIGHT_MULTIPATH_SEED) and the per-mode offset regressors (FLIGHT_RIGHT_OFFSET_SEED). seed_42 is the served model, reproduced (KMeans centres within 2.1e-14 NM, every printed metric identical). Same train/val/test splits for all runs.",
+  "runs": {
+    "seed_42": {
+      "seed": 42,
+      "offset_seed": 0,
+      "temperature": 1.7290173725770421,
+      "ece_arrivals_after": 0.01899391544845689,
+      "ece_all_after": 0.012068286407650673,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 38.624700650017104,
+            "all": 63.99635623191512
+          },
+          "3": {
+            "arrivals": 57.88573383510093,
+            "all": 78.99474868717179
+          },
+          "5": {
+            "arrivals": 63.56483065343825,
+            "all": 82.99753509806023
+          },
+          "10": {
+            "arrivals": 68.8333903523777,
+            "all": 86.50734112099452
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 44.16695176188847,
+            "all": 66.65416354088522
+          },
+          "3": {
+            "arrivals": 65.1043448511803,
+            "all": 82.20447969135141
+          },
+          "5": {
+            "arrivals": 71.46767020184743,
+            "all": 86.57700139320545
+          },
+          "10": {
+            "arrivals": 77.72836127266507,
+            "all": 90.5905047690494
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.5071531731222466,
+          1.5971217745892148,
+          2.9165151117455417,
+          6.056937994118273
+        ],
+        "per_mode": [
+          0.45231581817783867,
+          1.4683947206542227,
+          2.704748949930783,
+          5.6677779795940495
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "seed_1": {
+      "seed": 1,
+      "offset_seed": 1,
+      "temperature": 1.7237267798679647,
+      "ece_arrivals_after": 0.02223064641526678,
+      "ece_all_after": 0.012705879464097845,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 37.83783783783784,
+            "all": 63.985639266959595
+          },
+          "3": {
+            "arrivals": 56.9620253164557,
+            "all": 78.83935269531669
+          },
+          "5": {
+            "arrivals": 63.59904208005474,
+            "all": 83.49051548601436
+          },
+          "10": {
+            "arrivals": 69.1070817653096,
+            "all": 87.23073625549245
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 42.59322613752993,
+            "all": 66.44518272425249
+          },
+          "3": {
+            "arrivals": 64.86486486486487,
+            "all": 82.09731004179616
+          },
+          "5": {
+            "arrivals": 72.11768730756073,
+            "all": 86.93601971921552
+          },
+          "10": {
+            "arrivals": 78.78891549777626,
+            "all": 91.01918336727039
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.5068836592220308,
+          1.6022665843315131,
+          2.936340824059366,
+          6.120092219832995
+        ],
+        "per_mode": [
+          0.4532362480049205,
+          1.4797658011474393,
+          2.724512004444933,
+          5.733461588352572
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "seed_2": {
+      "seed": 2,
+      "offset_seed": 2,
+      "temperature": 1.7327270679014972,
+      "ece_arrivals_after": 0.020535451888899214,
+      "ece_all_after": 0.01184438978249956,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 37.05097502565857,
+            "all": 64.0285071267817
+          },
+          "3": {
+            "arrivals": 55.66199110502909,
+            "all": 78.27671203515165
+          },
+          "5": {
+            "arrivals": 61.68320218953131,
+            "all": 82.92251634337156
+          },
+          "10": {
+            "arrivals": 67.67020184741703,
+            "all": 86.84492551709356
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 43.41430037632569,
+            "all": 66.77205015539599
+          },
+          "3": {
+            "arrivals": 64.48853917208348,
+            "all": 81.7650841281749
+          },
+          "5": {
+            "arrivals": 72.42559014710913,
+            "all": 86.80741613974922
+          },
+          "10": {
+            "arrivals": 79.64420116318851,
+            "all": 91.27639052620297
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.5049912579671143,
+          1.5839834074647925,
+          2.8916023375746382,
+          6.043234481812644
+        ],
+        "per_mode": [
+          0.4496456576227156,
+          1.4473572233863476,
+          2.6862520104922414,
+          5.649698390622209
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "seed_3": {
+      "seed": 3,
+      "offset_seed": 3,
+      "temperature": 1.7297619382287661,
+      "ece_arrivals_after": 0.017406698661039513,
+      "ece_all_after": 0.012146953008453908,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 39.822100581594256,
+            "all": 63.70163969563819
+          },
+          "3": {
+            "arrivals": 59.083133766678074,
+            "all": 79.07512592433822
+          },
+          "5": {
+            "arrivals": 64.79644201163188,
+            "all": 84.01028828635731
+          },
+          "10": {
+            "arrivals": 70.71501881628464,
+            "all": 87.65405637123567
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 44.4064317482039,
+            "all": 66.54163540885222
+          },
+          "3": {
+            "arrivals": 65.34382483749572,
+            "all": 82.07051762940735
+          },
+          "5": {
+            "arrivals": 71.8439958946288,
+            "all": 87.06462329868181
+          },
+          "10": {
+            "arrivals": 79.91789257612042,
+            "all": 91.38891865823598
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.5047297375004803,
+          1.5800732386871597,
+          2.893969870143002,
+          6.060680735401349
+        ],
+        "per_mode": [
+          0.4507083944822351,
+          1.4469773949981435,
+          2.7018457114735224,
+          5.660628174188778
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    }
+  }
+}

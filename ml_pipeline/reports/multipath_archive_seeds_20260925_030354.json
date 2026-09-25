@@ -1,0 +1,293 @@
+{
+  "note": "Phase 3.3 archive row, four seeds. Training = existing 205,757 windows + 400,000 seeded windows from 12 OpenSky archive days (9 Feb 2025 .. 20 Jul 2026, every 3rd usable day before validation start 2026-09-02 20:46 UTC). Val/test = the existing files. Built by ml_pipeline/utils/archive_row.py. Seed 42 reproduced the first archive run byte-for-byte. NOT served: alert comparison alert_prominence_compare_20260924_213320.json fails the pre-set rule on validation (one real tier 1 alarm lost).",
+  "runs": {
+    "seed_42": {
+      "seed": 42,
+      "offset_seed": 0,
+      "temperature": 1.0645782538192603,
+      "ece_arrivals_after": 0.01690996378275832,
+      "ece_all_after": 0.011052562521688677,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 41.32740335271981,
+            "all": 65.26631657914479
+          },
+          "3": {
+            "arrivals": 59.52788231269244,
+            "all": 80.3290108241346
+          },
+          "5": {
+            "arrivals": 64.24905918576805,
+            "all": 84.09066552352374
+          },
+          "10": {
+            "arrivals": 69.03865891207663,
+            "all": 86.85564248204909
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 46.835443037974684,
+            "all": 67.79552030864859
+          },
+          "3": {
+            "arrivals": 68.90181320561068,
+            "all": 83.75843960990248
+          },
+          "5": {
+            "arrivals": 75.43619568936025,
+            "all": 88.0613010395456
+          },
+          "10": {
+            "arrivals": 81.45740677386247,
+            "all": 91.49608830779124
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.49762150016678447,
+          1.5128346757919402,
+          2.755951611565018,
+          5.960121899646334
+        ],
+        "per_mode": [
+          0.43853136854791797,
+          1.3405835799294559,
+          2.5336291716776125,
+          5.571339333859077
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "seed_1": {
+      "seed": 1,
+      "offset_seed": 1,
+      "temperature": 1.0580341903732935,
+      "ece_arrivals_after": 0.01849758525870623,
+      "ece_all_after": 0.011529417661258446,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 40.23263770099213,
+            "all": 65.35205229878899
+          },
+          "3": {
+            "arrivals": 58.05679096818337,
+            "all": 79.55738934733684
+          },
+          "5": {
+            "arrivals": 64.0780020526856,
+            "all": 83.61911906548065
+          },
+          "10": {
+            "arrivals": 67.63599042080055,
+            "all": 86.11081341764012
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 46.32227163872734,
+            "all": 68.18133104704748
+          },
+          "3": {
+            "arrivals": 69.1412931919261,
+            "all": 83.80130746972458
+          },
+          "5": {
+            "arrivals": 76.12042422169004,
+            "all": 88.29707426856714
+          },
+          "10": {
+            "arrivals": 81.354772494013,
+            "all": 91.51752223770228
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.4989086666768567,
+          1.519092867790029,
+          2.7545960946586714,
+          5.935049973516278
+        ],
+        "per_mode": [
+          0.4386167067107258,
+          1.3435606263505693,
+          2.557706644385937,
+          5.538967730720455
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "seed_2": {
+      "seed": 2,
+      "offset_seed": 2,
+      "temperature": 1.0675019599140612,
+      "ece_arrivals_after": 0.01692564553586573,
+      "ece_all_after": 0.01059629462884406,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 40.13000342114266,
+            "all": 65.13235451720072
+          },
+          "3": {
+            "arrivals": 57.06465959630517,
+            "all": 79.38055942557068
+          },
+          "5": {
+            "arrivals": 62.16216216216216,
+            "all": 83.43693066123674
+          },
+          "10": {
+            "arrivals": 66.57543619568936,
+            "all": 85.86432322366306
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 47.17755730413958,
+            "all": 68.04201050262566
+          },
+          "3": {
+            "arrivals": 68.38864180636332,
+            "all": 83.75843960990248
+          },
+          "5": {
+            "arrivals": 74.88881286349641,
+            "all": 88.32386668095596
+          },
+          "10": {
+            "arrivals": 81.14950393431405,
+            "all": 91.50144679026899
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.49862984375726543,
+          1.5199998115534554,
+          2.754667341699613,
+          5.924503856979478
+        ],
+        "per_mode": [
+          0.4400534444264192,
+          1.3495567248447344,
+          2.54347805340202,
+          5.508233909677131
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "seed_3": {
+      "seed": 3,
+      "offset_seed": 3,
+      "temperature": 1.0691811318622322,
+      "ece_arrivals_after": 0.018678953066580756,
+      "ece_all_after": 0.009960481718033747,
+      "constant_velocity_arrivals": 15.805679096818338,
+      "best_of_k": {
+        "table": {
+          "1": {
+            "arrivals": 41.087923366404375,
+            "all": 65.37884471117779
+          },
+          "3": {
+            "arrivals": 58.74101950051317,
+            "all": 80.0450112528132
+          },
+          "5": {
+            "arrivals": 64.65959630516592,
+            "all": 84.09066552352374
+          },
+          "10": {
+            "arrivals": 68.35443037974683,
+            "all": 86.59843532311649
+          }
+        },
+        "per_mode": {
+          "1": {
+            "arrivals": 46.4591173451933,
+            "all": 67.98842567784803
+          },
+          "3": {
+            "arrivals": 68.93602463222717,
+            "all": 83.79059050476904
+          },
+          "5": {
+            "arrivals": 75.98357851522408,
+            "all": 88.25420640874503
+          },
+          "10": {
+            "arrivals": 81.11529250769756,
+            "all": 91.46393741292465
+          }
+        }
+      },
+      "top1_mean_nm": {
+        "constant_velocity": [
+          0.4924164946839603,
+          1.6880998484684555,
+          3.65365631441447,
+          10.304965389915518
+        ],
+        "table": [
+          0.49749160037860546,
+          1.5147144652482973,
+          2.738272547121097,
+          5.9523306220066905
+        ],
+        "per_mode": [
+          0.4407295465218404,
+          1.3404218616878374,
+          2.521627372069419,
+          5.5540624102218805
+        ]
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    }
+  }
+}

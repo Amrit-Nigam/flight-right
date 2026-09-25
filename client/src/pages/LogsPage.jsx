@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Trash2, Download, RefreshCw, Search } from "lucide-react";
 import { clearSiteLogs, getSiteLogs, logAudit } from "@/lib/siteLogger";
+import { getAuditLog } from "@/lib/api";
 
 function formatTs(iso) {
   try {
@@ -12,18 +13,52 @@ function formatTs(iso) {
   }
 }
 
+// ISSUES.md H1 (fixed 25 Sep 2026): this page used to read sessionStorage only, so the
+// "Logs" link showed a record erased when the tab closed. It now opens on the SERVER audit
+// log -- append-only, enforced by PostgreSQL -- and keeps the tab log as a second view.
+function fromServer(row) {
+  return {
+    id: `server-${row.id}`,
+    ts: row.timestamp,
+    level: row.level,
+    source: row.source,
+    message: row.decision ? `${row.action} [${row.decision}]` : row.action,
+    detail: row.detail && Object.keys(row.detail).length ? JSON.stringify(row.detail) : undefined,
+  };
+}
+
 export default function LogsPage() {
-  const [entries, setEntries] = useState(() => getSiteLogs());
+  const [view, setView] = useState("server");
+  const [serverEntries, setServerEntries] = useState([]);
+  const [serverStatus, setServerStatus] = useState("loading");
+  const [tabEntries, setTabEntries] = useState(() => getSiteLogs());
+  const entries = view === "server" ? serverEntries : tabEntries;
+  const setEntries = setTabEntries;
+
+  const loadServer = useCallback(async () => {
+    try {
+      const data = await getAuditLog({ limit: 1000 });
+      setServerEntries((data.entries || []).map(fromServer));
+      setServerStatus(`${data.count} of ${data.total} server entries`);
+    } catch (error) {
+      setServerStatus(`server audit log unreachable: ${error.message}`);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadServer();
+  }, [loadServer]);
   const [filterLevel, setFilterLevel] = useState("all");
   const [query, setQuery] = useState("");
   const queryDebounceRef = useRef(null);
 
-  const reloadFromStore = useCallback(() => setEntries(getSiteLogs()), []);
+  const reloadFromStore = useCallback(() => setEntries(getSiteLogs()), [setEntries]);
 
   const manualRefresh = useCallback(() => {
     reloadFromStore();
+    loadServer();
     logAudit("logs:viewer", "Manual refresh control activated", { entryCount: getSiteLogs().length });
-  }, [reloadFromStore]);
+  }, [reloadFromStore, loadServer]);
 
   useEffect(() => {
     logAudit("logs:viewer", "Session logs viewer opened", {
@@ -108,7 +143,18 @@ export default function LogsPage() {
             <ArrowLeft className="h-4 w-4 shrink-0" />
             Dashboard
           </Link>
-          <h1 className="truncate text-lg font-semibold sm:text-xl">Session logs</h1>
+          <h1 className="truncate text-lg font-semibold sm:text-xl">Audit log</h1>
+          <div className="inline-flex overflow-hidden rounded-md border text-xs font-semibold uppercase tracking-wide"
+               style={{ borderColor: "var(--border-default)" }}>
+            {[["server", "Server (append-only)"], ["tab", "This tab"]].map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setView(key)}
+                      className="px-3 py-2"
+                      style={{ background: view === key ? "var(--bg-raised)" : "transparent",
+                               color: view === key ? "var(--text-primary)" : "var(--text-secondary)" }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -133,7 +179,8 @@ export default function LogsPage() {
           <button
             type="button"
             onClick={handleClear}
-            disabled={entries.length === 0}
+            disabled={view === "server" || entries.length === 0}
+            title={view === "server" ? "The server audit log is append-only and cannot be cleared" : undefined}
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-colors hover:bg-[var(--bg-raised)] disabled:opacity-40"
             style={{ borderColor: "var(--border-red)", color: "var(--red)" }}
           >
@@ -145,9 +192,19 @@ export default function LogsPage() {
 
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
         <p className="mb-4 text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-          Logs are stored in <strong style={{ color: "var(--text-primary)" }}>sessionStorage</strong> for this tab
-          only (console, toasts, errors, mock activity, and <strong style={{ color: "var(--text-primary)" }}>audit</strong>{" "}
-          events). They clear when you close the tab.
+          {view === "server" ? (
+            <>
+              The <strong style={{ color: "var(--text-primary)" }}>server audit log</strong>: every controller
+              decision, clearance and UI audit event, stored append-only (the database refuses edits and
+              deletions). {serverStatus}.
+            </>
+          ) : (
+            <>
+              This tab&apos;s own log in <strong style={{ color: "var(--text-primary)" }}>sessionStorage</strong>{" "}
+              (console, toasts, errors, mock activity and audit events). It clears when the tab closes; the audit
+              events in it are also sent to the server log.
+            </>
+          )}
         </p>
 
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">

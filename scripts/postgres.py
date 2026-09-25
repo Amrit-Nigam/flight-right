@@ -138,6 +138,44 @@ CREATE TABLE IF NOT EXISTS resolution_options (
     explanation        TEXT        NOT NULL
 );
 CREATE INDEX IF NOT EXISTS resolution_conflict ON resolution_options (conflict_id);
+
+-- Plan Phase 7.3: the voice chain's two tables, created before the voice chain exists so
+-- that adding it later is a producer writing rows, not a schema change. Both are
+-- records of what was heard and understood, so both are append-only like the audit log.
+-- Every row carries the model that produced it (the H2 lesson: modelVersion was null on
+-- every audit row; that is not repeated here).
+CREATE TABLE IF NOT EXISTS transcriptions (
+    id            BIGGENERATED,
+    recorded_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    clip_ref      TEXT        NOT NULL,
+    heard_at      TIMESTAMPTZ,
+    frequency_mhz DOUBLE PRECISION,
+    transcript    TEXT        NOT NULL,
+    model_id      TEXT        NOT NULL,
+    quantisation  TEXT,
+    asr_version   TEXT        NOT NULL,
+    confidence    DOUBLE PRECISION
+);
+CREATE INDEX IF NOT EXISTS transcriptions_heard ON transcriptions (heard_at DESC);
+
+CREATE TABLE IF NOT EXISTS extracted_clearances (
+    id               BIGGENERATED,
+    recorded_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    transcription_id BIGINT REFERENCES transcriptions(id),
+    source           TEXT        NOT NULL,
+    matched_icao24   TEXT        NOT NULL,
+    callsign_heard   TEXT,
+    callsign_matched TEXT,
+    action           TEXT        NOT NULL,
+    value            DOUBLE PRECISION,
+    fix              TEXT,
+    confidence       DOUBLE PRECISION NOT NULL,
+    issued_at        TIMESTAMPTZ NOT NULL,
+    valid_seconds    DOUBLE PRECISION NOT NULL,
+    applied          BOOLEAN     NOT NULL,
+    report           JSONB       NOT NULL DEFAULT '{{}}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS clearances_icao ON extracted_clearances (matched_icao24, issued_at DESC);
 """.replace("BIGGENERATED", "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY")
 
 GRANTS = f"""
@@ -151,6 +189,9 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {APP_ROLE};
 -- Conflicts and their options are working state: the same pair is re-assessed every
 -- ten seconds, so these are upserted rather than appended.
 GRANT INSERT, SELECT, UPDATE, DELETE ON conflicts, resolution_options TO {APP_ROLE};
+
+-- What was heard and what was understood from it are records, like the audit log.
+GRANT INSERT, SELECT ON transcriptions, extracted_clearances TO {APP_ROLE};
 """
 
 
@@ -325,6 +366,31 @@ def init() -> None:
     print("\nReady. The backend will use PostgreSQL on its next start.")
 
 
+def migrate() -> None:
+    """Apply the schema and grants to an EXISTING cluster. Idempotent.
+
+    init() applies them only when the cluster is first created. Every statement here is
+    CREATE ... IF NOT EXISTS or GRANT, so re-running changes nothing that already exists
+    and adds only what is new (24 Sep 2026: the voice chain's two tables). Connects as
+    the owner role, which shares the application role's generated password.
+    """
+    from urllib.parse import urlparse
+    from dotenv import load_dotenv
+    load_dotenv(PROJECT_ROOT / ".env")
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        raise SystemExit("DATABASE_URL is not set. Run: python scripts/postgres.py init")
+    password = urlparse(url).password
+    if not running():
+        start()
+    for label, sql in (("schema", SCHEMA), ("grants", GRANTS)):
+        result = psql(DATABASE, sql, user=OWNER_ROLE, password=password)
+        if result.returncode != 0:
+            print(result.output)
+            raise SystemExit(f"{label} failed")
+        print(f"applied {label}")
+
+
 def verify() -> None:
     """Prove the append-only guarantee rather than asserting it."""
     import psycopg
@@ -360,10 +426,21 @@ def verify() -> None:
                 checks.append((f"{operation} on audit_logs is refused", True,
                                str(denied).splitlines()[0]))
 
-        for table in ("audit_logs", "conflicts", "resolution_options"):
+        for table in ("audit_logs", "conflicts", "resolution_options",
+                      "transcriptions", "extracted_clearances"):
             exists = conn.execute(
                 "SELECT to_regclass(%s) IS NOT NULL", (f"public.{table}",)).fetchone()[0]
             checks.append((f"table {table} exists", bool(exists), ""))
+
+        # The voice chain's records are append-only too (plan Phase 7.3).
+        for table in ("transcriptions", "extracted_clearances"):
+            try:
+                conn.execute(f"UPDATE {table} SET confidence = confidence")
+                checks.append((f"UPDATE on {table} is refused", False, "IT SUCCEEDED"))
+            except psycopg.errors.InsufficientPrivilege as denied:
+                checks.append((f"UPDATE on {table} is refused", True, str(denied).splitlines()[0]))
+            except psycopg.errors.UndefinedTable:
+                checks.append((f"UPDATE on {table} is refused", False, "table missing - run migrate"))
 
     print()
     for name, passed, detail in checks:
@@ -400,7 +477,8 @@ def reset() -> None:
 
 
 COMMANDS = {"install": install, "init": init, "start": start, "stop": stop,
-            "status": status, "verify": verify, "psql": shell, "reset": reset}
+            "status": status, "verify": verify, "psql": shell, "reset": reset,
+            "migrate": migrate}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__,

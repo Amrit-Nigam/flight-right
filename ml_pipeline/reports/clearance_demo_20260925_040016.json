@@ -1,0 +1,1762 @@
+{
+  "session": "session_c_20260903_204503_combined.parquet",
+  "label": "oracle clearances read from the recording",
+  "clearances": [
+    [
+      427,
+      {
+        "callsign": "FDB445",
+        "action": "DESCEND",
+        "value": 31000,
+        "valid_seconds": 3600
+      }
+    ],
+    [
+      427,
+      {
+        "callsign": "KAC341",
+        "action": "TURN",
+        "value": 120,
+        "valid_seconds": 3600
+      }
+    ],
+    [
+      451,
+      {
+        "callsign": "IGO018",
+        "action": "DESCEND",
+        "value": 23000,
+        "valid_seconds": 3600
+      }
+    ]
+  ],
+  "submitted_rows": [
+    6,
+    7,
+    8
+  ],
+  "pairs": [
+    {
+      "pair": [
+        "FDB445",
+        "KAC341"
+      ],
+      "first_frame": 427,
+      "updates": 11,
+      "updates_moved": 3,
+      "gates": [
+        "classifier",
+        "separation-minimum"
+      ],
+      "tier_changes": 0,
+      "notify_changes": 0,
+      "max_probability_shift": 0.0037423254789893663,
+      "candidates_eliminated_total": 0,
+      "candidates_capped_total": 33,
+      "table": [
+        {
+          "frame": 427,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.12085523456335068,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.12085523456335068,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 428,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.1167820394039154,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.1167820394039154,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 429,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.005591605430317601,
+            "combinations_breaching": 1,
+            "classifier_probability": 0.3473796248435974,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.005591605430317601,
+            "combinations_breaching": 1,
+            "classifier_probability": 0.3473796248435974,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 430,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.007513100950471734,
+            "combinations_breaching": 1,
+            "classifier_probability": 0.44630861282348633,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.007513100950471734,
+            "combinations_breaching": 1,
+            "classifier_probability": 0.44630861282348633,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 431,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.007062144957760582,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.4993826150894165,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.007062144957760582,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.4993826150894165,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 432,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.005478926889682297,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.601952075958252,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.005478926889682297,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.601952075958252,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 433,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.558536946773529,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.558536946773529,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 434,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.558536946773529,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.558536946773529,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 435,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.002949817534133506,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.3641746938228607,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 570.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.3641746938228607,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 436,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.0037423254789893663,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.21383805572986603,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 570.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.21383805572986603,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 437,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.0037423254789893663,
+            "combinations_breaching": 2,
+            "classifier_probability": 0.21383805572986603,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "separation-minimum",
+            "time_to_cpa_s": 570.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.21383805572986603,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "706060",
+                    "action": "TURN",
+                    "value": 120.0,
+                    "callsign": "KAC341",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.1936357,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "KAC341",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "candidates_before": 5,
+                  "applied": true,
+                  "candidates_after": 5,
+                  "kept_indices": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4
+                  ],
+                  "probability_eliminated": 0.0,
+                  "reason": "0 of 5 candidate paths contradict the clearance"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "pair": [
+        "FDB445",
+        "IGO018"
+      ],
+      "first_frame": 451,
+      "updates": 11,
+      "updates_moved": 9,
+      "gates": [
+        "classifier"
+      ],
+      "tier_changes": 0,
+      "notify_changes": 0,
+      "max_probability_shift": 0.23494147875642726,
+      "candidates_eliminated_total": 0,
+      "candidates_capped_total": 99,
+      "table": [
+        {
+          "frame": 451,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 465.0,
+            "multipath_probability": 0.0368833155902599,
+            "combinations_breaching": 4,
+            "classifier_probability": 0.06595077365636826,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 555.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.06595077365636826,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 4,
+                  "reason": "4 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 452,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 465.0,
+            "multipath_probability": 0.10506133109792666,
+            "combinations_breaching": 9,
+            "classifier_probability": 0.05948355048894882,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 495.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.05948355048894882,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 453,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 570.0,
+            "multipath_probability": 0.07456315360864246,
+            "combinations_breaching": 4,
+            "classifier_probability": 0.0738600492477417,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.0738600492477417,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 454,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 555.0,
+            "multipath_probability": 0.08223507178621371,
+            "combinations_breaching": 5,
+            "classifier_probability": 0.0701267346739769,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 435.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.0701267346739769,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 455,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 600.0,
+            "multipath_probability": 0.16893109355992458,
+            "combinations_breaching": 7,
+            "classifier_probability": 0.057320527732372284,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 420.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.057320527732372284,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 3,
+                  "reason": "3 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 456,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 585.0,
+            "multipath_probability": 0.23494147875642726,
+            "combinations_breaching": 11,
+            "classifier_probability": 0.05561370402574539,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 390.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.05561370402574539,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 4,
+                  "reason": "4 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 457,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 420.0,
+            "multipath_probability": 0.2319630803316324,
+            "combinations_breaching": 7,
+            "classifier_probability": 0.05738908052444458,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 300.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.05738908052444458,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 458,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 420.0,
+            "multipath_probability": 0.19481550597924832,
+            "combinations_breaching": 12,
+            "classifier_probability": 0.045339349657297134,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 345.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.045339349657297134,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 459,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 405.0,
+            "multipath_probability": 0.12306058096953176,
+            "combinations_breaching": 9,
+            "classifier_probability": 0.0333256833255291,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": true,
+            "gate": "classifier",
+            "time_to_cpa_s": 360.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.0333256833255291,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 460,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": false,
+            "gate": "classifier",
+            "time_to_cpa_s": 300.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.012007503770291805,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": false,
+            "gate": "classifier",
+            "time_to_cpa_s": 300.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.012007503770291805,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 4,
+                  "reason": "4 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "frame": 461,
+          "without": {
+            "assessed": true,
+            "tier": 2,
+            "notify": false,
+            "gate": "classifier",
+            "time_to_cpa_s": 375.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.019684050232172012,
+            "clearance": []
+          },
+          "with": {
+            "assessed": true,
+            "tier": 2,
+            "notify": false,
+            "gate": "classifier",
+            "time_to_cpa_s": 375.0,
+            "multipath_probability": 0.0,
+            "combinations_breaching": 0,
+            "classifier_probability": 0.019684050232172012,
+            "clearance": [
+              [
+                {
+                  "clearance": {
+                    "icao24": "8018dd",
+                    "action": "DESCEND",
+                    "value": 23000.0,
+                    "callsign": "IGO018",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288999.1764247,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "IGO018",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ],
+              [
+                {
+                  "clearance": {
+                    "icao24": "8963af",
+                    "action": "DESCEND",
+                    "value": 31000.0,
+                    "callsign": "FDB445",
+                    "fix": null,
+                    "confidence": 1.0,
+                    "source": "oracle:recording",
+                    "issued_at": 1790288968.185431,
+                    "valid_seconds": 3600.0,
+                    "transcription_id": null,
+                    "notes": {
+                      "callsign_heard": "FDB445",
+                      "requested_by": "demo-controller"
+                    }
+                  },
+                  "applied": true,
+                  "candidates_capped": 5,
+                  "reason": "5 of 5 candidate paths were predicted to pass the cleared level"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

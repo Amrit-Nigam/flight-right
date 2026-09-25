@@ -30,7 +30,7 @@ from pathlib import Path
 
 import numpy as np
 from sklearn.cluster import KMeans
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 
 import framing
 
@@ -55,7 +55,30 @@ CLASSIFIER_LEARNING_RATE = 0.08
 CLASSIFIER_MAX_LEAF_NODES = 63
 CLASSIFIER_MIN_SAMPLES_LEAF = 40
 CLASSIFIER_L2 = 1.0
-RANDOM_SEED = 42
+# Seed for the route patterns (balanced sample + KMeans) and the pattern classifier.
+# FLIGHT_RIGHT_MULTIPATH_SEED lets Phase 3.3 vary the WHOLE model, not only the offsets;
+# unset, 42 reproduces the shipped pickle.
+RANDOM_SEED = int(os.environ.get("FLIGHT_RIGHT_MULTIPATH_SEED", "42"))
+
+# Per-mode offset regressors (Phase 3.1, 23 Sep 2026). Same settings as the non-neural
+# tree reference in reference_benchmark.py, which is the model already measured to beat
+# the LSTM on these features -- reused unchanged, not tuned for this purpose.
+OFFSET_MAX_ITERATIONS = 400
+OFFSET_LEARNING_RATE = 0.06
+OFFSET_MAX_LEAF_NODES = 63
+OFFSET_MIN_SAMPLES_LEAF = 40
+OFFSET_L2 = 1.0
+# Seed for the offset regressors only. HistGradientBoosting early-stops on a random
+# internal validation slice above 10,000 rows, so the seed genuinely changes the fit;
+# FLIGHT_RIGHT_OFFSET_SEED exists so Phase 3.3 can measure run-to-run spread.
+OFFSET_SEED = int(os.environ.get("FLIGHT_RIGHT_OFFSET_SEED", "0"))
+# Plan 9.x ablations: extra context features (ml_pipeline/utils/context_features.py) for the
+# OFFSET regressors only, e.g. FLIGHT_RIGHT_MULTIPATH_EXTRA=intent,wind. The pattern
+# classifier never sees them, so candidate shapes and probabilities stay identical and only
+# where each candidate lands can change. Unset (the served model): no extras, unchanged.
+EXTRA_GROUPS = [g.strip() for g in os.environ.get("FLIGHT_RIGHT_MULTIPATH_EXTRA", "").split(",") if g.strip()]
+# Bumped when the pickle gains a key a reader must know about. 2 = adds offset_models.
+PICKLE_FORMAT_VERSION = 2
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 # FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
@@ -66,6 +89,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 DATA_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
 MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_multipath.pkl"
+# Seed-variance runs (Phase 3.3) must never overwrite the model the backend serves.
+# FLIGHT_RIGHT_MULTIPATH_OUT redirects the pickle; a JSON of every gate number is written
+# beside it (<name>.summary.json) so runs are compared from files, not scrollback.
+if os.environ.get("FLIGHT_RIGHT_MULTIPATH_OUT"):
+    MODEL_PATH = Path(os.environ["FLIGHT_RIGHT_MULTIPATH_OUT"])
 SINGLE_ANSWER_MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "trajectory_residual.pt"
 
 
@@ -182,6 +210,76 @@ def print_cluster_report(pattern_residuals: np.ndarray, labels: np.ndarray) -> N
           f"largest: {counts.max():,}")
 
 
+def load_extra(split: str) -> tuple[np.ndarray | None, list[str]]:
+    """Context features for a split, in row order, or (None, []) when none are requested."""
+    if not EXTRA_GROUPS:
+        return None, []
+    data = np.load(DATA_DIRECTORY / f"context_{split}.npz", allow_pickle=True)
+    groups = data["groups"].item()
+    names = [name for group in EXTRA_GROUPS for name in groups[group]]
+    return np.column_stack([data[name].astype(np.float64) for name in names]), names
+
+
+def _offset_inputs(features: np.ndarray, extra: np.ndarray | None) -> np.ndarray:
+    return features if extra is None else np.concatenate([features, extra], axis=1)
+
+
+def fit_offset_models(X: np.ndarray, y: np.ndarray, mask: np.ndarray, labels: np.ndarray,
+                      seed: int = OFFSET_SEED, extra: np.ndarray | None = None,
+                      extra_names: list[str] | None = None) -> dict:
+    """Per-mode regression: the offset for THIS aircraft, given which pattern it is on.
+
+    The pattern table above gives every aircraft on pattern 17 pattern 17's average
+    offset. That caps what the design can reach: even with a perfect pattern classifier,
+    arrivals top out at 74.7% within 5 NM at ten minutes (the measured ceiling in
+    fit_route_patterns). Here one regressor per (horizon, axis) takes the same 83
+    features plus the pattern id, so the offset adapts to the individual aircraft
+    inside its pattern. 12 models rather than 40 x 12, because the pattern id enters
+    as a categorical feature and the trees split on it where it matters.
+
+    Trained with the TRUE pattern id (where the aircraft actually went), which is the
+    standard setup. At inference the pattern comes from the classifier and is sometimes
+    wrong, so every number reported from this model is computed with PREDICTED patterns
+    -- see candidate_paths. A true-pattern score is a ceiling, never a result.
+
+    Loss is absolute_error for the reason recorded in reference_benchmark.py: squared
+    error trades away near-perfect predictions to shrink a small manoeuvring tail.
+    """
+    residual = framing.residual_targets(X, y, framing.constant_velocity_predict(X))
+    features = _with_pattern(_offset_inputs(build_feature_matrix(X), extra), labels)
+    categorical = np.zeros(features.shape[1], dtype=bool)
+    categorical[-1] = True
+    models = {}
+    for horizon_index in range(len(framing.HORIZONS_SECONDS)):
+        rows = (labels >= 0) & mask[:, horizon_index]
+        for axis in range(3):
+            regressor = HistGradientBoostingRegressor(
+                loss="absolute_error", max_iter=OFFSET_MAX_ITERATIONS,
+                learning_rate=OFFSET_LEARNING_RATE, max_leaf_nodes=OFFSET_MAX_LEAF_NODES,
+                min_samples_leaf=OFFSET_MIN_SAMPLES_LEAF, l2_regularization=OFFSET_L2,
+                categorical_features=categorical, random_state=seed,
+            )
+            regressor.fit(features[rows], residual[rows, horizon_index, axis])
+            models[(horizon_index, axis)] = regressor
+        print(f"  offset regressors fitted for the {int(framing.HORIZONS_SECONDS[horizon_index]) // 60}-minute "
+              f"horizon on {int(rows.sum()):,} rows")
+    return {"method": "per-mode HistGradientBoostingRegressor, 83 features + pattern id",
+            "seed": int(seed), "models": models, "extra_features": list(extra_names or [])}
+
+
+def _with_pattern(features: np.ndarray, pattern_ids: np.ndarray) -> np.ndarray:
+    return np.concatenate([features, pattern_ids[:, None].astype(np.float64)], axis=1)
+
+
+def predict_offsets(offset_models: dict, features: np.ndarray, pattern_ids: np.ndarray) -> np.ndarray:
+    """Residual (N, 4, 3) in metres for each row on the given pattern."""
+    inputs = _with_pattern(features, pattern_ids)
+    out = np.zeros((len(features), len(framing.HORIZONS_SECONDS), 3), dtype=np.float64)
+    for (horizon_index, axis), regressor in offset_models["models"].items():
+        out[:, horizon_index, axis] = regressor.predict(inputs)
+    return out
+
+
 def _softmax(scores: np.ndarray) -> np.ndarray:
     shifted = scores - scores.max(axis=1, keepdims=True)
     exponent = np.exp(shifted)
@@ -261,13 +359,19 @@ def expected_calibration_error(stated: np.ndarray, correct: np.ndarray, bins: in
 
 
 def candidate_paths(classifier, kmeans, pattern_residuals, X: np.ndarray, top_k: int,
-                    temperature: float = 1.0):
+                    temperature: float = 1.0, offset_models: dict | None = None,
+                    extra: np.ndarray | None = None):
     """Top-k route patterns per sample: renormalised probabilities and absolute positions.
 
     Returns (probabilities, positions, pattern_indices, raw_probabilities) where
     positions has shape (N, k, 4, 3) -- k candidate paths, each with lat/lon/altitude
     at the four horizons. `temperature` is the calibration parameter from
     fit_temperature; 1.0 means uncalibrated.
+
+    `offset_models` (from fit_offset_models) switches the offset from the per-pattern
+    average table to the per-aircraft regression. None keeps the original table path,
+    which is also what any pickle written before 23 Sep 2026 supports. Probabilities
+    and the pattern ranking are identical either way; only the positions differ.
     """
     features = build_feature_matrix(X)
     raw_probabilities = pattern_probabilities(classifier, features, temperature)
@@ -284,7 +388,11 @@ def candidate_paths(classifier, kmeans, pattern_residuals, X: np.ndarray, top_k:
     cv = framing.constant_velocity_predict(X)
     positions = np.empty((len(X), top_k, len(framing.HORIZONS_SECONDS), 3), dtype=np.float64)
     for option in range(top_k):
-        positions[:, option] = framing.apply_residual(X, cv, pattern_residuals[patterns[:, option]])
+        if offset_models is None:
+            residual = pattern_residuals[patterns[:, option]]
+        else:
+            residual = predict_offsets(offset_models, _offset_inputs(features, extra), patterns[:, option])
+        positions[:, option] = framing.apply_residual(X, cv, residual)
     return normalised, positions, patterns, top_probabilities
 
 
@@ -480,6 +588,15 @@ def main() -> None:
     )
     classifier.fit(features, train_labels[labelled])
 
+    print("")
+    train_extra, extra_names = load_extra("train")
+    test_extra, _ = load_extra("test")
+    if extra_names:
+        print(f"Extra context features for the offset regressors ({','.join(EXTRA_GROUPS)}): {extra_names}")
+    print(f"Fitting per-mode offset regressors (seed {OFFSET_SEED})...")
+    offset_models = fit_offset_models(train_x, train_y, train_mask, train_labels,
+                                      extra=train_extra, extra_names=extra_names)
+
     def true_patterns(X: np.ndarray, y: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Which pattern each aircraft actually flew (nearest centre to its real residual)."""
         valid = mask[:, TEN_MINUTE_INDEX]
@@ -513,10 +630,18 @@ def main() -> None:
     _, _, patterns_uncalibrated, raw_top_uncalibrated = candidate_paths(
         classifier, kmeans, pattern_residuals, test_x, max_k, temperature=1.0
     )
-    probabilities, positions, patterns, raw_top = candidate_paths(
+    probabilities, table_positions, patterns, raw_top = candidate_paths(
         classifier, kmeans, pattern_residuals, test_x, max_k, temperature=temperature
     )
     assert np.array_equal(patterns, patterns_uncalibrated), "temperature scaling must not change the ranking"
+    # Per-mode positions, on the classifier's PREDICTED patterns -- the only honest way
+    # to score them. Same probabilities, same ranking; only where each candidate lands.
+    mode_probabilities, positions, mode_patterns, _ = candidate_paths(
+        classifier, kmeans, pattern_residuals, test_x, max_k, temperature=temperature,
+        offset_models=offset_models, extra=test_extra,
+    )
+    assert np.array_equal(mode_patterns, patterns) and np.allclose(mode_probabilities, probabilities), \
+        "the offset method must not change which patterns are offered or their probabilities"
 
     baseline_positions = framing.constant_velocity_predict(test_x)
     baseline_within = float((framing.error_nm(baseline_positions, test_y)[arrivals, TEN_MINUTE_INDEX] < WITHIN_NM).mean() * 100)
@@ -534,11 +659,37 @@ def main() -> None:
               f"{single_answer_within(test_x, test_y, all_test):>9.1f}%")
     else:
         print(f"  {'single-answer residual LSTM':<34} {'n/a':>10} (saved model not loadable)")
-    for k in (1, 3, 5, 10):
-        label = f"multi-path, {k} option{'s' if k > 1 else ''}"
-        marker = "   <- gate" if k == TOP_K else ""
-        print(f"  {label:<34} {best_of_k_within(positions, test_y, arrivals, k):>9.1f}% "
-              f"{best_of_k_within(positions, test_y, all_test, k):>9.1f}%{marker}")
+    for name, candidate_positions in (("pattern table", table_positions), ("per-mode", positions)):
+        for k in (1, 3, 5, 10):
+            label = f"{name}, {k} option{'s' if k > 1 else ''}"
+            marker = "   <- gate" if (k == TOP_K and name == "per-mode") else ""
+            print(f"  {label:<34} {best_of_k_within(candidate_positions, test_y, arrivals, k):>9.1f}% "
+                  f"{best_of_k_within(candidate_positions, test_y, all_test, k):>9.1f}%{marker}")
+    # Ceiling only: the offset regressors given the pattern each aircraft ACTUALLY flew.
+    # It says how much a better pattern classifier could still add. Never a result.
+    ceiling_patterns = np.where(test_true_labels >= 0, test_true_labels, patterns[:, 0])
+    ceiling_positions = framing.apply_residual(
+        test_x, baseline_positions,
+        predict_offsets(offset_models, _offset_inputs(build_feature_matrix(test_x), test_extra), ceiling_patterns))
+    ceiling_error = framing.error_nm(ceiling_positions, test_y)[:, TEN_MINUTE_INDEX]
+    print(f"  {'ceiling, true pattern (NOT a result)':<34} {(ceiling_error[arrivals] < WITHIN_NM).mean() * 100:>9.1f}% "
+          f"{(ceiling_error[all_test] < WITHIN_NM).mean() * 100:>9.1f}%")
+
+    print("")
+    print("Top-1 per horizon, all test rows with that horizon (the constant-velocity check)")
+    print(f"  {'horizon':>7} {'method':<14} {'<5 NM':>8} {'<1 NM':>8} {'mean NM':>8}")
+    beats_baseline_everywhere = True
+    for horizon_index, horizon in enumerate(framing.HORIZONS_SECONDS):
+        rows = test_mask[:, horizon_index]
+        scores = {}
+        for name, predicted in (("constant vel.", baseline_positions),
+                                ("pattern table", table_positions[:, 0]),
+                                ("per-mode", positions[:, 0])):
+            error = framing.error_nm(predicted, test_y)[rows, horizon_index]
+            scores[name] = error.mean()
+            print(f"  {int(horizon) // 60:>5} m {name:<14} {(error < WITHIN_NM).mean() * 100:>7.2f}% "
+                  f"{(error < 1.0).mean() * 100:>7.2f}% {error.mean():>8.2f}")
+        beats_baseline_everywhere &= scores["per-mode"] < scores["constant vel."]
 
     ece_before = print_reliability(raw_top_uncalibrated, patterns, test_true_labels, arrivals,
                                    title="BEFORE calibration -- reliability on test arrivals")
@@ -557,9 +708,14 @@ def main() -> None:
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     with MODEL_PATH.open("wb") as handle:
         pickle.dump({
+            "format_version": PICKLE_FORMAT_VERSION,
             "kmeans": kmeans,
             "classifier": classifier,
+            # Kept so every existing reader keeps working and so the backend can still run
+            # the table (FLIGHT_RIGHT_MULTIPATH_OFFSETS=table). per_mode serves by default
+            # since 24 Sep 2026.
             "pattern_residuals": pattern_residuals,
+            "offset_models": offset_models,
             # Divide the classifier's raw scores by this before the softmax. 1.0 = none.
             "temperature": float(temperature),
             "calibration": {
@@ -581,9 +737,57 @@ def main() -> None:
     print(f"Saved clusters, classifier and config: {MODEL_PATH}")
 
     gate_value = best_of_k_within(positions, test_y, arrivals, TOP_K)
+    table_gate_value = best_of_k_within(table_positions, test_y, arrivals, TOP_K)
+    top1_value = best_of_k_within(positions, test_y, arrivals, 1)
+    table_top1_value = best_of_k_within(table_positions, test_y, arrivals, 1)
     print("")
     print(f"GATE ({TOP_K} options, test arrivals at ten minutes, within 5 NM, must be "
           f"comfortably above 60%): {gate_value:.1f}% -> {'PASS' if gate_value > 60.0 else 'FAIL'}")
+    # Phase 3 gates: per-mode must beat the pattern table it replaces, without losing top-1,
+    # and must beat constant velocity at every horizon. Printed, read from stdout.
+    print(f"GATE per-mode best-of-{TOP_K} beats pattern table: {gate_value:.1f}% vs {table_gate_value:.1f}% -> "
+          f"{'PASS' if gate_value > table_gate_value else 'FAIL'}")
+    print(f"GATE per-mode top-1 not below pattern table: {top1_value:.1f}% vs {table_top1_value:.1f}% -> "
+          f"{'PASS' if top1_value >= table_top1_value else 'FAIL'}")
+    print(f"GATE per-mode top-1 beats constant velocity (mean error) at every horizon -> "
+          f"{'PASS' if beats_baseline_everywhere else 'FAIL'}")
+
+    if os.environ.get("FLIGHT_RIGHT_MULTIPATH_OUT"):
+        import json
+        summary = {
+            "seed": RANDOM_SEED, "offset_seed": OFFSET_SEED, "temperature": float(temperature),
+            "ece_arrivals_after": ece_after, "ece_all_after": ece_all_after,
+            "constant_velocity_arrivals": baseline_within,
+            "best_of_k": {name: {str(k): {"arrivals": best_of_k_within(p, test_y, arrivals, k),
+                                          "all": best_of_k_within(p, test_y, all_test, k)}
+                                 for k in (1, 3, 5, 10)}
+                          for name, p in (("table", table_positions), ("per_mode", positions))},
+            "top1_mean_nm": {name: [float(framing.error_nm(p, test_y)[test_mask[:, h], h].mean())
+                                    for h in range(len(framing.HORIZONS_SECONDS))]
+                             for name, p in (("constant_velocity", baseline_positions),
+                                             ("table", table_positions[:, 0]),
+                                             ("per_mode", positions[:, 0]))},
+            "gates": {"above_60": gate_value > 60.0, "per_mode_beats_table": gate_value > table_gate_value,
+                      "top1_not_below_table": top1_value >= table_top1_value,
+                      "beats_constant_velocity_every_horizon": bool(beats_baseline_everywhere)},
+        }
+        # Height and 3-D (5 NM AND 1,000 ft) at ten minutes, measured here because a model
+        # trained with extra features can only be scored where those features are loaded.
+        ten = test_mask[:, TEN_MINUTE_INDEX]
+        for name, p in (("table", table_positions), ("per_mode", positions)):
+            lat = np.stack([framing.error_nm(p[:, k], test_y) for k in range(TOP_K)], 1)[:, :, TEN_MINUTE_INDEX]
+            ver = np.abs(p[:, :TOP_K, TEN_MINUTE_INDEX, 2] - test_y[:, None, TEN_MINUTE_INDEX, 2]) * 3.28084
+            both = (lat < WITHIN_NM) & (ver < 1000.0)
+            summary.setdefault("three_d", {})[name] = {
+                group: {"top1_altitude_mean_ft": float(ver[rows, 0].mean()),
+                        "top1_within_1000ft": float((ver[rows, 0] < 1000).mean() * 100),
+                        "best5_within_1000ft": float((ver[rows] < 1000).any(1).mean() * 100),
+                        "top1_both": float(both[rows, 0].mean() * 100),
+                        "best5_both": float(both[rows].any(1).mean() * 100)}
+                for group, rows in (("arrivals", arrivals & ten), ("all", all_test & ten))}
+        summary["extra_features"] = offset_models.get("extra_features", [])
+        MODEL_PATH.with_suffix(".summary.json").write_text(json.dumps(summary, indent=2, default=float))
+        print(f"Summary: {MODEL_PATH.with_suffix('.summary.json')}")
 
 
 if __name__ == "__main__":

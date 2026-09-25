@@ -1,0 +1,51 @@
+{
+  "aircraft_days_requested": 4142,
+  "traces_served": 4090,
+  "traces_404": 52,
+  "aircraft_days_with_any_selected_altitude": 4072,
+  "share_aircraft_days_with_selected_altitude": 0.9955990220048899,
+  "detail_points": 1664186,
+  "detail_points_with_selected_altitude": 1534899,
+  "airborne_detail_points_within_60nm_vabb": 215565,
+  "share_of_those_with_selected_altitude": 0.9480991812214413,
+  "share_with_wind": 0.7240275554937026,
+  "by_date": {
+    "2026-08-24": {
+      "traces": 175,
+      "with_selected_altitude": 175
+    },
+    "2026-08-29": {
+      "traces": 494,
+      "with_selected_altitude": 492
+    },
+    "2026-08-30": {
+      "traces": 619,
+      "with_selected_altitude": 614
+    },
+    "2026-08-31": {
+      "traces": 581,
+      "with_selected_altitude": 579
+    },
+    "2026-09-01": {
+      "traces": 405,
+      "with_selected_altitude": 405
+    },
+    "2026-09-02": {
+      "traces": 570,
+      "with_selected_altitude": 568
+    },
+    "2026-09-03": {
+      "traces": 399,
+      "with_selected_altitude": 397
+    },
+    "2026-09-04": {
+      "traces": 519,
+      "with_selected_altitude": 517
+    },
+    "2026-09-05": {
+      "traces": 328,
+      "with_selected_altitude": 325
+    }
+  },
+  "licence": "adsb.lol historical data, ODbL 1.0 (attribution; share-alike for distributed derived databases)"
+}

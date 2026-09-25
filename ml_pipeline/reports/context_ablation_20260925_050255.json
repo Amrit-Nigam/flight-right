@@ -1,0 +1,241 @@
+{
+  "none": {
+    "extra_features": [],
+    "arrivals_best5_5nm": 71.46767020184743,
+    "arrivals_top1_5nm": 44.16695176188847,
+    "all_best5_5nm": 86.57700139320545,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1413.6672026686208,
+        "top1_within_1000ft": 54.327745466985974,
+        "best5_within_1000ft": 72.35716729387616,
+        "top1_both": 31.885049606568593,
+        "best5_both": 44.064317482039
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1116.0079737791114,
+        "top1_within_1000ft": 71.14993033972779,
+        "best5_within_1000ft": 78.53927767656201,
+        "top1_both": 53.79380559425571,
+        "best5_both": 66.0165041260315
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "intent": {
+    "extra_features": [
+      "sel_alt_delta_ft",
+      "fms_alt_delta_ft",
+      "sel_heading_delta_deg",
+      "intent_age_s"
+    ],
+    "arrivals_best5_5nm": 71.5360930550804,
+    "arrivals_top1_5nm": 43.551146082791654,
+    "all_best5_5nm": 86.69488800771622,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1416.5258918588893,
+        "top1_within_1000ft": 52.925076975709885,
+        "best5_within_1000ft": 71.05713308244954,
+        "top1_both": 30.687649674991448,
+        "best5_both": 43.619568936024635
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1125.66456116777,
+        "top1_within_1000ft": 70.86593076840639,
+        "best5_within_1000ft": 78.44282499196228,
+        "top1_both": 53.32225913621262,
+        "best5_both": 65.84503268674311
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "wind": {
+    "extra_features": [
+      "headwind_kt",
+      "crosswind_kt",
+      "oat_c"
+    ],
+    "arrivals_best5_5nm": 72.01505302771125,
+    "arrivals_top1_5nm": 43.89326034895655,
+    "all_best5_5nm": 86.71632193762726,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1482.3887176910575,
+        "top1_within_1000ft": 52.41190557646254,
+        "best5_within_1000ft": 69.8255217242559,
+        "top1_both": 30.242901128977078,
+        "best5_both": 42.490591857680464
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1126.6500550835783,
+        "top1_within_1000ft": 70.7801950487622,
+        "best5_within_1000ft": 77.76229771728647,
+        "top1_both": 53.370485478512485,
+        "best5_both": 65.7485800021434
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "type": {
+    "extra_features": [
+      "mtow_kg",
+      "cruise_mach"
+    ],
+    "arrivals_best5_5nm": 71.94663017447827,
+    "arrivals_top1_5nm": 43.58535750940814,
+    "all_best5_5nm": 86.63594470046083,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1463.5296950215723,
+        "top1_within_1000ft": 52.13821416353062,
+        "best5_within_1000ft": 70.09921313718782,
+        "top1_both": 30.961341087923365,
+        "best5_both": 43.209031816626755
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1131.8595627435298,
+        "top1_within_1000ft": 70.20683742364162,
+        "best5_within_1000ft": 78.07308970099668,
+        "top1_both": 53.23116493409067,
+        "best5_both": 65.64141035258815
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "traffic": {
+    "extra_features": [
+      "traffic_count",
+      "nearest_nm"
+    ],
+    "arrivals_best5_5nm": 71.60451590831339,
+    "arrivals_top1_5nm": 44.030106055422515,
+    "all_best5_5nm": 86.57700139320545,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1419.3171118269026,
+        "top1_within_1000ft": 53.02771125555936,
+        "best5_within_1000ft": 69.1070817653096,
+        "top1_both": 30.995552514539852,
+        "best5_both": 42.69586041737941
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1143.4195639477114,
+        "top1_within_1000ft": 70.77483656628442,
+        "best5_within_1000ft": 77.68192048012003,
+        "top1_both": 53.40799485585682,
+        "best5_both": 65.52888222055515
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "all": {
+    "extra_features": [
+      "sel_alt_delta_ft",
+      "fms_alt_delta_ft",
+      "sel_heading_delta_deg",
+      "intent_age_s",
+      "headwind_kt",
+      "crosswind_kt",
+      "oat_c",
+      "mtow_kg",
+      "cruise_mach",
+      "traffic_count",
+      "nearest_nm"
+    ],
+    "arrivals_best5_5nm": 71.67293876154636,
+    "arrivals_top1_5nm": 43.24324324324324,
+    "all_best5_5nm": 86.5126996034723,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1440.5618311274243,
+        "top1_within_1000ft": 52.24084844338008,
+        "best5_within_1000ft": 68.1491618200479,
+        "top1_both": 30.687649674991448,
+        "best5_both": 44.201163188504964
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1115.6607354060022,
+        "top1_within_1000ft": 71.12849640981675,
+        "best5_within_1000ft": 77.88018433179722,
+        "top1_both": 53.62233415496731,
+        "best5_both": 66.01114564355375
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "selected_level_cap": {
+    "windows_with_selected_level": 20384,
+    "cap_applied": 9020,
+    "served": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1413.6672026686208,
+        "top1_both": 31.885049606568593,
+        "best5_both": 44.064317482039,
+        "best5_within_1000ft": 72.35716729387616
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1116.0079737791114,
+        "top1_both": 53.79380559425571,
+        "best5_both": 66.0165041260315,
+        "best5_within_1000ft": 78.53927767656201
+      },
+      "with a selected level": {
+        "top1_altitude_mean_ft": 1509.0157307506072,
+        "top1_both": 42.57032542746828,
+        "best5_both": 52.619966905681196,
+        "best5_within_1000ft": 70.7446221731936
+      }
+    },
+    "served + selected-level cap": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 3778.6865764986783,
+        "top1_both": 21.21108450222374,
+        "best5_both": 26.06910708176531,
+        "best5_within_1000ft": 40.30106055422511
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1838.58389497693,
+        "top1_both": 51.012753188297076,
+        "best5_both": 61.35462437037831,
+        "best5_within_1000ft": 69.90140392240917
+      },
+      "with a selected level": {
+        "top1_altitude_mean_ft": 2996.573573154765,
+        "top1_both": 36.84500827357971,
+        "best5_both": 43.02261445118588,
+        "best5_within_1000ft": 52.96194153337011
+      }
+    }
+  }
+}

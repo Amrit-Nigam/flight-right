@@ -77,9 +77,21 @@ lstm = pd.read_csv(ROOT / "ml_pipeline/data/processed/eval_residual_lstm.csv")
 cv_h = cv[cv["section"] == "per_horizon"].set_index("horizon")
 lstm_h = lstm[lstm["section"] == "per_horizon"].set_index("horizon")
 HORIZONS = ["1 min", "3 min", "5 min", "10 min"]
-# The tree reference is printed by reference_benchmark.py; parsed from that run's log.
-GBT = {"1 min": (0.43, 90.8, 98.5), "3 min": (1.27, 73.4, 92.6),
-       "5 min": (2.39, 60.1, 85.1), "10 min": (5.57, 33.1, 65.7)}
+# The tree reference is written by reference_benchmark.py, through the same
+# evaluate.evaluate() the LSTM is scored by, at full precision. These four rows used to
+# be a dict literal copied off that script's stdout -- correct to one decimal, but typed
+# by hand, which is the one thing Rule 8 forbids. Re-run reference_benchmark.py to
+# refresh them.
+_tree_path = ROOT / "ml_pipeline/data/processed/eval_tree_reference.csv"
+if not _tree_path.exists():
+    raise FileNotFoundError(
+        f"Missing {_tree_path}. Run ml_pipeline/training/trajectory/reference_benchmark.py "
+        "first -- the tree reference columns are read from it, never typed in here.")
+_tree = pd.read_csv(_tree_path)
+_tree_h = _tree[_tree["section"] == "per_horizon"].set_index("horizon")
+GBT = {h: (float(_tree_h.loc[h, "mean_nm"]),
+           float(_tree_h.loc[h, "within_1_nm"]),
+           float(_tree_h.loc[h, "within_5_nm"])) for h in _tree_h.index}
 
 M["model1"] = {"horizons": []}
 for h in HORIZONS:

@@ -128,9 +128,32 @@ def model1b() -> dict:
         table.append({"method": f"Multi-path, {k} option{'s' if k > 1 else ''}",
                       "arrivals": round(mp.best_of_k_within(positions, test_y, arrivals, k), 1),
                       "all": round(mp.best_of_k_within(positions, test_y, valid, k), 1)})
+    # Phase 3.1 per-mode offsets, scored on PREDICTED patterns, reported beside the
+    # table rather than in place of it, so every earlier key keeps its meaning. Since
+    # 24 Sep 2026 per_mode is what the backend serves by default
+    # (FLIGHT_RIGHT_MULTIPATH_OFFSETS); the table rows are the previous behaviour.
+    per_mode = None
+    if bundle.get("offset_models") is not None:
+        _, mode_positions, _, _ = mp.candidate_paths(
+            classifier, kmeans, pattern_residuals, test_x, max_k, temperature=temperature,
+            offset_models=bundle["offset_models"])
+        per_mode = {"seed": bundle["offset_models"].get("seed"), "best_of_k": [], "top1_per_horizon": []}
+        for k in (1, 3, 5, 10):
+            row = {"method": f"Multi-path per-mode, {k} option{'s' if k > 1 else ''}",
+                   "arrivals": round(mp.best_of_k_within(mode_positions, test_y, arrivals, k), 1),
+                   "all": round(mp.best_of_k_within(mode_positions, test_y, valid, k), 1)}
+            per_mode["best_of_k"].append(row)
+            table.append(dict(row, method=row["method"] + " (not serving)"))
+        for h, horizon in enumerate(framing.HORIZONS_SECONDS):
+            rows_h = test_mask[:, h]
+            error = framing.error_nm(mode_positions[:, 0], test_y)[rows_h, h]
+            per_mode["top1_per_horizon"].append({
+                "horizon_s": int(horizon), "within_5nm": round(float((error < 5).mean() * 100), 2),
+                "within_1nm": round(float((error < 1).mean() * 100), 2), "mean_nm": round(float(error.mean()), 2)})
     print(f"\n  {'method':<34} {'arrivals':>10} {'all test':>10}")
     for row in table:
         print(f"  {row['method']:<34} {row['arrivals']:>9.1f}% {row['all']:>9.1f}%")
+    table = [row for row in table if "(not serving)" not in row["method"]]
 
     residual = framing.residual_targets(test_x, test_y, cv)
     true_labels = np.full(len(test_x), -1, dtype=np.int64)
@@ -159,7 +182,8 @@ def model1b() -> dict:
     return {"temperature": temperature, "best_of_k": table,
             "ece_arrivals": ece["arrivals"], "ece_all": ece["all"],
             "reliability_before": bands(raw_before[arrivals].ravel(), correct),
-            "reliability_after": bands(raw_after[arrivals].ravel(), correct)}
+            "reliability_after": bands(raw_after[arrivals].ravel(), correct),
+            "per_mode": per_mode}
 
 
 # =====================================================================  3. Model 2
@@ -208,6 +232,57 @@ def model2() -> dict:
         return 1.0 / (1.0 + np.exp(-(a * np.log(p / (1 - p)) + b)))
 
     calibrated = platt(raw, card["platt"]["a"], card["platt"]["b"])
+
+    # ---- what the RUNNING system decides, through the real escalation gate ----
+    # metrics_at_threshold above scores the classifier on its own. That is the number the
+    # headline quotes, and until 21 Sep it described a model that gated nothing: escalation
+    # ran on the 8 NM / 1500 ft alert volume and never consulted the classifier. Both are
+    # measured here so the gap between "what the model can do" and "what the controller is
+    # shown" can never quietly reopen.
+    from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
+        CLASSIFIER_ALERT_KEY, CLASSIFIER_PROBABILITY_KEY, escalate_pair)
+
+    def escalation_run(with_classifier: bool) -> dict:
+        fired = np.zeros(len(test), dtype=bool)
+        tiers = np.zeros(len(test), dtype=int)
+        for i in range(len(test)):
+            row = {"cpa_lateral_distance_nm": float(test["predicted_cpa_lateral_nm"].iloc[i]),
+                   "cpa_vertical_separation_ft": float(test["predicted_cpa_vertical_ft"].iloc[i]),
+                   "time_to_cpa_seconds": float(test["predicted_time_to_cpa_seconds"].iloc[i]),
+                   "is_converging": True}
+            if with_classifier:
+                row[CLASSIFIER_ALERT_KEY] = bool(raw[i] >= threshold)
+                row[CLASSIFIER_PROBABILITY_KEY] = float(calibrated[i])
+            # The same geometry held for three updates, so the anti-flicker rule is
+            # satisfied and what is measured is the gate rather than the persistence.
+            decision = escalate_pair(row, [row, row])
+            fired[i] = bool(decision["notify"])
+            tiers[i] = int(decision["tier"])
+        block = metrics_from_predictions(y, fired.astype(int))
+        rate, caught, total = headline_metric(test, fired.astype(int))
+        block["headline"] = {"rate": rate, "caught": caught, "total": total}
+        block["alerts"] = int(fired.sum())
+        for tier in (1, 2):
+            in_tier = fired & (tiers == tier)
+            block[f"tier_{tier}"] = {"alerts": int(in_tier.sum()),
+                                     "real": int((in_tier & (y == 1)).sum()),
+                                     "false": int((in_tier & (y == 0)).sum())}
+        return block
+
+    out["escalation_runtime"] = {
+        "geometry_only": escalation_run(False),
+        "classifier_gated": escalation_run(True),
+    }
+    before = out["escalation_runtime"]["geometry_only"]
+    after = out["escalation_runtime"]["classifier_gated"]
+    print("\nRUNTIME ESCALATION -- what the controller is actually shown")
+    print(f"  {'':<26}{'alerts':>8}{'recall':>9}{'precision':>11}{'headline':>10}"
+          f"{'tier 1':>9}{'t1 false':>10}")
+    for label, block in (("geometry only (before)", before), ("classifier-gated (now)", after)):
+        print(f"  {label:<26}{block['alerts']:>8}{block['recall']:>9.4f}"
+              f"{block['precision']:>11.4f}{block['headline']['rate']:>10.4f}"
+              f"{block['tier_1']['alerts']:>9}{block['tier_1']['false']:>10}")
+
     out["calibration"] = {
         "raw": {"brier": float(brier_score_loss(y, raw)),
                 "ece": float(expected_calibration_error(raw, y))},

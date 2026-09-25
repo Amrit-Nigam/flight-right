@@ -83,3 +83,20 @@ HISTORY_LENGTH = 24
 
 CORS_ORIGINS = [o.strip() for o in os.environ.get(
     "FLIGHT_RIGHT_CORS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
+
+# --- Clearances and the (future) voice chain: plan Phases 4-7 -------------------------
+# A clearance -- "descend FL130", "turn heading 090" -- adjusts that aircraft's candidate
+# paths (ml_pipeline/utils/clearance.py). Today a clearance comes from the manual API
+# (POST /api/clearances). The speech chain, when built, produces the same object and
+# posts it through the same service, so nothing downstream changes when voice arrives.
+#
+# ASR_MODEL_ID is the ONE place the speech model will be named (plan 4.3). Empty means no
+# speech model is installed: transcription endpoints report that, rather than failing.
+ASR_MODEL_ID = os.environ.get("FLIGHT_RIGHT_ASR_MODEL_ID", "").strip()
+ASR_QUANTISATION = os.environ.get("FLIGHT_RIGHT_ASR_QUANTISATION", "int8").strip()
+# A clearance below this confidence is recorded but not applied. Manual entries carry
+# 1.0. PLACEHOLDER for ASR: the right value comes from the extractor's measured accuracy
+# (plan Phase 6) and must be re-decided then; it is not tuned.
+CLEARANCE_MIN_CONFIDENCE = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_MIN_CONFIDENCE", 0.9))
+# How long a clearance stays in force without a newer one for the same aircraft.
+CLEARANCE_VALID_SECONDS = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_VALID_SECONDS", 600.0))

@@ -1,0 +1,138 @@
+{
+  "label": "UPPER BOUND, assuming perfect clearance recognition",
+  "model": "trajectory_multipath@1790157190438846600+per_mode",
+  "windows": 17189,
+  "arrivals": 2597,
+  "truth_itself_rejected": {
+    "level": {
+      "rejected": 0,
+      "judged": 6876
+    },
+    "turn": {
+      "rejected": 0,
+      "judged": 4169
+    }
+  },
+  "variants": {
+    "none": {
+      "arrivals": {
+        "top1_5nm": 42.818636888717755,
+        "best5_5nm": 70.38891028109356,
+        "top1_both": 30.997304582210244,
+        "best5_both": 43.357720446669234,
+        "applied": 0.0,
+        "fallback": 0.0,
+        "dropped_closest": 0.0
+      },
+      "all": {
+        "top1_5nm": 66.874163709349,
+        "best5_5nm": 86.70079702135087,
+        "top1_both": 54.10436907324452,
+        "best5_both": 66.55419163418466,
+        "applied": 0.0,
+        "fallback": 0.0,
+        "dropped_closest": 0.0
+      }
+    },
+    "level only": {
+      "arrivals": {
+        "top1_5nm": 41.201386214863305,
+        "best5_5nm": 64.76703889102811,
+        "top1_both": 30.997304582210244,
+        "best5_both": 41.97150558336542,
+        "applied": 67.42395071236041,
+        "fallback": 11.551790527531768,
+        "dropped_closest": 9.164420485175203
+      },
+      "all": {
+        "top1_5nm": 65.99569492117051,
+        "best5_5nm": 84.30391529466519,
+        "top1_both": 54.290534644249234,
+        "best5_both": 66.20513118855081,
+        "applied": 29.53051370062249,
+        "fallback": 10.471813369015068,
+        "dropped_closest": 4.281808133108384
+      }
+    },
+    "heading only": {
+      "arrivals": {
+        "top1_5nm": 45.090489025798995,
+        "best5_5nm": 70.27339237581826,
+        "top1_both": 31.574894108586832,
+        "best5_both": 43.28070850981902,
+        "applied": 60.7624181748171,
+        "fallback": 1.5017327685791297,
+        "dropped_closest": 1.6557566422795533
+      },
+      "all": {
+        "top1_5nm": 67.26394787364012,
+        "best5_5nm": 86.68334399906918,
+        "top1_both": 54.22072255512246,
+        "best5_both": 66.54255628599685,
+        "applied": 23.916458200011636,
+        "fallback": 0.3374250974460411,
+        "dropped_closest": 0.4246902088545
+      }
+    },
+    "level + heading": {
+      "arrivals": {
+        "top1_5nm": 43.049672699268385,
+        "best5_5nm": 64.6900269541779,
+        "top1_both": 31.574894108586832,
+        "best5_both": 41.89449364651521,
+        "applied": 79.36080092414323,
+        "fallback": 15.825953022718522,
+        "dropped_closest": 10.319599537928378
+      },
+      "all": {
+        "top1_5nm": 66.32148467042876,
+        "best5_5nm": 84.2922799464774,
+        "top1_both": 54.40688812612717,
+        "best5_both": 66.19349584036303,
+        "applied": 38.92023968817267,
+        "fallback": 11.356099831287452,
+        "dropped_closest": 4.566874163709349
+      }
+    },
+    "level cap": {
+      "arrivals": {
+        "top1_5nm": 42.818636888717755,
+        "best5_5nm": 70.38891028109356,
+        "top1_both": 34.92491336157104,
+        "best5_both": 53.86984982672314,
+        "applied": 78.97574123989219,
+        "fallback": 0.0,
+        "dropped_closest": 0.0
+      },
+      "all": {
+        "top1_5nm": 66.874163709349,
+        "best5_5nm": 86.70079702135087,
+        "top1_both": 57.1179242538833,
+        "best5_both": 72.15661178660771,
+        "applied": 40.00232706963756,
+        "fallback": 0.0,
+        "dropped_closest": 0.0
+      }
+    },
+    "level cap + heading": {
+      "arrivals": {
+        "top1_5nm": 45.090489025798995,
+        "best5_5nm": 70.27339237581826,
+        "top1_both": 36.041586445899114,
+        "best5_both": 53.75433192144783,
+        "applied": 83.13438582980362,
+        "fallback": 1.5017327685791297,
+        "dropped_closest": 1.6557566422795533
+      },
+      "all": {
+        "top1_5nm": 67.26394787364012,
+        "best5_5nm": 86.68334399906918,
+        "top1_both": 57.32736052126361,
+        "best5_both": 72.13915876432603,
+        "applied": 46.081796497760195,
+        "fallback": 0.3374250974460411,
+        "dropped_closest": 0.4246902088545
+      }
+    }
+  }
+}

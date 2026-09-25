@@ -106,12 +106,22 @@ def interpolated_future_state(
     )
 
 
-def build_samples(states: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Build ten-state windows keeping every window with at least one valid horizon."""
+def build_samples(states: pd.DataFrame) -> tuple[np.ndarray, ...]:
+    """Build ten-state windows keeping every window with at least one valid horizon.
+
+    Also returns the identity of the aircraft each window came from. That is a JOIN
+    KEY, not a model feature -- nothing in training reads it. It exists so a window can
+    be traced back to the real aircraft and the real moment it describes, which is what
+    lets a heard radio callsign be matched against the traffic that was actually
+    airborne at that timestamp. Carrying it costs a few hundred kilobytes and cannot
+    change a single prediction, because the feature builder never sees these arrays.
+    """
     inputs: list[np.ndarray] = []
     targets: list[np.ndarray] = []
     masks: list[np.ndarray] = []
     sample_times: list[int] = []
+    icao24s: list[str] = []
+    callsigns: list[str] = []
 
     for _, whole_track in states.groupby("icao24", sort=False):
         whole_track = whole_track.drop_duplicates("time_position", keep="last").reset_index(drop=True)
@@ -124,7 +134,8 @@ def build_samples(states: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndar
             track = whole_track.iloc[segment]
             if len(track) < MIN_TRACK_LENGTH:
                 continue
-            _extend_samples_from_track(track, inputs, targets, masks, sample_times)
+            _extend_samples_from_track(track, inputs, targets, masks, sample_times,
+                                       icao24s, callsigns)
 
     if not inputs:
         return (
@@ -132,13 +143,28 @@ def build_samples(states: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, np.ndar
             np.empty((0, 4, 3), dtype=np.float32),
             np.empty((0, 4), dtype=bool),
             np.empty(0, dtype=np.int64),
+            np.empty(0, dtype="U8"),
+            np.empty(0, dtype="U10"),
         )
-    return np.stack(inputs), np.stack(targets), np.stack(masks), np.asarray(sample_times, dtype=np.int64)
+    return (np.stack(inputs), np.stack(targets), np.stack(masks),
+            np.asarray(sample_times, dtype=np.int64),
+            np.asarray(icao24s), np.asarray(callsigns))
 
 
-def _extend_samples_from_track(track, inputs, targets, masks, sample_times) -> None:
+def _extend_samples_from_track(track, inputs, targets, masks, sample_times,
+                               icao24s, callsigns) -> None:
     """Append every window from one gap-free segment that resolves at least one horizon."""
     times = track["time_position"].to_numpy(dtype=np.int64)
+    # Identity is taken from the LAST input state, which is the aircraft as it was at
+    # the moment the prediction is made from. callsign is not in the required-column
+    # list and never filters a row out: a missing one should not discard an otherwise
+    # good track, exactly as with vertical_rate in load_valid_states(). Measured on the
+    # current 35 sessions, it is 0.00% null.
+    icao_values = track["icao24"].astype(str).to_numpy()
+    if "callsign" in track:
+        callsign_values = track["callsign"].fillna("").astype(str).str.strip().to_numpy()
+    else:
+        callsign_values = np.full(len(track), "", dtype=object)
     latitudes = track["latitude"].to_numpy(dtype=np.float64)
     longitudes = track["longitude"].to_numpy(dtype=np.float64)
     altitudes = track["baro_altitude"].to_numpy(dtype=np.float64)
@@ -177,9 +203,12 @@ def _extend_samples_from_track(track, inputs, targets, masks, sample_times) -> N
         targets.append(window_targets)
         masks.append(window_mask)
         sample_times.append(end_time)
+        icao24s.append(str(icao_values[end_index]))
+        callsigns.append(str(callsign_values[end_index]))
 
 
-def save_time_splits(inputs: np.ndarray, targets: np.ndarray, masks: np.ndarray, sample_times: np.ndarray) -> None:
+def save_time_splits(inputs: np.ndarray, targets: np.ndarray, masks: np.ndarray, sample_times: np.ndarray,
+                     icao24s: np.ndarray, callsigns: np.ndarray) -> None:
     """Split chronologically on whole-session boundaries, then persist DataLoader-ready arrays.
 
     Splitting on raw row position puts part of one collection session in train and
@@ -191,6 +220,11 @@ def save_time_splits(inputs: np.ndarray, targets: np.ndarray, masks: np.ndarray,
         raise ValueError("No valid samples were generated; collect more temporally dense tracks.")
     order = np.argsort(sample_times)
     inputs, targets, masks, sample_times = inputs[order], targets[order], masks[order], sample_times[order]
+    # The join keys must be reordered WITH the samples. Until 25 Sep 2026 they were not, so
+    # every saved icao24/callsign belonged to a different window (added 22 Sep, Phase 1.3;
+    # no model reads them, so no published number was affected -- found when plan 9.0
+    # first joined on them). verify_pipeline.py now checks the keys against raw positions.
+    icao24s, callsigns = np.asarray(icao24s)[order], np.asarray(callsigns)[order]
 
     # Any pause longer than a session length marks the start of a new session.
     session_id = np.concatenate(([0], np.cumsum(np.diff(sample_times) > SESSION_BREAK_SECONDS)))
@@ -218,6 +252,8 @@ def save_time_splits(inputs: np.ndarray, targets: np.ndarray, masks: np.ndarray,
         np.savez_compressed(
             OUTPUT_DIRECTORY / f"trajectory_{name}.npz",
             X=inputs[index], y=targets[index], mask=masks[index], timestamps=sample_times[index],
+            # Join keys, never features. See build_samples().
+            icao24=icao24s[index], callsign=callsigns[index],
         )
         span = pd.to_datetime(sample_times[index][[0, -1]], unit="s", utc=True) + pd.Timedelta(hours=5, minutes=30)
         valid = masks[index].sum(axis=0)
@@ -241,10 +277,10 @@ def report_horizon_coverage(masks: np.ndarray) -> None:
 
 def main() -> None:
     states = load_valid_states()
-    inputs, targets, masks, sample_times = build_samples(states)
+    inputs, targets, masks, sample_times, icao24s, callsigns = build_samples(states)
     print(f"Built {len(inputs)} valid samples from {len(states)} airborne raw states.")
     report_horizon_coverage(masks)
-    save_time_splits(inputs, targets, masks, sample_times)
+    save_time_splits(inputs, targets, masks, sample_times, icao24s, callsigns)
 
 
 if __name__ == "__main__":

@@ -86,14 +86,22 @@ class ReplayService:
         somebody to actually look at the screen before the encounter passes. The recordings do contain
         genuine encounters - a scan of six sessions found 4,049 frames where two
         en-route aircraft were predicted inside the alert volume - so this finds the
-        first one and starts a minute before it, giving the three-consecutive-updates
+        first one and starts three minutes before it, giving the three-consecutive-updates
         rule time to confirm the pair as it develops.
+
+        The encounter must be predicted inside the LEGAL minimum (5 NM / 1,000 ft), not
+        just the wider 8 NM / 1,500 ft alert volume. Since 22 Sep a pair only alarms when
+        the straight-line safety net sees the legal minimum breached or the classifier
+        agrees, so seeking on the alert volume opened the demo on a legally separated
+        pair (UAE325 x ABY821, 1,100 ft apart) that correctly never alarms, and the first
+        real alarm arrived minutes later. This changes where playback starts, never when
+        an alarm fires.
 
         Nothing is fabricated: this only chooses where in the real recording to begin.
         """
         import numpy as np
         from ml_pipeline.utils.cpa_conflict_detection import (
-            ALERT_LATERAL_NM, ALERT_VERTICAL_FT, compute_cpa_from_states)
+            SEPARATION_LATERAL_NM, SEPARATION_VERTICAL_FT, compute_cpa_from_states)
 
         for index, frame in enumerate(self.frames):
             # Skip encounters too early in the recording to have a past. The models need
@@ -121,15 +129,15 @@ class ReplayService:
                     "heading_deg": float(r.true_track),
                     "vertical_rate_ms": float(r.vertical_rate or 0.0)}
                 cpa = compute_cpa_from_states(state(a, alt[i]), state(b, alt[j]))
-                if (cpa["cpa_lateral_distance_nm"] < ALERT_LATERAL_NM
-                        and cpa["cpa_vertical_separation_ft"] < ALERT_VERTICAL_FT):
+                if (cpa["cpa_lateral_distance_nm"] < SEPARATION_LATERAL_NM
+                        and cpa["cpa_vertical_separation_ft"] < SEPARATION_VERTICAL_FT):
                     self.start_index = max(0, index - lead_frames)
                     self.seek_note = (
                         f"{str(a.callsign).strip()} x {str(b.callsign).strip()} at frame {index}")
                     log.info("Replay starts %d frames before a real encounter: %s",
                              lead_frames, self.seek_note)
                     return
-        log.info("No alert-volume encounter found in this session; starting at the beginning.")
+        log.info("No encounter inside the legal minimum found in this session; starting at the beginning.")
 
     def _current_frame_index(self) -> int:
         """Where the replay has got to, looping when it reaches the end."""

@@ -101,6 +101,11 @@ export function suggestionsFromAlerts(active = []) {
         actionToast: `Decision recorded for ${alert.pair.join(" & ")}`,
         tier: alert.tier,
         timeToCpaSeconds: alert.timeToCpaSeconds,
+        // ISSUES.md H3 (fixed 25 Sep 2026): what a dismissal is remembered against. The
+        // pair id alone hid the pair for the rest of the session -- after it escalated, and
+        // after it separated and re-converged. A new encounter (firstSeen), a new tier or a
+        // different best manoeuvre is a new situation and is shown again.
+        episodeKey: [alert.id, alert.firstSeen, alert.tier, best.manoeuvre_type, best.magnitude].join("|"),
       };
     });
 }
