@@ -65,7 +65,8 @@ def main() -> None:
     rows = np.flatnonzero(mask[:, 2] & mask[:, 3])          # need the 5- and 10-minute truth
     arrivals = mp.arrival_rows(X)
     predictor = MultiPathPredictor(offsets="per_mode")
-    probabilities, positions, _ = predictor.predict(X[rows])
+    extra = predictor.saved_split_inputs("test")
+    probabilities, positions, _ = predictor.predict(X[rows], extra=None if extra is None else extra[rows])
     print(f"model {predictor.version}; {len(rows):,} test windows with a 5- and 10-minute truth "
           f"({int(arrivals[rows].sum()):,} arrivals)")
 

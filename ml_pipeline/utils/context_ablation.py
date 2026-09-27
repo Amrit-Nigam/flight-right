@@ -12,6 +12,8 @@ never touched:
   type      9.4 aircraft type -> OpenAP performance
   traffic   9.5 surrounding traffic from our own sessions
   all       every group together
+  route     destination / origin from the adsbdb route (added 26 Sep)
+  route_intent  route plus the selected altitude
 
 Plus one row that needs no training, the sourced way to use a selected level: EUROCONTROL
 STCA Option E ("Cleared and/or Selected Flight Level used for Vertical Prediction"). The
@@ -38,7 +40,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "ml_pipeline/training/trajectory"))
 RUNS = ROOT / "ml_pipeline/data/processed/seed_runs"
 ROWS = {"none": "", "intent": "intent", "wind": "wind", "type": "type", "traffic": "traffic",
-        "all": "intent,wind,type,traffic"}
+        "all": "intent,wind,type,traffic", "route": "route", "route_intent": "route,intent"}
 
 
 def train(name: str, groups: str) -> dict:
@@ -65,7 +67,8 @@ def selected_level_cap() -> dict:
     X, y, mask = z["X"].astype(np.float32), z["y"].astype(np.float32), z["mask"].astype(bool)
     ctx = np.load(ROOT / "ml_pipeline/data/processed/context_test.npz", allow_pickle=True)
     delta = ctx["sel_alt_delta_ft"]
-    _, positions, _ = MultiPathPredictor(MULTIPATH_PATH, offsets="per_mode").predict(X)
+    served = MultiPathPredictor(MULTIPATH_PATH, offsets="per_mode")
+    _, positions, _ = served.predict(X, extra=served.saved_split_inputs("test"))
     capped = positions.copy()
     applied = 0
     for i in np.flatnonzero(np.isfinite(delta) & (np.abs(delta) >= 300.0)):

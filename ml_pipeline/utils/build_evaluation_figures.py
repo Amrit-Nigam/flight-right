@@ -197,7 +197,8 @@ splits = split_by_session(data)
 test = splits["test"].reset_index(drop=True)
 booster = xgboost.Booster()
 booster.load_model(str(ROOT / "server/app/ml/saved_models/xgboost_conflict.json"))
-raw = booster.predict(xgboost.DMatrix(test[FEATURE_COLUMNS], feature_names=FEATURE_COLUMNS))
+from train_xgboost import classifier_raw_scores  # noqa: E402
+raw = classifier_raw_scores(booster, test)   # the inputs the saved file declares
 test["raw"] = raw
 y = test["is_conflict"].to_numpy()
 alerts = (raw >= T).astype(int)

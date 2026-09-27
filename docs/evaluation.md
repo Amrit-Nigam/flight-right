@@ -25,6 +25,33 @@ here was ever wrong — but nothing enforced it either, and now something does.
 
 ---
 
+## 26 September 2026: two served models changed — read this before any table below
+
+At Archit's decision, two of the models the system runs were replaced. Figures further down
+this document that describe the **old** models are kept as the record of what was measured then;
+[`metrics.json`](metrics.json), [`ablation.md`](ablation.md) and the charts were regenerated from the
+new models by `reevaluate_models.py` (`ml_pipeline/reports/reevaluation_20260926_122322.json`).
+Where a table below disagrees with those files, the files win.
+
+| | Before (6 Sep classifier, 23 Sep path model) | Now (26 Sep) | What it means |
+|---|---|---|---|
+| **Headline: conflicts caught with ≥ 3 min warning, classifier alone** | 94.0% (267 of 284) | **95.1% (270 of 284)** | three more real conflicts caught in time |
+| Classifier recall / false alarms per 1,000 pairs | 0.9439 / 96.8 | **0.9538** / 98.1 | GATE 1 (0.95) passes for the first time |
+| Running system (classifier + safety net + path model), ≥ 3 min | 94.7% (269) | **95.4% (271)** | what the controller actually gets |
+| Running system false audible alarms (tier 1), test | 17 | **21** | the cost: four more loud alarms for conflicts that do not happen |
+| Arrivals, one of five paths within 5 NM at 10 min | 71.5% | **75.4%** | the path model trained with 400,000 extra archive examples |
+| Arrivals, single best guess within 5 NM at 10 min | 44.2% | **46.8%** | |
+
+**What changed.** (1) The conflict classifier now also reads the altitude each crew has dialled into
+the autopilot (adsb.lol, where broadcast), with its alarm threshold chosen on validation so the
+false-alarm rate stays where it was: the gain goes to catching conflicts. Four random seeds all land
+at 269–271 of 284, so this is not a lucky run. (2) The path model is the one trained on extra archive
+days; on test it changes no alert, and on validation it demoted one real audible alarm to the watch
+list, a cost Archit accepted. Evidence: `classifier_intent_seeds_20260926_172128.json`,
+`offsets_ab_*` (26 Sep), `multipath_archive_seeds_20260925_030354.json`.
+
+---
+
 ## Which number belongs to which model file
 
 **This document and [`metrics.json`](metrics.json) are authoritative.** Everything else in
@@ -945,6 +972,33 @@ more pairs and therefore more interruptions on both sides of the comparison. The
 structural facts — zero pairs lost, and active rows exactly equalling the old message count —
 reproduce identically under both. The replay now lives in
 `ml_pipeline/utils/reevaluate_models.py` so it can be re-run.
+
+---
+
+# Speech: which model hears the radio (27 Sep 2026)
+
+Four models, same audio, same extractor, same callsign matcher, beam 5, CTranslate2 int8
+(`ml_pipeline/voice/evaluate_voice.py`, report `ml_pipeline/reports/voice_eval_20260927_015420.json`).
+"Word error" is the share of words wrong after normalising spelling; "whole clearance right" means the
+right aircraft, the right action (climb, descend, turn, speed, direct) and the right value.
+
+| test set | what | ours: whisper-small + LoRA | large-v3 ATC (jlvdoorn) | medium ATCOSIM (jlvdoorn) | openai whisper-medium |
+|---|---|---|---|---|---|
+| ATCO2, 762 clean clips (real radio) | word error % | 28.3 | 25.9 ¹ | 39.5 | 62.6 |
+| | whole clearance right, of 31 | **64.5%** (20) | 35.5% (11) | 38.7% (12) | 12.9% (4) |
+| | callsign right, with aircraft list (n=328) | 70.4% | 72.0% | 68.6% | 14.6% |
+| ATCOSIM, 3 unseen speakers (1,712 clips) | word error % | **4.9** | 14.7 ² | 0.1 ² | 61.9 |
+| UWB-ATCC, unseen recordings (2,814 clips) | word error % | **15.1** | 46.9 | 53.0 | 78.2 |
+| all | seconds of compute per second of audio | **0.04** | 0.15 | 0.13 | 0.11 |
+
+¹ large-v3 trained on other ATCO2 clips from the same airports (the 109 identical recordings are
+excluded above, per Phase 2.5), so its ATCO2 figures are flattering to it.
+² trained on these ATCOSIM speakers: not a held-out figure.
+
+**Chosen: ours** (`server/app/config.py`, default whenever its directory exists). The only output the
+rest of the system uses is the whole clearance, and ours gets nearly twice as many right; it also
+generalises to a country none of them trained on and is the fastest. The caveat: 31 clearances is a
+small sample, and **nothing here measures Indian accents** (Svarah and Indic Parler-TTS are gated).
 
 ---
 

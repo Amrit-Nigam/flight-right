@@ -34,6 +34,7 @@ from ..config import (CONFLICT_MIN_ALTITUDE_FT, CONFLICT_MIN_VELOCITY_MS,
                       MAX_PAIRS_PER_UPDATE, PAIR_PREFILTER_FT, PAIR_PREFILTER_NM,
                       PROJECT_ROOT)
 from .clearance_service import clearance_service
+from .intent_service import intent_service
 from .normalizer import to_engine_state
 
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -148,9 +149,12 @@ class ConflictService:
                                     "history": engine_histories[key],
                                     "candidates": candidates.get(key)})
             try:
+                state_a, state_b = histories[key_a][-1], histories[key_b][-1]
                 result = self.engine.assess_pair(
                     history_a, history_b, previous, traffic=traffic,
-                    candidates_a=candidates.get(key_a), candidates_b=candidates.get(key_b))
+                    candidates_a=candidates.get(key_a), candidates_b=candidates.get(key_b),
+                    selected_a_ft=intent_service.selected_altitude_ft(key_a, state_a.get("timePosition")),
+                    selected_b_ft=intent_service.selected_altitude_ft(key_b, state_b.get("timePosition")))
             except Exception as failure:                     # noqa: BLE001
                 log.exception("assess_pair failed for %s: %s", pair_key, failure)
                 continue

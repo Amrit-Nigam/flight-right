@@ -89,8 +89,24 @@ THRESHOLD_GRID = np.round(np.arange(0.05, 1.0, 0.05), 2)
 # time to act on it. 180 s is the response geometry, not a round number.
 HEADLINE_WARNING_SECONDS = 180
 
-MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "xgboost_conflict.json"
-MODEL_CARD_PATH = MODEL_PATH.with_name("xgboost_conflict_model_card.json")
+MODEL_PATH = Path(os.environ.get("FLIGHT_RIGHT_CLASSIFIER_OUT",
+                                  DATA_ROOT / "server" / "app" / "ml" / "saved_models" / "xgboost_conflict.json"))
+MODEL_CARD_PATH = MODEL_PATH.with_name(MODEL_PATH.stem + "_model_card.json")
+
+# Plan 9.0, served from 26 Sep at Archit's decision: the autopilot level each aircraft has
+# dialled in (adsb.lol nav_altitude_mcp), as three extra inputs. FLIGHT_RIGHT_CLASSIFIER_INTENT=1
+# turns them on. They come from encounters_with_intent.parquet, which classifier_intent_ablation.py
+# built by re-running the seeded generator and verifying it row-for-row against the encounter file,
+# then joining each real aircraft's dialled level BACKWARD in time (<= 300 s) -- nothing from after
+# the decision moment. Unknown stays NaN; XGBoost treats NaN as "missing" natively.
+from generate_synthetic_scenarios import INTENT_COLUMNS  # noqa: E402  (one definition, shared with inference)
+INTENT_CACHE = DATA_ROOT / "ml_pipeline" / "data" / "processed" / "encounters_with_intent.parquet"
+USE_INTENT = os.environ.get("FLIGHT_RIGHT_CLASSIFIER_INTENT", "") == "1"
+MODEL_COLUMNS = FEATURE_COLUMNS + (INTENT_COLUMNS if USE_INTENT else [])
+# Archit, 26 Sep: "same alarm rate". With this set to a saved model file, the threshold is chosen
+# on VALIDATION as the lowest one whose false-alarm rate does not exceed that model's validation
+# false-alarm rate -- so any gain goes to catching more real conflicts, not to fewer alarms.
+MATCH_FALSE_ALARMS_OF = os.environ.get("FLIGHT_RIGHT_MATCH_FALSE_ALARMS_OF", "").strip()
 SYNTHETIC_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "synthetic"
 # Recall margins reported as WHAT-IF rows only. The selected threshold is unchanged --
 # choosing a margin changes when a controller is alerted and needs Archit's sign-off
@@ -126,6 +142,69 @@ def latest_dataset_path() -> Path:
     return max(paths, key=lambda path: path.stat().st_mtime)
 
 
+def add_intent_columns(dataset: pd.DataFrame) -> pd.DataFrame:
+    """Attach the dialled-level columns, refusing if the cache is not the same encounters."""
+    cached = pd.read_parquet(INTENT_CACHE)
+    same = (len(cached) == len(dataset)
+            and np.allclose(cached[FEATURE_COLUMNS].to_numpy(dtype=float),
+                            dataset[FEATURE_COLUMNS].to_numpy(dtype=float), equal_nan=True)
+            and (cached["is_conflict"].to_numpy() == dataset["is_conflict"].to_numpy()).all())
+    if not same:
+        raise RuntimeError(f"{INTENT_CACHE.name} is not row-for-row the same encounters as the training file; "
+                           "re-run classifier_intent_ablation.py --rebuild.")
+    return dataset.assign(**{c: cached[c].to_numpy() for c in INTENT_COLUMNS})
+
+
+def _row_keys(frame: pd.DataFrame) -> pd.Series:
+    """An exact fingerprint of each encounter row (its 24 features and its time)."""
+    return pd.util.hash_pandas_object(frame[FEATURE_COLUMNS + ["seed_time_position"]], index=False)
+
+
+def attach_intent_columns(frame: pd.DataFrame) -> pd.DataFrame:
+    """Add the dialled-level columns to ANY subset of encounter rows, in any order.
+
+    Matched on each row's own contents, not its position, so a split or re-ordered frame
+    cannot be paired with another row's dialled levels. Refuses on a missing or ambiguous row."""
+    cached = pd.read_parquet(INTENT_CACHE)
+    keys = _row_keys(cached)
+    if keys.duplicated().any():
+        raise RuntimeError("encounter fingerprints are not unique; cannot attach dialled levels safely")
+    lookup = cached.assign(_key=keys.to_numpy()).set_index("_key")[INTENT_COLUMNS]
+    wanted = _row_keys(frame)
+    missing = ~wanted.isin(lookup.index)
+    if missing.any():
+        raise RuntimeError(f"{int(missing.sum())} encounter rows are not in {INTENT_CACHE.name}")
+    return frame.assign(**{c: lookup.loc[wanted.to_numpy(), c].to_numpy() for c in INTENT_COLUMNS})
+
+
+def classifier_raw_scores(booster: "xgboost.Booster", frame: pd.DataFrame) -> np.ndarray:
+    """Raw scores from a saved classifier, fed exactly the inputs its file declares."""
+    columns = json.loads(booster.attr("feature_columns"))
+    if any(c not in frame.columns for c in columns):
+        frame = attach_intent_columns(frame)
+    return booster.predict(xgboost.DMatrix(frame[columns], feature_names=columns))
+
+
+def threshold_at_false_alarm_rate(y_true: np.ndarray, probabilities: np.ndarray, target_per_1000: float) -> float:
+    """Lowest threshold (so the most real conflicts caught) whose false alarms stay within target."""
+    negatives = y_true == 0
+    for value in np.unique(probabilities):                 # ascending
+        if (probabilities[negatives] >= value).sum() / len(y_true) * 1000.0 <= target_per_1000:
+            return float(value)
+    return float(probabilities.max())
+
+
+def reference_false_alarm_rate(path: str, frame: pd.DataFrame) -> tuple[float, float]:
+    """Validation false alarms per 1000 and recall of an existing saved classifier."""
+    reference = xgboost.Booster()
+    reference.load_model(path)
+    columns = json.loads(reference.attr("feature_columns"))
+    raw = reference.predict(xgboost.DMatrix(frame[columns], feature_names=columns))
+    metrics = metrics_at_threshold(frame["is_conflict"].astype(int).to_numpy(), raw,
+                                   float(json.loads(reference.attr("decision_threshold"))))
+    return metrics["false_alarms_per_1000"], metrics["recall"]
+
+
 def assert_no_leakage(dataset: pd.DataFrame) -> float:
     """Refuse to train if the label can be recomputed from the features.
 
@@ -134,7 +213,7 @@ def assert_no_leakage(dataset: pd.DataFrame) -> float:
     no outcome column may be in the feature list, and the separation rule applied to
     the predicted closest approach must not reproduce the label.
     """
-    overlap = sorted(set(FEATURE_COLUMNS).intersection(OUTCOME_ONLY_COLUMNS))
+    overlap = sorted(set(MODEL_COLUMNS).intersection(OUTCOME_ONLY_COLUMNS))
     if overlap:
         raise RuntimeError(f"Outcome columns present in the feature list: {overlap}")
 
@@ -433,10 +512,14 @@ def main() -> None:
                                      "actual_time_to_cpa_seconds"]).difference(dataset.columns)
     if missing:
         raise ValueError(f"Dataset is missing columns: {sorted(missing)}. Re-run the generator.")
+    if USE_INTENT:
+        dataset = add_intent_columns(dataset)
+        print(f"Dialled-level inputs added from {INTENT_CACHE.name} (verified row-for-row): "
+              + ", ".join(f"{c} {dataset[c].notna().mean():.1%} known" for c in INTENT_COLUMNS))
     dataset = dataset.dropna(subset=FEATURE_COLUMNS + ["is_conflict"])
     print(f"Dataset: {dataset_path.name}")
     print(f"Rows: {len(dataset):,}   real conflicts: {int(dataset['is_conflict'].sum()):,} "
-          f"({dataset['is_conflict'].mean():.2%})   features: {len(FEATURE_COLUMNS)}")
+          f"({dataset['is_conflict'].mean():.2%})   features: {len(MODEL_COLUMNS)}")
     print("")
     assert_no_leakage(dataset)
     print("")
@@ -444,9 +527,9 @@ def main() -> None:
     splits = split_by_session(dataset)
     print_split_report(splits)
 
-    x_train, y_train = splits["train"][FEATURE_COLUMNS], splits["train"]["is_conflict"].astype(int)
-    x_val, y_val = splits["val"][FEATURE_COLUMNS], splits["val"]["is_conflict"].astype(int)
-    x_test, y_test = splits["test"][FEATURE_COLUMNS], splits["test"]["is_conflict"].astype(int)
+    x_train, y_train = splits["train"][MODEL_COLUMNS], splits["train"]["is_conflict"].astype(int)
+    x_val, y_val = splits["val"][MODEL_COLUMNS], splits["val"]["is_conflict"].astype(int)
+    x_test, y_test = splits["test"][MODEL_COLUMNS], splits["test"]["is_conflict"].astype(int)
 
     positives, negatives = int((y_train == 1).sum()), int((y_train == 0).sum())
     scale_pos_weight = negatives / positives
@@ -470,6 +553,19 @@ def main() -> None:
     selected_threshold, target_met = select_threshold(
         y_val.to_numpy(), validation_probabilities, TARGET_RECALL + APPLIED_RECALL_MARGIN
     )
+    threshold_rule = "highest validation threshold still reaching the recall floor"
+    if MATCH_FALSE_ALARMS_OF:
+        target_fa, reference_recall = reference_false_alarm_rate(MATCH_FALSE_ALARMS_OF, splits["val"])
+        selected_threshold = threshold_at_false_alarm_rate(y_val.to_numpy(), validation_probabilities, target_fa)
+        achieved = metrics_at_threshold(y_val.to_numpy(), validation_probabilities, selected_threshold)
+        target_met = achieved["recall"] >= TARGET_RECALL
+        threshold_rule = (f"same validation false-alarm rate as {Path(MATCH_FALSE_ALARMS_OF).name} "
+                          f"({target_fa:.1f} per 1000; its validation recall {reference_recall:.4f})")
+        print("")
+        print(f"DECISION APPLIED (Archit, 26 Sep, same alarm rate): threshold {selected_threshold:.4f} chosen on "
+              f"VALIDATION so false alarms stay within {target_fa:.1f} per 1000, the rate of "
+              f"{Path(MATCH_FALSE_ALARMS_OF).name}. Validation recall {achieved['recall']:.4f} against its "
+              f"{reference_recall:.4f}; false alarms {achieved['false_alarms_per_1000']:.1f} per 1000.")
     if APPLIED_RECALL_MARGIN:
         print("")
         print(f"DECISION APPLIED: threshold selected for validation recall >= "
@@ -562,7 +658,7 @@ def main() -> None:
     print("")
     print("Feature importance (gain-based) and mean |SHAP| contribution on the test split:")
     print(f"  {'feature':<34} {'gain':>10} {'mean |SHAP|':>12}")
-    for feature, importance in sorted(zip(FEATURE_COLUMNS, model.feature_importances_),
+    for feature, importance in sorted(zip(MODEL_COLUMNS, model.feature_importances_),
                                       key=lambda item: item[1], reverse=True):
         print(f"  {feature:<34} {importance:>10.6f} {shap_values[feature]:>12.4f}")
 
@@ -571,7 +667,7 @@ def main() -> None:
         calibrated_decision_threshold=json.dumps(calibrated_threshold),
         platt_a=json.dumps(calibrator.a),
         platt_b=json.dumps(calibrator.b),
-        feature_columns=json.dumps(FEATURE_COLUMNS),
+        feature_columns=json.dumps(MODEL_COLUMNS),
         target_recall=json.dumps(TARGET_RECALL),
         test_recall=json.dumps(round(test_metrics["recall"], 6)),
         test_precision=json.dumps(round(test_metrics["precision"], 6)),
@@ -579,6 +675,7 @@ def main() -> None:
         rule_recall_alert_volume=json.dumps(round(alert_metrics["recall"], 6)),
         training_dataset=dataset_path.name,
         applied_recall_margin=json.dumps(APPLIED_RECALL_MARGIN),
+        threshold_rule=threshold_rule,
     )
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     booster.save_model(MODEL_PATH)
@@ -611,9 +708,10 @@ def main() -> None:
         "training_dataset": dataset_path.name,
         "rows": {name: int(len(frame)) for name, frame in splits.items()},
         "conflict_rate": {name: float(frame["is_conflict"].mean()) for name, frame in splits.items()},
-        "features": FEATURE_COLUMNS,
+        "features": MODEL_COLUMNS,
         "decision_threshold": selected_threshold, "calibrated_decision_threshold": calibrated_threshold,
         "applied_recall_margin": APPLIED_RECALL_MARGIN, "target_recall_floor": TARGET_RECALL,
+        "threshold_rule": threshold_rule, "dialled_level_inputs": USE_INTENT,
         "platt": {"a": calibrator.a, "b": calibrator.b}, "calibration": calibration_summary,
         "test": test_metrics, "rule_alert_volume": alert_metrics, "rule_legal_minimum": legal_metrics,
         "pr_auc": pr_auc, "headline_three_minute_warning": headline_rows,

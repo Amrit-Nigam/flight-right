@@ -1,0 +1,110 @@
+{
+  "measured_at_utc": "2026-09-25T12:29:29.283626+00:00",
+  "transmissions": 3757,
+  "extractor_recovers_script_pct": 98.99,
+  "aircraft": 856,
+  "callsign_prefixes": {
+    "IGO": 1516,
+    "AIC": 761,
+    "AKJ": 265,
+    "AXB": 231,
+    "UAE": 111,
+    "ETH": 58,
+    "QTR": 48,
+    "ETD": 44,
+    "ABY": 42,
+    "SDG": 42,
+    "BAW": 41,
+    "BDA": 33,
+    "GFA": 30,
+    "LLR": 29,
+    "SVA": 25
+  },
+  "by_action": {
+    "TURN": 1300,
+    "SPEED": 1034,
+    "none": 758,
+    "DESCEND": 507,
+    "CLIMB": 158
+  },
+  "by_value_source": {
+    "observed settled track": 1300,
+    "standard phraseology value": 1034,
+    "no clearance (distractor)": 758,
+    "observed held level": 665
+  },
+  "by_role": {
+    "ATCO": 3121,
+    "PILOT": 636
+  },
+  "by_split": {
+    "train": 3341,
+    "val": 416
+  },
+  "examples": [
+    {
+      "callsign": "IGO607K",
+      "action": "SPEED",
+      "value": 160.0,
+      "value_source": "standard phraseology value",
+      "text": "ifly six zero seven kilo mumbai approach maintain one six zero knots",
+      "tts_text": "eye fly six zero seven kilo mumbai approach maintain one six zero knots"
+    },
+    {
+      "callsign": "AIC8DT",
+      "action": "SPEED",
+      "value": 190.0,
+      "value_source": "standard phraseology value",
+      "text": "air india eight delta tango mumbai approach speed one nine zero knots",
+      "tts_text": "air india eight delta tango mumbai approach speed one nine zero knots"
+    },
+    {
+      "callsign": "IGO2100",
+      "action": "CLIMB",
+      "value": 30000.0,
+      "value_source": "observed held level",
+      "text": "climbing flight level three zero zero ifly two one zero zero",
+      "tts_text": "climbing flight level three zero zero eye fly two one zero zero"
+    },
+    {
+      "callsign": "AIC1AF",
+      "action": NaN,
+      "value": NaN,
+      "value_source": "no clearance (distractor)",
+      "text": "air india one alfa foxtrot qnh one zero zero two",
+      "tts_text": "air india one alfa foxtrot qnh one zero zero two"
+    },
+    {
+      "callsign": "IGO1402",
+      "action": "DESCEND",
+      "value": 29000.0,
+      "value_source": "observed held level",
+      "text": "ifly one four zero two descend to flight level two nine zero",
+      "tts_text": "eye fly one four zero two descend to flight level two nine zero"
+    },
+    {
+      "callsign": "IGO355",
+      "action": NaN,
+      "value": NaN,
+      "value_source": "no clearance (distractor)",
+      "text": "ifly three five five squawk five three two three",
+      "tts_text": "eye fly three five five squawk five three two three"
+    },
+    {
+      "callsign": "IGO676V",
+      "action": "TURN",
+      "value": 240.0,
+      "value_source": "observed settled track",
+      "text": "right heading two four zero ifly six seven six victor",
+      "tts_text": "right heading two four zero eye fly six seven six victor"
+    },
+    {
+      "callsign": "CAL5686",
+      "action": NaN,
+      "value": NaN,
+      "value_source": "no clearance (distractor)",
+      "text": "dynasty five six eight six contact mumbai tower one one eight decimal one goodbye",
+      "tts_text": "dynasty five six eight six contact mumbai tower one one eight decimal one goodbye"
+    }
+  ]
+}

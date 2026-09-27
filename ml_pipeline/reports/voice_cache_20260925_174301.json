@@ -1,0 +1,105 @@
+{
+  "measured_at_utc": "2026-09-25T12:13:01.718850+00:00",
+  "cache": "C:\\Users\\singh\\AppData\\Local\\FlightRight\\voice",
+  "sample_rate": 16000,
+  "split_rule": {
+    "atcosim_test": [
+      "gm2",
+      "sm3",
+      "zf3"
+    ],
+    "atcosim_val": [
+      "gf1",
+      "gm1"
+    ],
+    "atcosim_train": [
+      "sm1",
+      "sm2",
+      "sm4",
+      "zf1",
+      "zf2"
+    ],
+    "uwb": "published test = test; train recordings with sha1 % 10 == 0 = val; recordings in both published splits excluded",
+    "atco2_mirror": "excluded from training",
+    "atco2": "test only; contaminated flag from voice_corpora report"
+  },
+  "splits": [
+    {
+      "corpus": "atco2",
+      "split": "test",
+      "clips": 871,
+      "hours": 0.99,
+      "groups": 562
+    },
+    {
+      "corpus": "atco2_mirror",
+      "split": "excluded",
+      "clips": 559,
+      "hours": 1.1,
+      "groups": 384
+    },
+    {
+      "corpus": "atcosim",
+      "split": "excluded",
+      "clips": 1,
+      "hours": 0.01,
+      "groups": 1
+    },
+    {
+      "corpus": "atcosim",
+      "split": "test",
+      "clips": 1712,
+      "hours": 2.05,
+      "groups": 3
+    },
+    {
+      "corpus": "atcosim",
+      "split": "train",
+      "clips": 7330,
+      "hours": 7.76,
+      "groups": 5
+    },
+    {
+      "corpus": "atcosim",
+      "split": "val",
+      "clips": 516,
+      "hours": 0.64,
+      "groups": 2
+    },
+    {
+      "corpus": "uwb",
+      "split": "excluded",
+      "clips": 11,
+      "hours": 0.01,
+      "groups": 1
+    },
+    {
+      "corpus": "uwb",
+      "split": "test",
+      "clips": 2814,
+      "hours": 2.43,
+      "groups": 676
+    },
+    {
+      "corpus": "uwb",
+      "split": "train",
+      "clips": 10172,
+      "hours": 9.49,
+      "groups": 1777
+    },
+    {
+      "corpus": "uwb",
+      "split": "val",
+      "clips": 1116,
+      "hours": 1.05,
+      "groups": 191
+    }
+  ],
+  "atco2_clean_clips": 762,
+  "excluded_reasons": {
+    "ATCO2 clips are never used for training (cross-corpus test)": 559,
+    "recording appears in both published splits": 11,
+    "longer than 30 s": 1
+  },
+  "group_disjoint": true
+}

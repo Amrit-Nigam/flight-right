@@ -1,0 +1,144 @@
+{
+  "none": {
+    "extra_features": [],
+    "arrivals_best5_5nm": 71.46767020184743,
+    "arrivals_top1_5nm": 44.16695176188847,
+    "all_best5_5nm": 86.57700139320545,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1413.6672026686208,
+        "top1_within_1000ft": 54.327745466985974,
+        "best5_within_1000ft": 72.35716729387616,
+        "top1_both": 31.885049606568593,
+        "best5_both": 44.064317482039
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1116.0079737791114,
+        "top1_within_1000ft": 71.14993033972779,
+        "best5_within_1000ft": 78.53927767656201,
+        "top1_both": 53.79380559425571,
+        "best5_both": 66.0165041260315
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "route": {
+    "extra_features": [
+      "dest_dist_nm",
+      "dest_bearing_sin",
+      "dest_bearing_cos",
+      "orig_dist_nm"
+    ],
+    "arrivals_best5_5nm": 71.12555593568251,
+    "arrivals_top1_5nm": 43.51693465617516,
+    "all_best5_5nm": 86.69488800771622,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1432.1852024983814,
+        "top1_within_1000ft": 52.34348272322956,
+        "best5_within_1000ft": 67.53335614095107,
+        "top1_both": 30.92712966130688,
+        "best5_both": 42.90112897707834
+      },
+      "all": {
+        "top1_altitude_mean_ft": 938.2548866467783,
+        "top1_within_1000ft": 71.31068481406065,
+        "best5_within_1000ft": 76.82992176615583,
+        "top1_both": 53.71878683956703,
+        "best5_both": 66.28978673239739
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "route_intent": {
+    "extra_features": [
+      "dest_dist_nm",
+      "dest_bearing_sin",
+      "dest_bearing_cos",
+      "orig_dist_nm",
+      "sel_alt_delta_ft",
+      "fms_alt_delta_ft",
+      "sel_heading_delta_deg",
+      "intent_age_s"
+    ],
+    "arrivals_best5_5nm": 72.08347588094423,
+    "arrivals_top1_5nm": 43.89326034895655,
+    "all_best5_5nm": 86.91458578930447,
+    "three_d": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1384.7798538240859,
+        "top1_within_1000ft": 53.30140266849127,
+        "best5_within_1000ft": 67.36229900786863,
+        "top1_both": 31.029763941156347,
+        "best5_both": 44.85118029421827
+      },
+      "all": {
+        "top1_altitude_mean_ft": 930.0711815399563,
+        "top1_within_1000ft": 72.0715893259029,
+        "best5_within_1000ft": 77.49437359339835,
+        "top1_both": 54.32965384203193,
+        "best5_both": 67.20072875361697
+      }
+    },
+    "gates": {
+      "above_60": true,
+      "per_mode_beats_table": true,
+      "top1_not_below_table": true,
+      "beats_constant_velocity_every_horizon": true
+    }
+  },
+  "selected_level_cap": {
+    "windows_with_selected_level": 20384,
+    "cap_applied": 9020,
+    "served": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1336.6062912824764,
+        "top1_both": 33.80088949709203,
+        "best5_both": 46.52754019842627,
+        "best5_within_1000ft": 66.50701334245637
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1050.6088105506333,
+        "top1_both": 55.015539599185516,
+        "best5_both": 67.13642696388384,
+        "best5_within_1000ft": 78.23384417532955
+      },
+      "with a selected level": {
+        "top1_altitude_mean_ft": 1388.8008333414793,
+        "top1_both": 44.379481522338665,
+        "best5_both": 54.9034749034749,
+        "best5_within_1000ft": 70.4357418643133
+      }
+    },
+    "served + selected-level cap": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 3667.3857218214257,
+        "top1_both": 23.366404379062608,
+        "best5_both": 29.250769757098873,
+        "best5_within_1000ft": 38.59048922340062
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1772.9923618331472,
+        "top1_both": 52.36309077269318,
+        "best5_both": 62.69960347229665,
+        "best5_within_1000ft": 70.29793162576358
+      },
+      "with a selected level": {
+        "top1_altitude_mean_ft": 2875.9626462520446,
+        "top1_both": 38.91891891891892,
+        "best5_both": 45.76944291230006,
+        "best5_within_1000ft": 54.09817981246553
+      }
+    }
+  }
+}

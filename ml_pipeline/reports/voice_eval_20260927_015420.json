@@ -1,0 +1,336 @@
+{
+  "measured_at_utc": "2026-09-26T18:27:59.825651+00:00",
+  "truth": {
+    "atco2": "official ATCO2 XML annotations (authors' annotations; 2/877 tag-verified)",
+    "aircraft_list": "proxy: identities annotated on the same airport, frequency and day",
+    "atcosim_uwb": "agreement with the extractor on the human transcript, not labelled accuracy"
+  },
+  "atco2_clips": {
+    "clean": 762,
+    "contaminated": 109,
+    "with_aircraft_identity": 345,
+    "with_usable_clearance": 70,
+    "clearance_types": {
+      "CLIMB": 31,
+      "SPEED": 18,
+      "DESCEND": 13,
+      "TURN": 5,
+      "DIRECT": 3
+    }
+  },
+  "models": {
+    "human_transcript": {
+      "model_id": "human transcript (upper bound for the extractor)",
+      "corpora": {
+        "atco2_clean": {
+          "clips": 762,
+          "clearance_accuracy": 77.42,
+          "clearance_n": 31,
+          "clearance_accuracy_plausible_tags": 95.83,
+          "clearance_n_plausible_tags": 24,
+          "callsign_accuracy_list_free": 41.77,
+          "callsign_accuracy_with_list": 93.9,
+          "callsign_n": 328,
+          "mean_aircraft_list_size": 5.6,
+          "action_accuracy": 71.43,
+          "value_accuracy": 60.32,
+          "action_n": 63,
+          "confidence_when_right": 0.938,
+          "confidence_when_wrong": 0.786
+        },
+        "atco2_contaminated": {
+          "clips": 109,
+          "clearance_accuracy": NaN,
+          "clearance_n": 0,
+          "clearance_accuracy_plausible_tags": NaN,
+          "clearance_n_plausible_tags": 0,
+          "callsign_accuracy_list_free": 17.65,
+          "callsign_accuracy_with_list": 94.12,
+          "callsign_n": 17,
+          "mean_aircraft_list_size": 8.8,
+          "action_accuracy": 85.71,
+          "value_accuracy": 57.14,
+          "action_n": 7,
+          "confidence_when_right": NaN,
+          "confidence_when_wrong": NaN
+        }
+      }
+    },
+    "additional:C:\\Users\\singh\\AppData\\Local/FlightRight/voice/models/flightright-whisper-small-atc-p1": {
+      "model_id": "C:\\Users\\singh\\AppData\\Local/FlightRight/voice/models/flightright-whisper-small-atc-p1",
+      "quantisation": "int8_float16",
+      "asr_version": "fw1-beam5-v1",
+      "corpora": {
+        "atco2_clean": {
+          "clips": 762,
+          "audio_hours": 0.819,
+          "wer": 28.29,
+          "wer_numerals_spoken": 28.29,
+          "real_time_factor": 0.0409,
+          "held_out": "held out (no ATCO2 audio in training)",
+          "clearance_accuracy": 64.52,
+          "clearance_n": 31,
+          "clearance_accuracy_plausible_tags": 79.17,
+          "clearance_n_plausible_tags": 24,
+          "callsign_accuracy_list_free": 12.8,
+          "callsign_accuracy_with_list": 70.43,
+          "callsign_n": 328,
+          "mean_aircraft_list_size": 5.6,
+          "action_accuracy": 68.25,
+          "value_accuracy": 52.38,
+          "action_n": 63,
+          "confidence_when_right": 0.861,
+          "confidence_when_wrong": 0.61
+        },
+        "atco2_contaminated": {
+          "clips": 109,
+          "audio_hours": 0.167,
+          "wer": 17.4,
+          "wer_numerals_spoken": 17.4,
+          "real_time_factor": 0.0335,
+          "held_out": "held out (no ATCO2 audio in training)",
+          "clearance_accuracy": NaN,
+          "clearance_n": 0,
+          "clearance_accuracy_plausible_tags": NaN,
+          "clearance_n_plausible_tags": 0,
+          "callsign_accuracy_list_free": 11.76,
+          "callsign_accuracy_with_list": 76.47,
+          "callsign_n": 17,
+          "mean_aircraft_list_size": 8.8,
+          "action_accuracy": 85.71,
+          "value_accuracy": 57.14,
+          "action_n": 7,
+          "confidence_when_right": NaN,
+          "confidence_when_wrong": NaN
+        },
+        "atcosim_heldout_speakers": {
+          "clips": 1712,
+          "audio_hours": 2.045,
+          "wer": 4.88,
+          "wer_numerals_spoken": 4.88,
+          "real_time_factor": 0.0382,
+          "held_out": "held out by speaker (sm3, zf3, gm2 never trained on)",
+          "clearance_agreement": 91.7,
+          "clearances_in_reference": 458
+        },
+        "uwb_heldout_recordings": {
+          "clips": 2814,
+          "audio_hours": 2.428,
+          "wer": 15.11,
+          "wer_numerals_spoken": 15.11,
+          "real_time_factor": 0.0471,
+          "held_out": "held out by recording",
+          "clearance_agreement": 78.18,
+          "clearances_in_reference": 55
+        }
+      }
+    },
+    "ships_in_demo:jlvdoorn/whisper-large-v3-atco2-asr-atcosim": {
+      "model_id": "jlvdoorn/whisper-large-v3-atco2-asr-atcosim",
+      "quantisation": "int8_float16",
+      "asr_version": "fw1-beam5-v1",
+      "corpora": {
+        "atco2_clean": {
+          "clips": 762,
+          "audio_hours": 0.819,
+          "wer": 25.88,
+          "wer_numerals_spoken": 25.87,
+          "real_time_factor": 0.1483,
+          "held_out": "clip-held-out (same airports and days as its ATCO2 training clips)",
+          "clearance_accuracy": 35.48,
+          "clearance_n": 31,
+          "clearance_accuracy_plausible_tags": 45.83,
+          "clearance_n_plausible_tags": 24,
+          "callsign_accuracy_list_free": 14.02,
+          "callsign_accuracy_with_list": 71.95,
+          "callsign_n": 328,
+          "mean_aircraft_list_size": 5.6,
+          "action_accuracy": 52.38,
+          "value_accuracy": 33.33,
+          "action_n": 63,
+          "confidence_when_right": 0.834,
+          "confidence_when_wrong": 0.539
+        },
+        "atco2_contaminated": {
+          "clips": 109,
+          "audio_hours": 0.167,
+          "wer": 15.95,
+          "wer_numerals_spoken": 15.95,
+          "real_time_factor": 0.1161,
+          "held_out": "NOT held out: these exact recordings are in its training data (Phase 2.5)",
+          "clearance_accuracy": NaN,
+          "clearance_n": 0,
+          "clearance_accuracy_plausible_tags": NaN,
+          "clearance_n_plausible_tags": 0,
+          "callsign_accuracy_list_free": 5.88,
+          "callsign_accuracy_with_list": 88.24,
+          "callsign_n": 17,
+          "mean_aircraft_list_size": 8.8,
+          "action_accuracy": 85.71,
+          "value_accuracy": 57.14,
+          "action_n": 7,
+          "confidence_when_right": NaN,
+          "confidence_when_wrong": NaN
+        },
+        "atcosim_heldout_speakers": {
+          "clips": 1712,
+          "audio_hours": 2.045,
+          "wer": 14.69,
+          "wer_numerals_spoken": 14.69,
+          "real_time_factor": 0.1299,
+          "held_out": "NOT held out: trained on all ten ATCOSIM speakers",
+          "clearance_agreement": 51.53,
+          "clearances_in_reference": 458
+        },
+        "uwb_heldout_recordings": {
+          "clips": 2814,
+          "audio_hours": 2.428,
+          "wer": 46.94,
+          "wer_numerals_spoken": 46.94,
+          "real_time_factor": 0.1777,
+          "held_out": "held out (UWB-ATCC not in its training corpus)",
+          "clearance_agreement": 20.0,
+          "clearances_in_reference": 55
+        }
+      }
+    },
+    "held_out_measurement:jlvdoorn/whisper-medium-atcosim": {
+      "model_id": "jlvdoorn/whisper-medium-atcosim",
+      "quantisation": "int8_float16",
+      "asr_version": "fw1-beam5-v1",
+      "corpora": {
+        "atco2_clean": {
+          "clips": 762,
+          "audio_hours": 0.819,
+          "wer": 39.51,
+          "wer_numerals_spoken": 39.51,
+          "real_time_factor": 0.1309,
+          "held_out": "held out (never trained on ATCO2)",
+          "clearance_accuracy": 38.71,
+          "clearance_n": 31,
+          "clearance_accuracy_plausible_tags": 45.83,
+          "clearance_n_plausible_tags": 24,
+          "callsign_accuracy_list_free": 7.32,
+          "callsign_accuracy_with_list": 68.6,
+          "callsign_n": 328,
+          "mean_aircraft_list_size": 5.6,
+          "action_accuracy": 49.21,
+          "value_accuracy": 38.1,
+          "action_n": 63,
+          "confidence_when_right": 0.726,
+          "confidence_when_wrong": 0.47
+        },
+        "atco2_contaminated": {
+          "clips": 109,
+          "audio_hours": 0.167,
+          "wer": 26.45,
+          "wer_numerals_spoken": 26.51,
+          "real_time_factor": 0.1087,
+          "held_out": "held out (never trained on ATCO2)",
+          "clearance_accuracy": NaN,
+          "clearance_n": 0,
+          "clearance_accuracy_plausible_tags": NaN,
+          "clearance_n_plausible_tags": 0,
+          "callsign_accuracy_list_free": 0.0,
+          "callsign_accuracy_with_list": 94.12,
+          "callsign_n": 17,
+          "mean_aircraft_list_size": 8.8,
+          "action_accuracy": 85.71,
+          "value_accuracy": 57.14,
+          "action_n": 7,
+          "confidence_when_right": NaN,
+          "confidence_when_wrong": NaN
+        },
+        "atcosim_heldout_speakers": {
+          "clips": 1712,
+          "audio_hours": 2.045,
+          "wer": 0.14,
+          "wer_numerals_spoken": 0.14,
+          "real_time_factor": 0.1125,
+          "held_out": "NOT held out: trained on ATCOSIM",
+          "clearance_agreement": 98.69,
+          "clearances_in_reference": 458
+        },
+        "uwb_heldout_recordings": {
+          "clips": 2814,
+          "audio_hours": 2.428,
+          "wer": 53.04,
+          "wer_numerals_spoken": 53.05,
+          "real_time_factor": 0.1462,
+          "held_out": "held out",
+          "clearance_agreement": 14.55,
+          "clearances_in_reference": 55
+        }
+      }
+    },
+    "untouched_baseline:openai/whisper-medium": {
+      "model_id": "openai/whisper-medium",
+      "quantisation": "int8_float16",
+      "asr_version": "fw1-beam5-v1",
+      "corpora": {
+        "atco2_clean": {
+          "clips": 762,
+          "audio_hours": 0.819,
+          "wer": 62.55,
+          "wer_numerals_spoken": 44.72,
+          "real_time_factor": 0.1119,
+          "held_out": "held out as far as is known (web-scale training data, undisclosed)",
+          "clearance_accuracy": 12.9,
+          "clearance_n": 31,
+          "clearance_accuracy_plausible_tags": 16.67,
+          "clearance_n_plausible_tags": 24,
+          "callsign_accuracy_list_free": 1.83,
+          "callsign_accuracy_with_list": 14.63,
+          "callsign_n": 328,
+          "mean_aircraft_list_size": 5.6,
+          "action_accuracy": 42.86,
+          "value_accuracy": 31.75,
+          "action_n": 63,
+          "confidence_when_right": 0.458,
+          "confidence_when_wrong": 0.291
+        },
+        "atco2_contaminated": {
+          "clips": 109,
+          "audio_hours": 0.167,
+          "wer": 47.8,
+          "wer_numerals_spoken": 31.26,
+          "real_time_factor": 0.0884,
+          "held_out": "held out as far as is known (web-scale training data, undisclosed)",
+          "clearance_accuracy": NaN,
+          "clearance_n": 0,
+          "clearance_accuracy_plausible_tags": NaN,
+          "clearance_n_plausible_tags": 0,
+          "callsign_accuracy_list_free": 0.0,
+          "callsign_accuracy_with_list": 5.88,
+          "callsign_n": 17,
+          "mean_aircraft_list_size": 8.8,
+          "action_accuracy": 42.86,
+          "value_accuracy": 28.57,
+          "action_n": 7,
+          "confidence_when_right": NaN,
+          "confidence_when_wrong": NaN
+        },
+        "atcosim_heldout_speakers": {
+          "clips": 1712,
+          "audio_hours": 2.045,
+          "wer": 61.87,
+          "wer_numerals_spoken": 24.03,
+          "real_time_factor": 0.0914,
+          "held_out": "held out as far as is known (web-scale training data, undisclosed)",
+          "clearance_agreement": 25.11,
+          "clearances_in_reference": 458
+        },
+        "uwb_heldout_recordings": {
+          "clips": 2814,
+          "audio_hours": 2.428,
+          "wer": 78.23,
+          "wer_numerals_spoken": 58.43,
+          "real_time_factor": 0.1239,
+          "held_out": "held out as far as is known (web-scale training data, undisclosed)",
+          "clearance_agreement": 16.36,
+          "clearances_in_reference": 55
+        }
+      }
+    }
+  }
+}

@@ -13,3 +13,9 @@ websockets
 python-multipart
 # PostgreSQL driver. The server itself is installed by scripts/postgres.py.
 psycopg[binary]
+# Speech chain served by /api/speech (loaded only when FLIGHT_RIGHT_ASR_MODEL_ID is set).
+faster-whisper>=1.2.1
+rapidfuzz>=3.14
+soundfile>=0.14
+scipy
+certifi

@@ -330,7 +330,8 @@ def main() -> None:
     card = json.loads((SAVED / "xgboost_conflict_model_card.json").read_text())
     booster = xgboost.Booster()
     booster.load_model(str(SAVED / "xgboost_conflict.json"))
-    raw = booster.predict(xgboost.DMatrix(test[gen.FEATURE_COLUMNS], feature_names=gen.FEATURE_COLUMNS))
+    from train_xgboost import classifier_raw_scores
+    raw = classifier_raw_scores(booster, test)       # the inputs the saved file declares
     classifier_alert = raw >= card["decision_threshold"]
 
     rules = [{"cpa_lateral_distance_nm": float(test["predicted_cpa_lateral_nm"].iloc[i]),
@@ -348,7 +349,13 @@ def main() -> None:
     fired_sets: dict = {}
     for mode in ("table", "per_mode"):
         predictor = MultiPathPredictor(offsets=mode)
-        probabilities, positions, _ = predictor.predict(X)
+        extra = None
+        if predictor.extra_features:
+            # A destination-trained model (27 Sep): side A's route from its real callsign, side B
+            # unknown (it is relocated, so its real destination would be wrong), as in destination_row.
+            from destination_row import a_callsigns
+            extra = predictor.route_inputs(X, a_callsigns(test, current[:n]) + [None] * n)
+        probabilities, positions, _ = predictor.predict(X, extra=extra)
         pair_mp = [compute_cpa_from_paths(predictor.paths_for_cpa(X, i, probabilities, positions),
                                           predictor.paths_for_cpa(X, n + i, probabilities, positions),
                                           tuple(current[i]), tuple(current[n + i]))

@@ -1,0 +1,127 @@
+{
+  "run": "p1_main",
+  "stage": "p1",
+  "base_model": "openai/whisper-small",
+  "init": null,
+  "args": {
+    "stage": "p1",
+    "init": null,
+    "resume": false,
+    "epochs": 3.0,
+    "batch": 8,
+    "accum": 2,
+    "lr": 0.0005,
+    "warmup": 300,
+    "eval_every": 500,
+    "patience": 3,
+    "rank": 32,
+    "run": "p1_main"
+  },
+  "trainable_params": 12976128,
+  "train_clips": {
+    "uwb": 10172,
+    "atcosim": 7330
+  },
+  "val_clips_scored": {
+    "atcosim": 200,
+    "uwb": 200
+  },
+  "steps_per_epoch": 1094,
+  "total_steps": 3282,
+  "step": 3282,
+  "evals": [
+    {
+      "step": 0,
+      "wer": {
+        "atcosim": 83.76,
+        "uwb": 93.47,
+        "mean": 88.62
+      },
+      "seconds": 56.7,
+      "utc": "2026-09-25T12:17:14.421808+00:00"
+    },
+    {
+      "step": 500,
+      "wer": {
+        "atcosim": 18.99,
+        "uwb": 20.9,
+        "mean": 19.95
+      },
+      "seconds": 46.0,
+      "utc": "2026-09-25T12:46:55.568096+00:00"
+    },
+    {
+      "step": 1000,
+      "wer": {
+        "atcosim": 19.22,
+        "uwb": 18.8,
+        "mean": 19.01
+      },
+      "seconds": 45.8,
+      "utc": "2026-09-25T13:16:29.637758+00:00"
+    },
+    {
+      "step": 1500,
+      "wer": {
+        "atcosim": 13.84,
+        "uwb": 16.41,
+        "mean": 15.12
+      },
+      "seconds": 44.8,
+      "utc": "2026-09-25T13:45:31.842156+00:00"
+    },
+    {
+      "step": 2000,
+      "wer": {
+        "atcosim": 13.95,
+        "uwb": 13.42,
+        "mean": 13.68
+      },
+      "seconds": 46.5,
+      "utc": "2026-09-25T14:14:02.828760+00:00"
+    },
+    {
+      "step": 2500,
+      "wer": {
+        "atcosim": 13.84,
+        "uwb": 13.62,
+        "mean": 13.73
+      },
+      "seconds": 48.7,
+      "utc": "2026-09-26T10:10:10.760728+00:00"
+    },
+    {
+      "step": 3000,
+      "wer": {
+        "atcosim": 12.91,
+        "uwb": 12.87,
+        "mean": 12.89
+      },
+      "seconds": 48.0,
+      "utc": "2026-09-26T10:40:07.611691+00:00"
+    },
+    {
+      "step": 3282,
+      "wer": {
+        "atcosim": 12.98,
+        "uwb": 12.12,
+        "mean": 12.55
+      },
+      "seconds": 47.5,
+      "utc": "2026-09-26T10:57:20.372034+00:00"
+    }
+  ],
+  "best": {
+    "step": 3282,
+    "wer": {
+      "atcosim": 12.98,
+      "uwb": 12.12,
+      "mean": 12.55
+    },
+    "seconds": 47.5,
+    "utc": "2026-09-26T10:57:20.372034+00:00"
+  },
+  "stale": 0,
+  "started_utc": "2026-09-25T12:16:17.749732+00:00",
+  "finished_utc": "2026-09-26T10:57:23.468523+00:00"
+}

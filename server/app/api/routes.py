@@ -6,14 +6,20 @@ returned, so `client/src/lib/api.js` keeps working with only its base URL change
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 
 from ..services.aircraft_service import aircraft_service
 from ..services.database import database
 from ..services.conflict_service import conflict_service
 from ..services.clearance_service import clearance_service
+from ..services.speech_service import decode_wav, speech_service
+from ..services.intent_service import intent_service
+from ..config import SPEECH_DEMO_DIR
 
 log = logging.getLogger("flightright.api")
 router = APIRouter(prefix="/api")
@@ -176,6 +182,69 @@ def withdraw_clearances(icao24: str | None = None):
     return {"ok": True, "withdrawn": clearance_service.clear(icao24)}
 
 
+# ---------------------------------------------------------------------- speech
+_CLIP_ID = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
+
+
+def _demo_clips() -> list[dict]:
+    index = SPEECH_DEMO_DIR / "index.json"
+    return json.loads(index.read_text(encoding="utf8")) if index.exists() else []
+
+
+@router.get("/speech/status")
+def speech_status():
+    """Which speech model is installed (ASR_MODEL_ID), whether it is loaded, and the demo clips."""
+    return {"ok": True, **speech_service.status(), "demoClips": len(_demo_clips())}
+
+
+@router.get("/speech/clips")
+def speech_clips():
+    """Demo transmissions for the radio panel. Each says where its audio came from."""
+    return {"ok": True, "clips": _demo_clips()}
+
+
+@router.get("/speech/clips/{clip_id}/audio")
+def speech_clip_audio(clip_id: str):
+    if not _CLIP_ID.match(clip_id) or not (SPEECH_DEMO_DIR / f"{clip_id}.wav").exists():
+        raise HTTPException(status_code=404, detail="no such clip")
+    return FileResponse(SPEECH_DEMO_DIR / f"{clip_id}.wav", media_type="audio/wav")
+
+
+@router.post("/speech/hear")
+async def speech_hear(request: Request, clip: str | None = None, cached: bool = True):
+    """Run the whole speech chain on one transmission and apply what it heard.
+
+    Either ``?clip=<id>`` (a demo clip) or a raw audio body (Content-Type audio/*, any format
+    soundfile reads). With a demo clip and ``cached=true`` the transcript pre-computed for the
+    installed model is used (plan 7.3: zero inference at demo time); otherwise the model runs.
+    The result shows every step: transcript, extraction, callsign match, and what the
+    clearance door did with it.
+    """
+    flights = aircraft_service.snapshot()["flights"]
+    if clip:
+        entry = next((c for c in _demo_clips() if c.get("id") == clip), None)
+        if entry is None or not _CLIP_ID.match(clip):
+            raise HTTPException(status_code=404, detail="no such clip")
+        transcript = (entry.get("transcripts") or {}).get(speech_service.status()["modelId"] or "") if cached else None
+        audio = None if transcript is not None else decode_wav((SPEECH_DEMO_DIR / f"{clip}.wav").read_bytes())
+        return speech_service.hear(audio, f"demo:{clip}", flights, transcript=transcript)
+    body = await request.body()
+    if not body or len(body) > 10_000_000:
+        raise HTTPException(status_code=422, detail="send a clip id or up to 10 MB of audio")
+    try:
+        audio = decode_wav(body)
+    except Exception as failure:                                            # noqa: BLE001
+        raise HTTPException(status_code=422, detail=f"could not read audio: {type(failure).__name__}")
+    if len(audio) > 30 * 16_000:
+        raise HTTPException(status_code=422, detail="one transmission at a time: 30 s at most")
+    return speech_service.hear(audio, "upload", flights)
+
+
+@router.get("/speech/transcriptions")
+def speech_transcriptions(limit: int = Query(50, ge=1, le=1000)):
+    return {"ok": True, "transcriptions": database.transcription_history(limit)}
+
+
 @router.post("/audit")
 def write_audit(entry: dict = Body(...)):
     if not entry.get("modelVersion"):
@@ -215,4 +284,6 @@ def health():
         # enforced by the database or is only a convention of this code. The connection
         # string is deliberately not included: it carries a password.
         "store": database.backend(),
+        # Where the classifier's dialled-level inputs come from, and the ODbL credit adsb.lol requires.
+        "dialledLevels": intent_service.status(),
     }

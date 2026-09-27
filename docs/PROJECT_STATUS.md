@@ -39,7 +39,11 @@ Two more, specific to us:
 
 ## 1. The one number
 
-> **Percentage of conflicts caught with at least 3 minutes of warning: 94.0%.**
+> **Percentage of conflicts caught with at least 3 minutes of warning: 95.1%** (270 of 284).
+> It was 94.0% (267) until 26 September 2026, when the classifier started reading the altitude each
+> crew has dialled into the autopilot. The running system, what the controller actually gets, is
+> 95.4% (271). The sections below were written about the 94.0% model and are kept as its record;
+> `docs/evaluation.md` has the current tables.
 
 Everything else in this document is a supporting detail.
 

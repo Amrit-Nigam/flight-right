@@ -17,7 +17,8 @@ and the real file governs.
 ## The three things that matter most
 
 1. **The headline metric is the percentage of conflicts caught with at least three minutes
-   of warning. It is 94.0%.** Lead every progress report with it and say whether it moved.
+   of warning. It is 95.1%** (270 of 284; 94.0% until 26 Sep 2026, when the classifier gained the
+   dialled-altitude inputs). Lead every progress report with it and say whether it moved.
 2. **Stop and ask Archit** before changing what a model predicts, what a label means, or any
    threshold that affects when a controller gets alerted. Bug fixes, refactors and diagnostic
    experiments are yours to decide.

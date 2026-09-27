@@ -52,5 +52,13 @@ export const getAuditLog = ({ limit = 200, level, search } = {}) => {
 
 export const getHealth = () => request("/api/health");
 
+// ---------------------------------------------------------------------- speech
+export const getSpeechStatus = () => request("/api/speech/status");
+export const getSpeechClips = () => request("/api/speech/clips");
+export const speechClipAudioUrl = (id) => `${API_BASE_URL}/api/speech/clips/${encodeURIComponent(id)}/audio`;
+export const hearClip = (id, cached = true) =>
+  request(`/api/speech/hear?clip=${encodeURIComponent(id)}&cached=${cached}`, { method: "POST" });
+export const getTranscriptions = (limit = 20) => request(`/api/speech/transcriptions?limit=${limit}`);
+
 export const streamUrl = () => `${API_BASE_URL.replace(/^http/, "ws")}/ws/stream`;
 export { API_BASE_URL };

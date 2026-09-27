@@ -13,6 +13,15 @@ For each window in trajectory_{train,val,test}.npz (keyed by icao24 and the deci
   type    (9.4) aircraft type (from the adsb.lol trace file) -> OpenAP: mtow_kg, cruise_mach
   traffic (9.5) aircraft within 20 NM and 2,000 ft at the same poll (our own sessions):
                 traffic_count, nearest_nm
+  route   (26 Sep) where the flight is going and where it came from, from adsbdb's
+                callsign -> route answer (plan 9.2 measured it: exactly right for 49% of all
+                flights and 69% of Mumbai flights), airports placed with OurAirports
+                (public domain, https://ourairports.com/data/): dest_dist_nm,
+                dest_bearing_sin / dest_bearing_cos (bearing to the destination relative to
+                the current track), orig_dist_nm. A route is schedule information, known
+                before the flight, so it cannot leak the future.
+
+    python ml_pipeline/utils/context_features.py route    # add only the route group
 
 LEAKAGE RULE (CLAUDE.md Part 3 rule 6): every value is joined BACKWARD in time -- the most
 recent report at or before the decision time, and no older than MAX_AGE_S. Nothing after
@@ -43,7 +52,9 @@ GROUPS = {
     "wind": ["headwind_kt", "crosswind_kt", "oat_c"],
     "type": ["mtow_kg", "cruise_mach"],
     "traffic": ["traffic_count", "nearest_nm"],
+    "route": ["dest_dist_nm", "dest_bearing_sin", "dest_bearing_cos", "orig_dist_nm"],
 }
+
 
 
 def _wrap(deg: np.ndarray) -> np.ndarray:
@@ -104,7 +115,42 @@ def traffic_features(w: pd.DataFrame, states: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"traffic_count": count, "nearest_nm": nearest})
 
 
+def route_features(w: pd.DataFrame, callsigns: np.ndarray) -> pd.DataFrame:
+    """Destination and origin features; the arithmetic lives in route_features.py so that
+    training, the alarm-chain check and the live backend compute exactly the same numbers."""
+    import sys
+    sys.path.insert(0, str(ROOT))
+    from ml_pipeline.utils.route_features import ROUTE_FEATURES, route_matrix
+    assert ROUTE_FEATURES == GROUPS["route"]
+    values = route_matrix(callsigns, w["lat"].to_numpy(np.float64), w["lon"].to_numpy(np.float64),
+                          w["track"].to_numpy(np.float64))
+    return pd.DataFrame(values, columns=ROUTE_FEATURES)
+
+
+def add_route_only() -> None:
+    """Append the route group to existing context_<split>.npz files without recomputing the rest."""
+    coverage = {}
+    for split in ("train", "val", "test"):
+        path = PROCESSED / f"context_{split}.npz"
+        existing = dict(np.load(path, allow_pickle=True))
+        existing.pop("groups", None)
+        z = np.load(PROCESSED / f"trajectory_{split}.npz", allow_pickle=True)
+        route = route_features(windows(split), z["callsign"])
+        existing.update({k: route[k].to_numpy(np.float64) for k in GROUPS["route"]})
+        np.savez_compressed(path, groups=np.array(GROUPS, dtype=object), **existing)
+        coverage[split] = {k: float(np.isfinite(route[k]).mean()) for k in GROUPS["route"]}
+        print(split, {k: round(v, 3) for k, v in coverage[split].items()})
+    report = ROOT / "ml_pipeline/reports" / f"context_features_route_{datetime.now():%Y%m%d_%H%M%S}.json"
+    report.write_text(json.dumps({"source": "adsbdb callsign route cache + OurAirports",
+                                  "coverage_share_non_missing": coverage, "groups": GROUPS}, indent=2))
+    print(f"wrote {report.relative_to(ROOT)}")
+
+
 def main() -> None:
+    import sys
+    if sys.argv[1:] == ["route"]:
+        add_route_only()
+        return
     intent = pd.read_parquet(ADSBLOL / "intent.parquet")
     intent["time"] = intent["time"].astype(np.int64)
     info = pd.read_parquet(ADSBLOL / "aircraft_info.parquet")
@@ -134,6 +180,8 @@ def main() -> None:
         perf = type_performance(types)
         out.update({"mtow_kg": perf["mtow_kg"], "cruise_mach": perf["cruise_mach"]})
         out.update(traffic_features(w, raw).to_dict("series"))
+        z = np.load(PROCESSED / f"trajectory_{split}.npz", allow_pickle=True)
+        out.update(route_features(w, z["callsign"]).to_dict("series"))
         assert (out["intent_age_s"].dropna() >= 0).all(), "a future report leaked into a window"
         arrays = {k: np.asarray(v, dtype=np.float64) for k, v in out.items()}
         np.savez_compressed(PROCESSED / f"context_{split}.npz", groups=np.array(GROUPS, dtype=object), **arrays)

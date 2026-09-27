@@ -63,7 +63,8 @@ def main() -> None:
     results = {"constant_velocity": score(framing.constant_velocity_predict(X)[:, None], X, y, mask)}
     for label, spec in models:
         path, _, offsets = spec.partition("|")
-        _, positions, _ = MultiPathPredictor(Path(path), offsets=offsets or "per_mode").predict(X)
+        predictor = MultiPathPredictor(Path(path), offsets=offsets or "per_mode")
+        _, positions, _ = predictor.predict(X, extra=predictor.saved_split_inputs("test"))
         results[label] = score(positions, X, y, mask)
     for label, block in results.items():
         ten = block["ten_minutes"]["arrivals"]

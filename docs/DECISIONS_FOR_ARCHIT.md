@@ -2,64 +2,61 @@
 
 Everything below was measured and then stopped at the point where the project's rules say a
 person decides. Each item says what the choice is, the numbers behind it, and where the
-evidence is. Nothing here is switched on. Last updated 25 September 2026.
+evidence is. Last updated 26 September 2026.
 
 ---
 
-## Decisions (they change what a controller is shown or when they are alerted)
+## Decided on 26 September (kept here so the trail is readable)
 
-**1. Use the autopilot "dialled altitude" in the conflict classifier (plan 9.0).**
-The information genuinely helps: at the same false-alarm cost, the classifier catches as many
-or more real conflicts in all four seeds tested (0 to 4 more). The choice is how to spend that
-gain:
-- **Fewer false alarms:** the usual threshold rule cuts them by about 21% (97 → 77 per 1,000
-  pairs, averaged over four seeds), but in 2 of 4 seeds it loses 2–3 real conflicts net.
-- **More real conflicts caught:** keep today's false-alarm rate, and recall rises (0.9505–0.9604
-  against 0.9406–0.9505 for the baseline).
+- **Dialled altitude in the conflict classifier — SERVED**, at the same false-alarm rate as before
+  ("build it, same alarm rate"). Headline 94.0% → **95.1%** (270 of 284); four seeds give 269–271.
+  GATE 1 (95% recall) now passes. Cost: 4 more false audible alarms on test (17 → 21). Live feed:
+  adsb.lol, ODbL 1.0 (credited in `/api/health`). Evidence: `classifier_intent_seeds_20260926_172128.json`.
+- **The "more data" trajectory model — SERVED** ("switch to newer model"). Arrivals, one of five paths
+  within 5 NM: 71.5% → 75.4%. Cost accepted: one real audible alarm demoted on the validation pairs.
+- **Heard-clearance confidence floor — 0.85** ("good for numbers and good for safety"). On real radio it
+  applied 12 of 20 correct clearances and no wrong ones (24 heard clearances; small sample).
+- **GATE 1 (open since 5 September) — closed** by the item above, not by moving the threshold.
 
-It also needs a **live** dialled-altitude feed. adsb.lol has one (`api.adsb.lol/v2/point/...`),
-but the backend does not poll it yet, and the data is ODbL 1.0 licensed, which requires credit.
-Evidence: `docs/ablation.md` (last section),
-`ml_pipeline/reports/classifier_intent_20260925_050817.json`.
+## Decisions still yours
 
-**2. The collapsed "low-confidence" group hides 7 real conflicts (issue H5).** All seven
-still have more than three minutes of warning. They stay on the list, but the controller sees
-them only as a count until they are inside three minutes. Requiring both models to agree before
-collapsing (option B1) cuts that to 3, at the cost of 50 more false rows on the main list
-(test split). Evidence: `docs/ISSUES.md` H5, `ml_pipeline/reports/alert_prominence_20260924_193159.json`.
+**1. Which speech model the running system uses — DECIDED 27 Sep: our own.** Comparison finished
+(`ml_pipeline/reports/voice_eval_20260927_015420.json`); you chose "whichever is better overall". Ours
+gets 20 of 31 held-out ATCO2 clearances completely right against 11 for the best published model,
+15.1% word error on unseen Czech radio against 46.9%, and is ~3.5x faster. It is now the default in
+`server/app/config.py` whenever its directory exists.
 
-**3. The "more data" trajectory model (plan 3.3 archive row).** It is better at predicting
-position across four seeds (arrivals, one of five within 5 NM: 75.6% against 72.0%). But through
-the alert chain it was identical on test and cost one real audible alarm on validation, so it
-is not served. The model file is kept at
-`ml_pipeline/data/processed/seed_runs/multipath_archive_seed42.pkl`.
+**2. Destination in the trajectory model — DONE 27 Sep (you: "if adding destination gets us benefit then
+do that").** Rebuilt and retrained; it passed all 11 checks written before training
+(`ml_pipeline/reports/destination_row_20260927_023146.json`) and is now served. Ten-minute height error
+1,051 -> 889 ft; arrivals best-of-5 75.4 -> 76.5; no real alarm lost; one fewer false loud alarm on test.
+The previous model is kept as `trajectory_multipath_20260926_archive_backup.pkl` if you want it back.
 
-**4. The classifier's recall floor (GATE 1, open since 5 September).** It is 0.9439 against
-0.95. The what-if table for a small safety margin is printed by `train_xgboost.py`; the
-threshold is yours to set.
+**3. The collapsed "low-confidence" group hides 7 real conflicts (issue H5).** Unchanged. All seven
+still have more than three minutes of warning. Requiring both models to agree before collapsing
+(option B1) cuts that to 3, at the cost of 50 more false rows on the main list (test split). Evidence:
+`docs/ISSUES.md` H5, `ml_pipeline/reports/alert_prominence_20260924_193159.json`.
 
-**5. Ways of trading false alarms against catches that were measured and NOT adopted**, in
-case you want a different balance than the rule used:
-- Letting the model's paths add to the safety net: 271 of 284 caught instead of 269, for
-  +18.3 false alarms per 1,000 (`offsets_ab_20260924_181140.json`).
-- Tier-1 promotion only from a conflicting path (idea A): 3 fewer false loud alarms on test,
-  but one real conflict loses its loud alarm.
+**4. Other trades measured and not adopted**, in case you want a different balance:
+- Letting the model's paths add to the safety net: 271 of 284 caught instead of 269, for +18.3
+  false alarms per 1,000 (`offsets_ab_20260924_181140.json`, measured before the 26 Sep models).
+- Tier-1 promotion only from a conflicting path (idea A): 3 fewer false loud alarms on test, but one
+  real conflict loses its loud alarm.
+- The dialled-altitude classifier at the old recall-floor threshold instead: 94.0% caught at only
+  76.1 false alarms per 1,000 (you chose "same alarm rate" instead). Numbers in `docs/metrics.json`,
+  `model2.recall_margin_what_if`.
 
 ## Things only a person can do
 
-**6. Check the runway detector by eye (plan 9.1).** Open `docs/figures/runway_spotcheck.png`
-and confirm each red line lies on the runway it is labelled with. Claude looked and all eight
-seem right, but the plan asks for a person.
+**5. Accept two licences on Hugging Face** (account AS0711): `ai4bharat/indic-parler-tts` (the
+Indian-accented voices, Apache 2.0) and `ai4bharat/Svarah` (real Indian English for testing, CC BY 4.0,
+asks for contact details). Until then there is no Indian-accent training step and no Indian-voice score.
 
-**7. Record the Mumbai audio (plan Phase 5).** This needs three or four people reading
-scripts, about 15 minutes each, on a phone in a quiet room. It is needed before any
-Indian-accent speech figure can exist. Deferred with the rest of speech, at your request.
+**6. Listen to 20 generated clips** once item 5 is done (`synthesize.py --listen 20` writes them).
+Fifteen minutes. If the voices sound wrong for radio calls, everything built on them is wasted.
 
-**8. The speech chain (plan Phases 4–6, 9.3).** Deferred at your request. Everything it
-plugs into is built and tested: `ml_pipeline/utils/clearance.py`, `POST /api/clearances`, and
-the `transcriptions` and `extracted_clearances` tables. Still to download: the three Whisper
-models and the official ATCO2 annotations (a free 50 KB file).
+**7. Check the runway detector by eye (plan 9.1).** Open `docs/figures/runway_spotcheck.png`
+and confirm each red line lies on the runway it is labelled with.
 
-**9. Stale server on port 8000.** Another project's backend (NeerNiti_Demo, running since
-21 September) holds port 8000, which is Flight Right's default port. It was left alone. Stop it
-or run Flight Right on another port.
+**8. Real Mumbai recordings (plan Phase 5)** are still the only way to get a speech figure on real
+Indian ATC phraseology. The synthetic voices can train the model; they can never be its test.

@@ -1,0 +1,127 @@
+{
+  "measured_at_utc": "2026-09-26T17:21:28.294025",
+  "rule": "threshold on validation at the served classifier's validation false-alarm rate",
+  "served_validation_false_alarms_per_1000": 103.90006093845217,
+  "served": {
+    "validation_recall": 0.9511111111111111,
+    "recall": 0.9438943894389439,
+    "precision": 0.3864864864864865,
+    "false_alarms_per_1000": 96.80170575692964,
+    "headline": {
+      "rate": 0.9401408450704225,
+      "caught": 267,
+      "total": 284
+    }
+  },
+  "per_seed": {
+    "42": {
+      "threshold": 0.07465646415948868,
+      "validation": {
+        "recall": 0.9622222222222222,
+        "false_alarms_per_1000": 103.90006093845217
+      },
+      "test": {
+        "recall": 0.9537953795379538,
+        "precision": 0.38584779706275035,
+        "false_alarms_per_1000": 98.08102345415779,
+        "fbeta_2": 0.7368689444161143
+      },
+      "headline": {
+        "rate": 0.9507042253521126,
+        "caught": 270,
+        "total": 284
+      },
+      "vs_served_real_conflicts_with_3min": {
+        "gained": 3,
+        "lost": 0
+      },
+      "gate_1_recall_floor": true
+    },
+    "1": {
+      "threshold": 0.07903067022562027,
+      "validation": {
+        "recall": 0.9622222222222222,
+        "false_alarms_per_1000": 103.90006093845217
+      },
+      "test": {
+        "recall": 0.9570957095709571,
+        "precision": 0.3967168262653899,
+        "false_alarms_per_1000": 94.02985074626865,
+        "fbeta_2": 0.746268656716418
+      },
+      "headline": {
+        "rate": 0.954225352112676,
+        "caught": 271,
+        "total": 284
+      },
+      "vs_served_real_conflicts_with_3min": {
+        "gained": 4,
+        "lost": 0
+      },
+      "gate_1_recall_floor": true
+    },
+    "2": {
+      "threshold": 0.08041121810674667,
+      "validation": {
+        "recall": 0.96,
+        "false_alarms_per_1000": 103.90006093845217
+      },
+      "test": {
+        "recall": 0.9504950495049505,
+        "precision": 0.39290586630286495,
+        "false_alarms_per_1000": 94.88272921108742,
+        "fbeta_2": 0.7403598971722365
+      },
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "vs_served_real_conflicts_with_3min": {
+        "gained": 3,
+        "lost": 1
+      },
+      "gate_1_recall_floor": true
+    },
+    "3": {
+      "threshold": 0.07695651799440384,
+      "validation": {
+        "recall": 0.9533333333333334,
+        "false_alarms_per_1000": 103.90006093845217
+      },
+      "test": {
+        "recall": 0.9537953795379538,
+        "precision": 0.3868808567603748,
+        "false_alarms_per_1000": 97.6545842217484,
+        "fbeta_2": 0.7376212353241449
+      },
+      "headline": {
+        "rate": 0.9507042253521126,
+        "caught": 270,
+        "total": 284
+      },
+      "vs_served_real_conflicts_with_3min": {
+        "gained": 3,
+        "lost": 0
+      },
+      "gate_1_recall_floor": true
+    }
+  },
+  "summary": {
+    "recall": {
+      "mean": 0.9537953795379538,
+      "min": 0.9504950495049505,
+      "max": 0.9570957095709571
+    },
+    "precision": {
+      "mean": 0.390587836597845,
+      "min": 0.38584779706275035,
+      "max": 0.3967168262653899
+    },
+    "false_alarms_per_1000": {
+      "mean": 96.16204690831556,
+      "min": 94.02985074626865,
+      "max": 98.08102345415779
+    }
+  }
+}

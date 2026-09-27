@@ -39,7 +39,9 @@ from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
 OUT = ROOT / "ml_pipeline/data/processed"
 
 
-def table(split: str, model_path: Path | None = None, tag: str = "") -> pd.DataFrame:
+def table(split: str, model_path: Path | None = None, tag: str = "",
+          callsigns: list | None = None) -> pd.DataFrame:
+    """callsigns: one per row of X (A rows then B rows), for a model that uses destination inputs."""
     import xgboost
     from server.app.ml.inference import MultiPathPredictor
 
@@ -48,10 +50,12 @@ def table(split: str, model_path: Path | None = None, tag: str = "") -> pd.DataF
     card = json.loads((SAVED / "xgboost_conflict_model_card.json").read_text())
     booster = xgboost.Booster()
     booster.load_model(str(SAVED / "xgboost_conflict.json"))
-    raw = booster.predict(xgboost.DMatrix(frame[gen.FEATURE_COLUMNS], feature_names=gen.FEATURE_COLUMNS))
+    from train_xgboost import classifier_raw_scores
+    raw = classifier_raw_scores(booster, frame)      # the inputs the saved file declares
     predictor = (MultiPathPredictor(offsets="per_mode") if model_path is None
                  else MultiPathPredictor(model_path, offsets="per_mode"))
-    probabilities, positions, _ = predictor.predict(X)
+    extra = predictor.route_inputs(X, callsigns if callsigns is not None else [None] * len(X))
+    probabilities, positions, _ = predictor.predict(X, extra=extra)
 
     rows = []
     for i in range(n):

@@ -70,6 +70,25 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 """
 
+def _add_missing_sqlite_columns(connection: sqlite3.Connection) -> None:
+    """Bring an older SQLite file up to SQLITE_SCHEMA by adding columns, never dropping any.
+
+    CREATE TABLE IF NOT EXISTS leaves an existing table alone, so a file written by the 8 Sep
+    audit_service.py (detail_json, no detail) made every audit write fail whenever PostgreSQL was
+    down. Old rows and old columns are kept as they are; new columns get their schema default."""
+    reference = sqlite3.connect(":memory:")
+    reference.executescript(SQLITE_SCHEMA)
+    for (table,) in reference.execute("SELECT name FROM sqlite_master WHERE type='table'"
+                                      " AND name NOT LIKE 'sqlite_%'"):
+        have = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+        for _, name, kind, _notnull, default, _pk in reference.execute(f"PRAGMA table_info({table})"):
+            if name not in have:
+                suffix = f" NOT NULL DEFAULT {default}" if default is not None else ""
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}{suffix}")
+                log.warning("SQLite store: added missing column %s.%s", table, name)
+    reference.close()
+
+
 SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS audit_logs (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -166,6 +185,7 @@ class Database:
             AUDIT_DATABASE.parent.mkdir(parents=True, exist_ok=True)
             with sqlite3.connect(self.sqlite_path) as connection:
                 connection.executescript(SQLITE_SCHEMA)
+                _add_missing_sqlite_columns(connection)
             self._backend = "sqlite"
             log.info("Audit store: SQLite at %s (append-only by convention, not enforced)",
                      self.sqlite_path)
@@ -191,6 +211,11 @@ class Database:
 
     def _execute(self, postgres_sql: str, sqlite_sql: str, params: tuple = ()) -> list[dict]:
         """Run a statement on whichever backend is live, returning rows as dicts."""
+        if self._backend == "none":
+            # The server initialises at startup; a script or test that imports a service
+            # directly did not, and used to write into an SQLite file with no schema
+            # ("no such table: transcriptions", found 26 Sep). Initialise on first use.
+            self.initialise()
         with self._lock:
             if self._backend == "postgresql" and self._postgres is not None:
                 try:
@@ -445,6 +470,17 @@ class Database:
             " valid_seconds, applied, report) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             _iso_for_sqlite(values, self._backend))
         return rows[0]["id"] if rows else None
+
+    def transcription_history(self, limit: int = 100) -> list[dict]:
+        limit = max(1, min(int(limit), 1000))
+        rows = self._execute(
+            "SELECT * FROM transcriptions ORDER BY id DESC LIMIT %s",
+            "SELECT * FROM transcriptions ORDER BY id DESC LIMIT ?", (limit,))
+        for row in rows:
+            for key in ("recorded_at", "heard_at"):
+                if hasattr(row.get(key), "isoformat"):
+                    row[key] = row[key].isoformat()
+        return rows
 
     def clearance_history(self, limit: int = 100) -> list[dict]:
         limit = max(1, min(int(limit), 1000))

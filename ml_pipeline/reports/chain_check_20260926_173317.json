@@ -1,0 +1,1584 @@
+{
+  "measured_at_utc": "2026-09-26T17:33:17.726838",
+  "session": "session_c_20260904_204503_combined.parquet",
+  "pair": [
+    "IGO086",
+    "FDB1346"
+  ],
+  "first_frame_on_list": 57,
+  "heard_text": "ifly zero eight six descend flight level three seven zero",
+  "heard_text_is": "oracle: the level IGO086 held ten minutes later in the recording",
+  "speech_chain": {
+    "ok": true,
+    "transcript": "ifly zero eight six descend flight level three seven zero",
+    "extracted": {
+      "callsign_spoken": "ifly zero eight six",
+      "callsign_code": "IGO086",
+      "action": "DESCEND",
+      "value": 37000.0,
+      "fix": null,
+      "confidence": 1.0,
+      "text": "ifly zero eight six descend flight level three seven zero",
+      "all_actions": [
+        {
+          "action": "DESCEND",
+          "value": 37000.0,
+          "fix": null
+        }
+      ]
+    },
+    "callsignMatch": {
+      "code": "IGO086",
+      "score": 100.0,
+      "margin": 33.3,
+      "heard": "ifly zero eight six",
+      "listSize": 36
+    },
+    "clearance": {
+      "ok": true,
+      "id": 12,
+      "clearance": {
+        "icao24": "8015c9",
+        "action": "DESCEND",
+        "value": 37000.0,
+        "callsign": "IGO086",
+        "fix": null,
+        "confidence": 1.0,
+        "source": "asr:cached",
+        "issued_at": 1790424165.7842677,
+        "valid_seconds": 600.0,
+        "transcription_id": 4,
+        "notes": {
+          "callsign_heard": "IGO086",
+          "requested_by": "demo-controller"
+        }
+      },
+      "applied": true,
+      "problems": [],
+      "effect": "caps predicted altitude at the cleared level"
+    },
+    "reason": null,
+    "modelId": "cached"
+  },
+  "candidate_fans_seen": {
+    "count": 30,
+    "sizes": [
+      5
+    ],
+    "probability_sums": [
+      1.0
+    ]
+  },
+  "updates": [
+    {
+      "frame": 57,
+      "without": {
+        "on_list": true,
+        "tier": 2,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7953802943229675,
+        "clearance_effect": [],
+        "resolution_offered": false,
+        "options": [],
+        "checked_against": null,
+        "candidates_flown": null,
+        "reason": "advisory: closest approach 0.61 NM / 928 ft in 195 s, confirmed on 3 consecutive updates. The straight-line prediction that raised it: 1.73 NM / 950 ft in 195 s."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 2,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7953802943229675,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": false,
+        "options": [],
+        "checked_against": null,
+        "candidates_flown": null,
+        "reason": "advisory: closest approach 0.61 NM / 928 ft in 195 s, confirmed on 3 consecutive updates. The straight-line prediction that raised it: 1.73 NM / 950 ft in 195 s."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.971,
+          0.012,
+          0.01,
+          0.006,
+          0.002
+        ],
+        "b": [
+          0.804,
+          0.093,
+          0.053,
+          0.031,
+          0.019
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 58,
+      "without": {
+        "on_list": true,
+        "tier": 2,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7953802943229675,
+        "clearance_effect": [],
+        "resolution_offered": false,
+        "options": [],
+        "checked_against": null,
+        "candidates_flown": null,
+        "reason": "advisory: closest approach 0.61 NM / 928 ft in 195 s, confirmed on 4 consecutive updates. The straight-line prediction that raised it: 1.73 NM / 950 ft in 195 s."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 2,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7953802943229675,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": false,
+        "options": [],
+        "checked_against": null,
+        "candidates_flown": null,
+        "reason": "advisory: closest approach 0.61 NM / 928 ft in 195 s, confirmed on 4 consecutive updates. The straight-line prediction that raised it: 1.73 NM / 950 ft in 195 s."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.971,
+          0.012,
+          0.01,
+          0.006,
+          0.002
+        ],
+        "b": [
+          0.804,
+          0.093,
+          0.053,
+          0.031,
+          0.019
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 59,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.6374120712280273,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 180 s. Confidence 0.87. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 30 degrees, heading 145. Reason: opens the closest approach to 9.9 NM. Fully established about 48 s from now, against a closest approach in 180 s. Confidence 0.92. Tradeoff: about 0.8 min delay; about 0.8 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.61 NM / 950 ft in 180 s, confirmed on 5 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.6374120712280273,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 180 s. Confidence 0.87. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 30 degrees, heading 145. Reason: opens the closest approach to 9.9 NM. Fully established about 48 s from now, against a closest approach in 180 s. Confidence 0.92. Tradeoff: about 0.8 min delay; about 0.8 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.61 NM / 950 ft in 180 s, confirmed on 5 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.952,
+          0.018,
+          0.012,
+          0.012,
+          0.005
+        ],
+        "b": [
+          0.772,
+          0.126,
+          0.062,
+          0.02,
+          0.019
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 60,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.5025928616523743,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 165 s. Confidence 0.86. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 30 degrees, heading 145. Reason: opens the closest approach to 9.9 NM. Fully established about 48 s from now, against a closest approach in 165 s. Confidence 0.91. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.31 NM / 950 ft in 165 s, confirmed on 6 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.5025928616523743,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 165 s. Confidence 0.86. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 30 degrees, heading 145. Reason: opens the closest approach to 9.9 NM. Fully established about 48 s from now, against a closest approach in 165 s. Confidence 0.91. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.31 NM / 950 ft in 165 s, confirmed on 6 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.97,
+          0.013,
+          0.009,
+          0.005,
+          0.003
+        ],
+        "b": [
+          0.772,
+          0.126,
+          0.062,
+          0.02,
+          0.019
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 61,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.6363580226898193,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 165 s. Confidence 0.86. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 30 degrees, heading 145. Reason: opens the closest approach to 9.0 NM. Fully established about 48 s from now, against a closest approach in 165 s. Confidence 0.91. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.30 NM / 950 ft in 165 s, confirmed on 7 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.6363580226898193,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 165 s. Confidence 0.86. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 30 degrees, heading 145. Reason: opens the closest approach to 9.0 NM. Fully established about 48 s from now, against a closest approach in 165 s. Confidence 0.91. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.30 NM / 950 ft in 165 s, confirmed on 7 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.953,
+          0.017,
+          0.017,
+          0.008,
+          0.005
+        ],
+        "b": [
+          0.829,
+          0.073,
+          0.057,
+          0.025,
+          0.016
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 62,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7193604111671448,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 135 s. Confidence 0.83. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 30 degrees, heading 310. Reason: opens the closest approach to 8.2 NM. Fully established about 48 s from now, against a closest approach in 135 s. Confidence 0.89. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.28 NM / 950 ft in 135 s, confirmed on 8 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7193604111671448,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 135 s. Confidence 0.83. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 30 degrees, heading 310. Reason: opens the closest approach to 8.2 NM. Fully established about 48 s from now, against a closest approach in 135 s. Confidence 0.89. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.28 NM / 950 ft in 135 s, confirmed on 8 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.94,
+          0.031,
+          0.016,
+          0.011,
+          0.003
+        ],
+        "b": [
+          0.751,
+          0.148,
+          0.061,
+          0.023,
+          0.017
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 63,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999998,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7850372791290283,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 135 s. Confidence 0.83. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 30 degrees, heading 310. Reason: opens the closest approach to 7.8 NM. Fully established about 48 s from now, against a closest approach in 135 s. Confidence 0.88. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.69 NM / 804 ft in 135 s, confirmed on 9 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999998,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7850372791290283,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 135 s. Confidence 0.83. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 30 degrees, heading 310. Reason: opens the closest approach to 7.8 NM. Fully established about 48 s from now, against a closest approach in 135 s. Confidence 0.88. Tradeoff: about 0.7 min delay; about 0.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.69 NM / 804 ft in 135 s, confirmed on 9 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.958,
+          0.015,
+          0.013,
+          0.01,
+          0.003
+        ],
+        "b": [
+          0.794,
+          0.1,
+          0.06,
+          0.027,
+          0.02
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 64,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7496076226234436,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 120 s. Confidence 0.81. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 45 degrees, heading 160. Reason: opens the closest approach to 8.9 NM. Fully established about 53 s from now, against a closest approach in 120 s. Confidence 0.87. Tradeoff: about 1.7 min delay; about 1.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.83 NM / 950 ft in 120 s, confirmed on 10 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7496076226234436,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 120 s. Confidence 0.81. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 45 degrees, heading 160. Reason: opens the closest approach to 8.9 NM. Fully established about 53 s from now, against a closest approach in 120 s. Confidence 0.87. Tradeoff: about 1.7 min delay; about 1.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.83 NM / 950 ft in 120 s, confirmed on 10 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.954,
+          0.021,
+          0.014,
+          0.009,
+          0.002
+        ],
+        "b": [
+          0.465,
+          0.218,
+          0.169,
+          0.076,
+          0.071
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 65,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7476747035980225,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 120 s. Confidence 0.81. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 45 degrees, heading 160. Reason: opens the closest approach to 9.2 NM. Fully established about 53 s from now, against a closest approach in 120 s. Confidence 0.87. Tradeoff: about 1.7 min delay; about 1.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.10 NM / 950 ft in 120 s, confirmed on 11 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7476747035980225,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 120 s. Confidence 0.81. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn IGO086 right 45 degrees, heading 160. Reason: opens the closest approach to 9.2 NM. Fully established about 53 s from now, against a closest approach in 120 s. Confidence 0.87. Tradeoff: about 1.7 min delay; about 1.7 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.10 NM / 950 ft in 120 s, confirmed on 11 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.97,
+          0.012,
+          0.01,
+          0.007,
+          0.001
+        ],
+        "b": [
+          0.606,
+          0.144,
+          0.131,
+          0.072,
+          0.046
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 66,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.729972779750824,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 105 s. Confidence 0.78. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 7.6 NM. Fully established about 53 s from now, against a closest approach in 105 s. Confidence 0.82. Tradeoff: about 1.6 min delay; about 1.6 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.70 NM / 950 ft in 105 s, confirmed on 12 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.729972779750824,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 105 s. Confidence 0.78. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 7.6 NM. Fully established about 53 s from now, against a closest approach in 105 s. Confidence 0.82. Tradeoff: about 1.6 min delay; about 1.6 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.70 NM / 950 ft in 105 s, confirmed on 12 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.893,
+          0.049,
+          0.025,
+          0.021,
+          0.013
+        ],
+        "b": [
+          0.378,
+          0.272,
+          0.169,
+          0.103,
+          0.078
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 67,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7489948868751526,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 90 s. Confidence 0.74. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 6.4 NM. Fully established about 53 s from now, against a closest approach in 90 s. Confidence 0.72. Tradeoff: about 1.4 min delay; about 1.4 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.83 NM / 950 ft in 90 s, confirmed on 13 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999999,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7489948868751526,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 90 s. Confidence 0.74. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 6.4 NM. Fully established about 53 s from now, against a closest approach in 90 s. Confidence 0.72. Tradeoff: about 1.4 min delay; about 1.4 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 1.83 NM / 950 ft in 90 s, confirmed on 13 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.92,
+          0.029,
+          0.029,
+          0.013,
+          0.009
+        ],
+        "b": [
+          0.49,
+          0.214,
+          0.166,
+          0.077,
+          0.052
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 68,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999998,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7303993105888367,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 75 s. Confidence 0.70. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 5.1 NM. Fully established about 53 s from now, against a closest approach in 75 s. Confidence 0.61. Tradeoff: about 1.3 min delay; about 1.3 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.17 NM / 950 ft in 75 s, confirmed on 13 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999998,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7303993105888367,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 75 s. Confidence 0.70. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 5.1 NM. Fully established about 53 s from now, against a closest approach in 75 s. Confidence 0.61. Tradeoff: about 1.3 min delay; about 1.3 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.17 NM / 950 ft in 75 s, confirmed on 13 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.921,
+          0.028,
+          0.022,
+          0.02,
+          0.009
+        ],
+        "b": [
+          0.377,
+          0.268,
+          0.135,
+          0.112,
+          0.108
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 69,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999998,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7303993105888367,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 75 s. Confidence 0.70. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 5.1 NM. Fully established about 53 s from now, against a closest approach in 75 s. Confidence 0.61. Tradeoff: about 1.3 min delay; about 1.3 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.17 NM / 950 ft in 75 s, confirmed on 13 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 0.9999999999999998,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7303993105888367,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,950 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 75 s. Confidence 0.70. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate.",
+          "Turn FDB1346 right 45 degrees, heading 325. Reason: opens the closest approach to 5.1 NM. Fully established about 53 s from now, against a closest approach in 75 s. Confidence 0.61. Tradeoff: about 1.3 min delay; about 1.3 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.17 NM / 950 ft in 75 s, confirmed on 13 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.921,
+          0.028,
+          0.022,
+          0.02,
+          0.009
+        ],
+        "b": [
+          0.377,
+          0.268,
+          0.135,
+          0.112,
+          0.108
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 70,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7313738465309143,
+        "clearance_effect": [],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,725 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 75 s. Confidence 0.70. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.34 NM / 950 ft in 75 s, confirmed on 13 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7313738465309143,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": true,
+        "options": [
+          "Descend IGO086 to FL364. Reason: holds vertical separation at 1,725 ft where the paths cross. Fully established about 78 s from now, against a closest approach in 75 s. Confidence 0.70. Tradeoff: about 0.5 min of extra fuel burn. Delay and fuel are approximate."
+        ],
+        "checked_against": "the other aircraft's 5 predicted paths and 1 other aircraft nearby",
+        "candidates_flown": 26,
+        "reason": "alarm: closest approach 2.34 NM / 950 ft in 75 s, confirmed on 13 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.93,
+          0.024,
+          0.022,
+          0.016,
+          0.008
+        ],
+        "b": [
+          0.468,
+          0.191,
+          0.136,
+          0.107,
+          0.098
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    },
+    {
+      "frame": 71,
+      "without": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7264950275421143,
+        "clearance_effect": [],
+        "resolution_offered": false,
+        "options": [],
+        "checked_against": null,
+        "candidates_flown": null,
+        "reason": "alarm: closest approach 2.29 NM / 950 ft in 60 s, confirmed on 13 consecutive updates."
+      },
+      "with": {
+        "on_list": true,
+        "tier": 1,
+        "severity": "high",
+        "multipath_probability": 1.0,
+        "combinations_breaching": 25,
+        "classifier_probability": 0.7264950275421143,
+        "clearance_effect": [
+          [
+            {
+              "clearance": {
+                "icao24": "8015c9",
+                "action": "DESCEND",
+                "value": 37000.0,
+                "callsign": "IGO086",
+                "fix": null,
+                "confidence": 1.0,
+                "source": "asr:cached",
+                "issued_at": 1790424165.7842677,
+                "valid_seconds": 600.0,
+                "transcription_id": 4,
+                "notes": {
+                  "callsign_heard": "IGO086",
+                  "requested_by": "demo-controller"
+                }
+              },
+              "applied": true,
+              "candidates_capped": 0,
+              "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+            }
+          ]
+        ],
+        "resolution_offered": false,
+        "options": [],
+        "checked_against": null,
+        "candidates_flown": null,
+        "reason": "alarm: closest approach 2.29 NM / 950 ft in 60 s, confirmed on 13 consecutive updates."
+      },
+      "fans_with": {
+        "checked": 25,
+        "a": [
+          0.892,
+          0.037,
+          0.03,
+          0.026,
+          0.014
+        ],
+        "b": [
+          0.422,
+          0.23,
+          0.144,
+          0.127,
+          0.078
+        ],
+        "clearance_a": [
+          {
+            "clearance": {
+              "icao24": "8015c9",
+              "action": "DESCEND",
+              "value": 37000.0,
+              "callsign": "IGO086",
+              "fix": null,
+              "confidence": 1.0,
+              "source": "asr:cached",
+              "issued_at": 1790424165.7842677,
+              "valid_seconds": 600.0,
+              "transcription_id": 4,
+              "notes": {
+                "callsign_heard": "IGO086",
+                "requested_by": "demo-controller"
+              }
+            },
+            "applied": true,
+            "candidates_capped": 0,
+            "reason": "0 of 5 candidate paths were predicted to pass the cleared level"
+          }
+        ],
+        "clearance_b": null
+      }
+    }
+  ]
+}

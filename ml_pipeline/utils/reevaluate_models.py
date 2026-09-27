@@ -134,9 +134,16 @@ def model1b() -> dict:
     # (FLIGHT_RIGHT_MULTIPATH_OFFSETS); the table rows are the previous behaviour.
     per_mode = None
     if bundle.get("offset_models") is not None:
+        # A model trained with extra inputs (the destination features, served since 27 Sep) is
+        # scored with the same per-window values it was evaluated on in training (context_test.npz).
+        extra_names = list(bundle["offset_models"].get("extra_features", []))
+        extra = None
+        if extra_names:
+            context = np.load(mp.DATA_DIRECTORY / "context_test.npz", allow_pickle=True)
+            extra = np.column_stack([context[name].astype(np.float64) for name in extra_names])
         _, mode_positions, _, _ = mp.candidate_paths(
             classifier, kmeans, pattern_residuals, test_x, max_k, temperature=temperature,
-            offset_models=bundle["offset_models"])
+            offset_models=bundle["offset_models"], extra=extra)
         per_mode = {"seed": bundle["offset_models"].get("seed"), "best_of_k": [], "top1_per_horizon": []}
         for k in (1, 3, 5, 10):
             row = {"method": f"Multi-path per-mode, {k} option{'s' if k > 1 else ''}",
@@ -211,7 +218,8 @@ def model2() -> dict:
 
     booster = xgboost.Booster()
     booster.load_model(str(SAVED / "xgboost_conflict.json"))
-    raw = booster.predict(xgboost.DMatrix(test[FEATURE_COLUMNS], feature_names=FEATURE_COLUMNS))
+    from train_xgboost import classifier_raw_scores
+    raw = classifier_raw_scores(booster, test)       # the inputs the saved file declares
     alerts = (raw >= threshold).astype(int)
 
     out = {"dataset": latest_dataset_path().name, "leakage_reproducibility": leakage,
@@ -386,7 +394,8 @@ def model3() -> dict:
     test = split_by_session(pd.read_parquet(latest_dataset_path()))["test"].reset_index(drop=True)
     booster = xgboost.Booster()
     booster.load_model(str(SAVED / "xgboost_conflict.json"))
-    raw = booster.predict(xgboost.DMatrix(test[FEATURE_COLUMNS], feature_names=FEATURE_COLUMNS))
+    from train_xgboost import classifier_raw_scores
+    raw = classifier_raw_scores(booster, test)
     alarms = test[(raw >= card["decision_threshold"])
                   & (test["predicted_time_to_cpa_seconds"] <= TIER_1_MAX_SECONDS)]
     print(f"tier 1 alarms: {len(alarms)} ({int(alarms['is_conflict'].sum())} real, "

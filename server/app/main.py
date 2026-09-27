@@ -22,10 +22,11 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
-from .config import CORS_ORIGINS, DATA_MODE, POLL_SECONDS
+from .config import CORS_ORIGINS, DATA_MODE, INTENT_FEED, POLL_SECONDS
 from .services.aircraft_service import aircraft_service
 from .services.database import database
 from .services.conflict_service import conflict_service
+from .services.intent_service import intent_service
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s  %(levelname)-7s %(name)-24s %(message)s",
@@ -115,6 +116,10 @@ async def startup() -> None:
     backend = database.initialise()
     log.info("Data mode: %s | audit store: %s", DATA_MODE, backend)
     await asyncio.to_thread(conflict_service.load)
+    # The dialled level each crew has set, for the conflict classifier. Live and auto poll
+    # adsb.lol; replay reads the recorded history, so no network is needed for a demo.
+    if DATA_MODE in ("live", "auto") and INTENT_FEED != "off":
+        intent_service.start_live()
     await asyncio.to_thread(aircraft_service.refresh)
     # Model loading and the first refresh take time; start the replay clock now so the
     # encounter it seeked to has not already gone past by the time anyone is watching.
@@ -137,6 +142,7 @@ async def startup() -> None:
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    intent_service.stop_live()
     task = getattr(app.state, "ingest", None)
     if task:
         task.cancel()

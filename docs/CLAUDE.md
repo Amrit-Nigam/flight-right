@@ -44,9 +44,12 @@ The project's headline metric is:
 
 > **percentage of conflicts caught with at least 3 minutes of warning**
 
-**Currently 94.0%**, measured 6 September 2026 on held-out test data by
-`ml_pipeline/training/conflict_classifier/train_xgboost.py`. Everything else in this
-file is a supporting detail.
+**Currently 95.1%** (270 of 284), measured 26 September 2026 on held-out test data by
+`ml_pipeline/training/conflict_classifier/train_xgboost.py`, for the classifier that now takes
+each aircraft's dialled (selected) altitude as three extra inputs, with its threshold chosen on
+validation at the previous classifier's false-alarm rate (Archit's decision, "same alarm rate").
+It was **94.0%** (267 of 284) from 6 to 26 September. Four seeds give 269-271 of 284. Everything
+else in this file is a supporting detail.
 
 **Read the basis, not just the number.** The earlier figure of 93% came from the
 rule-based detector scored against labels the same straight-line arithmetic had
@@ -60,9 +63,9 @@ and the bare legal-minimum rule scores 81.7%.
 
 | what is being scored | number | what it answers |
 |---|---|---|
-| the classifier **in isolation**, at its own threshold | **94.0%** (267 of 284) | how good is the model? |
-| the **running system**, through the real escalation gate | **94.7%** (269 of 284) | what does the controller actually get? |
-| the running system **including the multi-path step it really takes** (`offsets_ab_test.py`, added 24 Sep) | **94.7%** (269 of 284), 101.1 false alarms per 1000 | the same question, measured completely |
+| the classifier **in isolation**, at its own threshold | **95.1%** (270 of 284) since 26 Sep; was 94.0% (267) | how good is the model? |
+| the **running system**, through the real escalation gate | 94.7% (269 of 284) until 26 Sep | what does the controller actually get? |
+| the running system **including the multi-path step it really takes** (`offsets_ab_test.py`, added 24 Sep) | **95.4%** (271 of 284), 101.9 false alarms per 1000, tier 1 28 real / 20 false, since 27 Sep (21 false 26 Sep, before the destination inputs); was 94.7% (269), 101.1, 28 / 17 | the same question, measured completely |
 
 **Correction and fix, 24 Sep 2026.** The 94.7% row scores the gate on straight-line geometry
 only, and `reevaluate_models.py` does not model the multi-path step. Measured with that step
@@ -74,8 +77,17 @@ system is now **94.7% (269), 101.1 per 1000, tier 1 28 real / 17 false**. Until
 `reevaluate_models.py` gains the multi-path step, `offsets_ab_test.py` is the source for this
 figure.
 
-**94.0% remains the headline.** It is the model's number, it is what the gates are
-defined on, and it is what every published figure in `docs/evaluation.md` refers to.
+**26 Sep 2026: both served models changed, at Archit's decision.** The path model is now
+the archive-trained one (plan 3.3 archive row, seed 42) and the classifier takes the dialled
+altitude (plan 9.0). The classifier-in-isolation figure is the headline and is now **95.1%**;
+the running system is **95.4%**. GATE 1 (recall >= 0.95 on the classifier alone) **passes for
+the first time**: 0.9538, and 0.9505-0.9571 across four seeds, with the threshold chosen on
+validation, not moved to pass. Its costs, recorded: 4 more false tier 1 alarms on test (17 -> 21),
+and the archive path model demoted one real tier 1 alarm on validation (25 Sep measurement).
+
+**The classifier-in-isolation figure remains the headline.** It is the model's number, it is
+what the gates are defined on, and it is what every published figure in `docs/evaluation.md`
+refers to.
 The runtime figure exists because until 22 September the two were **87.3% and 94.0%** —
 the classifier gated nothing, so the system the controller used was measurably worse
 than the model the documents described. Both are now measured on every re-score
@@ -95,16 +107,16 @@ with this table.
 | Component | Status |
 |---|---|
 | **Model 1 — trajectory prediction** | **DONE.** Beats the physics baseline everywhere. |
-| **Model 1b — multi-path output** | **DONE and calibrated on real data.** Full run 6 Sep 2026: temperature 1.729, calibration error 0.054 -> 0.019 on arrivals and 0.040 -> 0.012 overall. Best-of-5 at ten minutes 63.6%. **23 Sep, Phase 3.1: per-mode offsets built and measured — best-of-5 on arrivals 63.6% -> 71.5%, top-1 38.6% -> 44.2%, one seed. Saved in the same pickle but NOT serving: the backend defaults to the old table (`FLIGHT_RIGHT_MULTIPATH_OFFSETS=table`) until Archit signs off.** **24 Sep: SERVING by default (`FLIGHT_RIGHT_MULTIPATH_OFFSETS` unset = `per_mode`), switched on with sign-off after measurement on 4,690 labelled test pairs (`offsets_ab_test.py`). With plan 3.2's straight-line safety net: 269 of 284 caught at 3 min, 101.1 false alarms per 1000, tier 1 28 real / 17 false, against table's 28 / 18. An old pickle without offset models still starts the backend on the table. Phase 3.3 done 25 Sep: four seeds, per-mode best-of-5 72.0% ± 0.4 vs table 63.4% ± 1.3, top-1 43.7% ± 0.8 vs 38.3%; per-mode wins on every seed. Archive row (+400k windows from 12 pre-validation archive days): best-of-5 75.4%, top-1 46.8%, temperature 1.73 -> 1.07. Archive model NOT served: 4 seeds confirm 75.6% ± 0.6 / 46.7% ± 0.4, but through the alert chain it is identical on test and costs one real tier 1 alarm on validation. 25 Sep: multi-path ALTITUDE scored for the first time: the table was no better than a straight line; per-mode halves ten-minute height error (2,231 -> 1,116 ft); honest 3-D figure for arrivals (5 NM AND 1,000 ft, best-of-5) is 44.1%.** |
-| **Model 2 — conflict detection** | **WORKING AND NOW GATING** as of 22 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath and still outranks the model. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table. **22 Sep: the classifier finally gates escalation — until then it was computed, displayed and ignored by the alarm decision.** Runtime headline 87.3% -> 94.7%; tier 1 false alarms 24 -> 14 with the same 27 real conflicts. The reported 94.0% is unchanged because it scores the classifier in isolation. GATE 1 still fails at 0.9439 and was not touched. **24 Sep (plan 3.2): the 5 NM / 1,000 ft safety net again judges the straight-line prediction (`RULE_GEOMETRY_KEY`). Beyond three minutes it had been judging the multi-path model's worst path combination: that added 61 alarms and dropped a real conflict. Candidate pruning was measured and not adopted.** |
+| **Model 1b — multi-path output** | **DONE and calibrated on real data.** Full run 6 Sep 2026: temperature 1.729, calibration error 0.054 -> 0.019 on arrivals and 0.040 -> 0.012 overall. Best-of-5 at ten minutes 63.6%. **23 Sep, Phase 3.1: per-mode offsets built and measured — best-of-5 on arrivals 63.6% -> 71.5%, top-1 38.6% -> 44.2%, one seed. Saved in the same pickle but NOT serving: the backend defaults to the old table (`FLIGHT_RIGHT_MULTIPATH_OFFSETS=table`) until Archit signs off.** **24 Sep: SERVING by default (`FLIGHT_RIGHT_MULTIPATH_OFFSETS` unset = `per_mode`), switched on with sign-off after measurement on 4,690 labelled test pairs (`offsets_ab_test.py`). With plan 3.2's straight-line safety net: 269 of 284 caught at 3 min, 101.1 false alarms per 1000, tier 1 28 real / 17 false, against table's 28 / 18. An old pickle without offset models still starts the backend on the table. Phase 3.3 done 25 Sep: four seeds, per-mode best-of-5 72.0% ± 0.4 vs table 63.4% ± 1.3, top-1 43.7% ± 0.8 vs 38.3%; per-mode wins on every seed. Archive row (+400k windows from 12 pre-validation archive days): best-of-5 75.4%, top-1 46.8%, temperature 1.73 -> 1.07. Archive model: 4 seeds confirm 75.6% ± 0.6 / 46.7% ± 0.4; through the alert chain it is identical on test and costs one real tier 1 alarm on validation. **SERVED from 26 Sep at Archit's decision, accepting that cost** (previous pickle kept as `trajectory_multipath_20260923_per_mode_backup.pkl`). Destination (adsbdb route) measured 26 Sep: height error -16% for all traffic (none for arrivals), position unchanged. **27 Sep: destination SERVED** inside the archive model (`destination_row.py`, all 11 pre-registered checks passed; one seed): arrivals best-of-5 75.4 -> 76.5, top-1 46.8 -> 47.2, 3-D best-of-5 46.5 -> 48.8, ten-minute height error all traffic 1,051 -> 889 ft; alerts identical on val, test tier 1 false 21 -> 20. Previous pickle kept as `trajectory_multipath_20260926_archive_backup.pkl`. 25 Sep: multi-path ALTITUDE scored for the first time: the table was no better than a straight line; per-mode halves ten-minute height error (2,231 -> 1,116 ft); honest 3-D figure for arrivals (5 NM AND 1,000 ft, best-of-5) is 44.1%.** |
+| **Model 2 — conflict detection** | **WORKING AND NOW GATING** as of 22 Sep 2026. Circular label fixed; beats the rule at equal false-alarm cost. Rule path still runs underneath and still outranks the model. 6 Sep: Platt calibration, SHAP explanations, GPU training and the recall-margin what-if table. **22 Sep: the classifier finally gates escalation — until then it was computed, displayed and ignored by the alarm decision.** Runtime headline 87.3% -> 94.7%; tier 1 false alarms 24 -> 14 with the same 27 real conflicts. The reported 94.0% is unchanged because it scores the classifier in isolation. GATE 1 still fails at 0.9439 and was not touched. **24 Sep (plan 3.2): the 5 NM / 1,000 ft safety net again judges the straight-line prediction (`RULE_GEOMETRY_KEY`). Beyond three minutes it had been judging the multi-path model's worst path combination: that added 61 alarms and dropped a real conflict. Candidate pruning was measured and not adopted.** **26 Sep: the served classifier takes each aircraft's dialled altitude (adsb.lol) as three extra inputs, threshold chosen on validation at the old model's false-alarm rate (Archit). Headline 94.0% -> 95.1% (270/284); GATE 1 passes for the first time (recall 0.9538; 0.9505-0.9571 over 4 seeds); running system 95.4% (271/284), tier 1 false alarms 17 -> 21. Live feed: `intent_service.py` (adsb.lol API in live mode, recorded history in replay).** |
 | **Model 3 — resolution engine** | **DONE (rule-based), AND LIVE IN PRODUCTION** as of 22 Sep 2026. Three explained, costed, ranked options per tier 1 alarm. 7 Sep: checked against the other aircraft's 5 predicted paths and against all nearby traffic, so a fix that would cause a new conflict is rejected — **but the nearby-traffic list was never passed in by the backend, so that check ran on an empty list in production until 22 Sep.** Now wired; costs ~0.01 s per update against a ten-second budget. ML ranker still deferred. **25 Sep (plan 9.7): C1 and C2 FIXED.** A manoeuvre is offered only when the do-nothing simulation loses separation, and the separation it reports is measured from the end of the 38 s response delay. Instructions for conflicts that never happen 38 -> 11; for real conflicts 38 -> 35. Every other re-scored value is unchanged. |
 | **Training pipeline** | **ONE COMMAND** as of 6 Sep 2026: `python ml_pipeline/run_pipeline.py` (see `ml_pipeline/README_TRAINING.md`). Smoke-tested end to end on fake data; the real run on the RTX 4060 laptop is pending. |
 | **Backend (FastAPI server)** | **RUNNING** as of 8 Sep 2026. `server/app/` — 14 REST endpoints plus `/ws/stream`, OpenSky OAuth2 live mode, recorded-session replay with fallback, the full model chain per pair, the alert feed, and a **PostgreSQL** store where the audit log is append-only *because the database refuses UPDATE and DELETE*, not because the code avoids them. SQLite remains an automatic fallback. See `RUNNING.md`. |
 | **Alert feed (what the controller sees)** | **DONE** as of 7 Sep 2026: `ml_pipeline/utils/alert_feed.py`. Repeat suppression and low-confidence collapsing, both display-only. Interruptions down **73.7% and 74.1%** on the two replayed sessions (the 63-65% first recorded on 7 Sep came from a pre-filter that was never committed; the committed re-score supersedes it) and prominent-list precision 0.386 -> 0.503, with **zero** pairs lost from the reported set. **Wired in and running**: `conflict_service.assess` passes every update through it. |
 | **Data availability (Phase 2)** | **ANSWERED** 23 Sep 2026 — see `docs/phase2_findings.md`. OpenSky's historical archive (Trino) is **open**. **OpenSky has no selected-altitude table and never will** — the archive stores only a flag saying which aircraft *could* broadcast one. **Corrected 23 Sep: the value itself is available from adsb.lol** (live and in daily per-aircraft traces, ODbL 1.0), so the feature is reopened as plan item 9.0, not out of scope. **Indian low-altitude coverage near VABB begins January 2025 and is categorically absent before it**: nine sampled months in 2023-24 carry cruise traffic over Mumbai and *zero* states below 10,000 ft near the airport. Usable window Feb 2025 - Sep 2026. One archive day at 10 s = 203,849 rows, so **three days ≈ the entire twelve-day polling effort**. Speech: the public ATC test set carries **no callsign/action/value labels**, and **12.5% of it is the same audio the shipped model trained on**, leaving 762 clean clips. **24 Sep, 2.6 answered: adsb.lol per-aircraft history files can be fetched directly for a rolling ~6 weeks (every day from 13 Aug 2026, both airframes checked); older days are patchy (Feb-Jul 2026 absent, Dec 2025 refused). Phase 2 is now complete: all six questions answered.** |
-| **Clearances (plan Phase 7, the seam for speech)** | **BUILT 25 Sep, no audio.** `ml_pipeline/utils/clearance.py` + `clearance_service.py` + `POST/GET/DELETE /api/clearances`. Tables `transcriptions` / `extracted_clearances` are append-only in PostgreSQL. Oracle UPPER BOUND, arrivals 10 min, 3-D best-of-5: 43.4% -> 53.8% (level cap + heading filter). Speech chain (Phases 4-6) deferred by Archit; it only has to produce a `Clearance`. |
+| **Clearances (plan Phase 7, the seam for speech)** | **BUILT 25 Sep, no audio.** `ml_pipeline/utils/clearance.py` + `clearance_service.py` + `POST/GET/DELETE /api/clearances`. Tables `transcriptions` / `extracted_clearances` are append-only in PostgreSQL. Oracle UPPER BOUND, arrivals 10 min, 3-D best-of-5: 43.4% -> 53.8% (level cap + heading filter). Speech chain (Phases 4-6) deferred by Archit; it only has to produce a `Clearance`. **25-26 Sep: speech chain BUILT** (`ml_pipeline/voice/`, `speech_service.py`, `/api/speech/*`): our own whisper-small LoRA fine-tune (held-out ATCO2 28.3% word error, 64.5% of 31 clearances fully right; ATCOSIM held-out speakers 4.9%; UWB held-out 15.1%), rule-based extractor, callsign matching against visible aircraft (70.4% vs 12.8% list-free on ATCO2). Heard-clearance floor 0.85 (Archit, 26 Sep). **27 Sep: published-model comparison done; ours SERVED by default** (20/31 whole clearances vs 11/31 for the best published model). Indian-accent audio (gated) and Svarah (gated) still to do. |
 | **Evidence (plan Phase 8)** | **DONE 25 Sep.** `docs/ablation.md` generated by `ablation.py`; `docs/claims.md`. |
-| **Frontend dashboard** | **CONNECTED** as of 8 Sep 2026. Aircraft, conflicts, resolutions, suggestions, metrics, timeline and the audit trail all come from the backend over a WebSocket, with polling fallback. No mock data remains for anything a model produces. Runways, weather and the NLP transcript have no data source and are labelled DEMO on screen. 22 Sep: the radio panel's `APPROVE & TRANSMIT VIA DATALINK` button and its "clearance transmitted" toast are gone — the system cannot transmit and no longer says it does. **25 Sep: H1 FIXED** (every `logAudit` also reaches the server audit log; `/logs` opens on the server log), **H2 FIXED** (the server stamps the model versions on every audit row), **H3 FIXED** (a dismissal is remembered per episode, not per pair forever). |
+| **Frontend dashboard** | **CONNECTED** as of 8 Sep 2026. Aircraft, conflicts, resolutions, suggestions, metrics, timeline and the audit trail all come from the backend over a WebSocket, with polling fallback. No mock data remains for anything a model produces. Runways, weather and the NLP transcript have no data source and are labelled DEMO on screen. 22 Sep: the radio panel's `APPROVE & TRANSMIT VIA DATALINK` button and its "clearance transmitted" toast are gone — the system cannot transmit and no longer says it does. **25 Sep: H1 FIXED** (every `logAudit` also reaches the server audit log; `/logs` opens on the server log), **H2 FIXED** (the server stamps the model versions on every audit row), **H3 FIXED** (a dismissal is remembered per episode, not per pair forever). **25 Sep: the radio panel is real** — it plays demo clips (each labelled recorded or synthetic) and shows every step of the speech chain; no mock transcript remains. |
 
 ### PART 3 — RULES THAT ARE NOT UP FOR DEBATE
 
@@ -161,6 +173,10 @@ of these.
    classifier misses. **The gate is defined on the classifier alone, and on that
    measurement it is still 0.9439 and still failing.** The margin decision is still
    open and still Archit's.
+   **Closed 26 Sep, and not by moving the threshold.** The classifier now takes the dialled
+   altitude as input, with the threshold chosen on validation at the old model's false-alarm
+   rate. Test recall 0.9538 (0.9505-0.9571 over four seeds): GATE 1 passes on the classifier
+   alone. The zero-margin selection rule itself is unchanged.
 3. **Tier thresholds 0.85 / 0.60 were chosen for a truthful probability.** The
    multi-path probabilities are now calibrated in code (item resolved below), but the
    thresholds have not been revisited against the calibrated numbers. Do that only
@@ -2831,6 +2847,143 @@ callsign was refused (422). 0 console errors, 0 failed requests over three runs.
 dry run showed only those two packages would install; torch, numpy, pandas and fsspec are
 unchanged.
 
+### 2026-09-25/26 — Speech chain built; archive path model and dialled-altitude classifier served; destination measured
+
+**Speech (plan Phases 4, 6, 9.3 and the revised speech plan).** All under `ml_pipeline/voice/`; data
+under `%LOCALAPPDATA%/FlightRight/voice` (not OneDrive).
+- `build_audio_cache.py`: ATCOSIM (jlvdoorn mirror), UWB-ATCC (Jzuluaga/uwb_atcc, CC BY-NC-SA 4.0),
+  ATCO2 1 h. Split fixed BEFORE training: ATCOSIM by speaker (test sm3/zf3/gm2 1,712 clips, val
+  gm1/gf1 516, train 7,330); UWB by recording (published split, 1 overlapping recording dropped;
+  val = sha1(recording) % 10 == 0); ATCO2 never trained on (762 clean + 109 contaminated, test only).
+  The mirror's own ATCOSIM split shares speakers across train/val and is ignored.
+- `train_whisper.py`: LoRA r=32 on whisper-small, all attention + FFN projections (13.0 M of
+  254.7 M trainable), gradient checkpointing (1.58 s / batch of 8, 2.6 GB; without it 8.85 GB and
+  15.5 s). Run `p1_main`: 3 epochs, paused at step ~2,260 and resumed from the step-2000 save
+  (resume reproduced loss 0.158 / lr 2.07e-4 at step 2050 exactly). Best = final step 3282,
+  validation WER (greedy, 200 clips per corpus) 12.98 ATCOSIM / 12.12 UWB vs untouched 83.76 / 93.47.
+  Report `ml_pipeline/reports/voice_train_p1_main.json`.
+- `extract.py` (rules, ICAO Doc 4444 ch. 12 / Doc 9432 phraseology), `callsigns.py` (FAA JO 7340.2
+  ch. 3 s. 3 telephony primary, OpenFlights fallback; ICAO Annex 10 spelling; rapidfuzz snapping onto
+  the visible aircraft), `evaluate_voice.py` (per corpus; held-out status printed per model).
+  Extractor on the HUMAN ATCO2 transcripts: 77.4% of 31 clearances; 95.8% of the 24 whose tags pass
+  `Clearance.problems()` (6 of 7 disagreements are tagging errors: wind reported as SPEED x4, a squawk
+  as a level, a DME distance as a speed). The rules were revised once after inspecting ATCO2 misses,
+  so these are development figures.
+- **Our model, held-out test, beam 5** (`evaluate_voice.py`, partial run): ATCO2 clean WER 28.29,
+  clearance accuracy 64.52% (20/31), 79.17% on plausible tags (19/24), callsign with the aircraft
+  list 70.43% vs list-free 12.80% (n=328); ATCOSIM held-out speakers WER 4.88, clearance agreement
+  with the reference transcript 91.7% (n=458); UWB held-out recordings WER 15.11, agreement 78.2%
+  (n=55); real-time factor ~0.04. The three published models were stopped at large-v3 1,400/5,397
+  clips (GPU needed elsewhere); their comparison is still owed and decides `ASR_MODEL_ID` (Archit).
+- Serving: `server/app/services/speech_service.py`, `/api/speech/{status,clips,clips/{id}/audio,hear,
+  transcriptions}`; the radio panel (`NLPCommsPanel.jsx`) now shows each step. Heard clearances go
+  through `clearance_service.submit` like typed ones. `mumbai_scripts.py` (3,757 transmissions from our
+  recordings, 99.0% round-trip through the extractor), `radio_channel.py` (300-3,400 Hz, 8 kHz channel,
+  UWB-train noise bank), `synthesize.py` (Indic Parler-TTS in `%LOCALAPPDATA%/FlightRight/venv_tts`
+  because parler-tts pins transformers==4.46.1), `demo_clips.py`, `export_whisper.py`,
+  `quant_check.py`, `chain_check.py`. Indic Parler-TTS and Svarah are still gated on Hugging Face.
+- Defects found: CTranslate2 on GPU needs torch/lib on the DLL path (`_cuda_libraries_on_path`);
+  transformers 5 writes `processor_config.json`, so the export also writes `preprocessor_config.json`
+  and `ct2_path` refuses a conversion missing it; `database._execute` now initialises on first use
+  (a script importing a service directly wrote into an SQLite file with no schema).
+- Heard-clearance floor `CLEARANCE_MIN_CONFIDENCE` 0.9 -> **0.85** (Archit: "good for numbers and good
+  for safety"). Measured on our model, 24 heard ATCO2 clearances with truth: 0.90 applied 10/20 correct,
+  0 wrong; 0.85 12/20, 0 wrong; 0.60 18/20, 1 wrong. Our own design, small sample.
+- `chain_check.py` (`reports/chain_check_20260926_173317.json`): on the demo encounter, "ifly zero eight
+  six descend flight level three seven zero" (oracle level) -> DESCEND 37,000 -> IGO086 (score 100) ->
+  applied; 30 fans seen, all 5 candidates, probabilities summing to 1.0; Model 3 offered at tier 1 only.
+
+**Archive path model served (Archit, 26 Sep).** `multipath_archive_seed42.pkl` copied to
+`trajectory_multipath.pkl`; the 23 Sep pickle kept as `trajectory_multipath_20260923_per_mode_backup.pkl`.
+`offsets_ab_test.py` on test with it: identical to before (762 alerts, 269/284, 101.1, tier 1 28/17).
+Its known cost (25 Sep, validation): one real tier 1 alarm demoted to tier 2.
+
+**Dialled-altitude classifier served (Archit, 26 Sep, "same alarm rate").** `train_xgboost.py` gains
+`FLIGHT_RIGHT_CLASSIFIER_INTENT=1` (the three inputs from `encounters_with_intent.parquet`, verified
+row-for-row) and `FLIGHT_RIGHT_MATCH_FALSE_ALARMS_OF=<model>` (lowest validation threshold whose
+false alarms do not exceed that model's: 103.9 per 1000 on validation). The 25 Sep ablation matched
+the rate on TEST; this serves the validation-matched version. Test, seed 42 (CPU): recall 0.9538,
+precision 0.3858, 98.1 FA/1000, **270/284 = 95.1%**, GATE 1 PASS, GATE 2 PASS (0.7369 vs 0.7315).
+Seeds 42/1/2/3 (`classifier_intent_seeds.py`, `reports/classifier_intent_seeds_20260926_172128.json`):
+269-271/284, recall 0.9505-0.9571, 94.0-98.1 FA, vs served +3/+4/+3/+3 gained, 0/0/1/0 lost. The 6 Sep
+model is kept as `xgboost_conflict_20260906_backup.json`. `INTENT_COLUMNS` and `intent_features()` now
+live in `generate_synthetic_scenarios.py`; `ConflictClassifier` accepts 24 or 24+3 inputs (unknown =
+NaN); `train_xgboost.classifier_raw_scores()` attaches the inputs by row fingerprint, so
+`verify_pipeline`, `reevaluate_models`, `offsets_ab_test` and `alert_prominence` score the model with
+the inputs its file declares. Runtime: `intent_service.py` (adsb.lol `/v2/point/VABB/250` every 30 s in
+live/auto; recorded `intent.parquet` in replay; backward <= 300 s; ODbL credit in `/api/health`). Replay
+coverage 38.5% of lookups (training 39.5%); live 33 of 38 aircraft at 17:00 IST. **Running system**
+(`offsets_ab_test.py`, both new models): 768 alerts, recall 0.9571, **271/284 = 95.4%**, 101.9 FA/1000,
+tier 1 28 real / **21 false** (was 17). `verify_pipeline.py` 111/111, 24 unit tests.
+
+**Destination measured, not served** (`context_features.py route`, `context_ablation.py`,
+`reports/context_ablation_20260926_175044.json`). adsbdb route for 2,067 cached callsigns (86-90% of
+windows), OurAirports coordinates; features dest_dist_nm, dest_bearing_sin/cos (relative to track),
+orig_dist_nm; offset regressors only, seed 42, standard split. Arrivals ten minutes: best-of-5
+71.5 -> 71.1, top-1 44.2 -> 43.5, 3-D best-of-5 44.1 -> 42.9 (all inside the seed spread); **top-1 height
+error, all traffic, 1,116 -> 938 ft**, arrivals 1,414 -> 1,432 (the gain is departures and overflights,
+as expected: every arrival's destination is VABB). + dialled altitude: 72.1 / 43.9 / 44.9, 930 ft. All
+gates pass. Serving it in the archive model needs the archive split rebuilt (deleted on 25 Sep; its
+keys predate the join-key fix), route lookups for the archive callsigns and a retrain: flagged.
+
+### 2026-09-27 — Speech model chosen after the four-model comparison; SQLite fallback schema fixed
+
+**Comparison** (`evaluate_voice.py`, `reports/voice_eval_20260927_015420.json`, beam 5, CT2 int8, same
+extractor and matcher). Held-out ATCO2 clean (762 clips, 31 clearances): whole clearance right — ours
+64.5% (20), jlvdoorn large-v3-atco2-asr-atcosim 35.5% (11), jlvdoorn medium-atcosim 38.7% (12), openai
+medium 12.9% (4); WER 28.3 / 25.9 / 39.5 / 62.6 (large-v3 trained on same-airport ATCO2 clips; its 109
+identical recordings excluded). UWB held-out WER 15.1 / 46.9 / 53.0 / 78.2. ATCOSIM held-out speakers
+4.9 / 14.7* / 0.1* / 61.9 (* trained on them). RTF 0.04 / 0.15 / 0.13 / 0.11. **Archit: "use which one is
+better overall" -> ours.** `config.ASR_MODEL_ID` now defaults to
+`%LOCALAPPDATA%/FlightRight/voice/models/flightright-whisper-small-atc-p1` when that directory exists
+(`OWN_ASR_MODEL`), else empty; the env var still overrides. Verified through `speech_service.hear` on
+both recorded demo clips with PostgreSQL: BAW855 CLIMB 16000 (match 98) and OKTUR CLIMB 7000 (match 100,
+confidence 0.936, applied, altitude capped); with only Mumbai traffic visible, both correctly unmatched.
+
+**Defect: the SQLite fallback could not write an audit row.** `server/audit.sqlite3` was created by the
+8 Sep `audit_service.py` (`detail_json`); `CREATE TABLE IF NOT EXISTS` never altered it, so every audit
+insert raised `no column named detail` whenever PostgreSQL was down (found because PostgreSQL was not
+running after a restart). `database._add_missing_sqlite_columns` compares each table with an in-memory
+copy of `SQLITE_SCHEMA` and adds missing columns; nothing is dropped. Checked on a copy: 14 old rows kept,
+new row written. 24 unit tests pass.
+
+### 2026-09-27 — Destination served inside the archive path model
+
+`ml_pipeline/utils/destination_row.py` (new; `build` / `train` / `alerts` / `decide`), rule written into
+the file before any result: (1) ten-minute top-1 height error, all traffic, falls; (2) arrivals best-of-5
+drops <= 1.2 points and top-1 <= 0.8 (twice the archive model's four-seed sd); (3) on val AND test through
+`alert_prominence.table`: tier 1 real not fewer, collapsed real not more, prominent real with >= 3 min not
+fewer, false shown not more. `build` rebuilt the archive split (same 12 days, same 400k draw, rng 0) and
+fetched 5,020 adsbdb routes (destination known for 87.8% of 605,757 training windows); the control
+retrain reproduced `multipath_archive_seed42` exactly (75.4 / 46.8, T 1.0646), which the script enforces.
+Destination row (`route_features.py`: dest_dist_nm, dest_bearing_sin/cos relative to track, orig_dist_nm;
+OurAirports coordinates), seed 42, test ten minutes: arrivals best-of-5 75.4 -> 76.5, top-1 46.8 -> 47.2,
+3-D best-of-5 46.5 -> 48.8, height error all 1,051 -> 889 ft, arrivals 1,337 -> 1,290 ft. Alerts: val
+identical (1,138; tier 1 30/24; collapsed real 11; prominent false 427); test identical except tier 1 false
+21 -> 20. **11/11 checks pass -> served** (`destination_row_20260927_023146.json`; B's destination is NaN in
+these tests because B is relocated). First training attempt died of RAM (another process held 6.3 GB);
+`train` now skips a row whose pickle and summary exist.
+
+Serving: `MultiPathPredictor.extra_features` (only `ROUTE_FEATURES` accepted), `route_inputs()`, and every
+`predict` call in `inference.py` (batched, per-pair fallback, neighbour fallback, `predict_trajectory`)
+passes route inputs from the latest callsign (`_callsign_of`); a callsign not in the cache is looked up
+once at <= 2 req/s unless `FLIGHT_RIGHT_ROUTE_LOOKUP=off`. `offsets_ab_test.py` and `replay_timing.py`
+pass them too. Running system (`offsets_ab_20260926_210400.json`): 768 alerts, 271/284, 101.9 FA/1000, tier
+1 28/20. `verify_pipeline.py` 111/111, 24 unit tests, `inference_check.py`. Replay of 40 frames of
+`session_20260905_003006`: destination known for 879/890 aircraft-predictions (98.8%), median tick 0.50 s,
+worst 2.79 s. **Dependency, measured:** with every route unknown (NaN) the same model scores 73.0 / 45.6 on
+test arrivals, below the previous model's 75.4 / 46.8, so a flight adsbdb cannot answer is predicted
+slightly worse than before. Routes are cached on disk (`ml_pipeline/data/routes/adsbdb/`), so an adsbdb outage
+only affects callsigns never seen. `MultiPathPredictor.saved_split_inputs()` gives evaluation scripts the
+split's saved route columns (`ablation.py`, `multipath_3d_eval.py`, `oracle_clearance.py`,
+`context_ablation.py`, `reevaluate_models.py`); with it the served pickle reproduces 76.5 / 47.2 exactly.
+`reevaluate_models.py` (`reevaluation_20260926_210926.json`) vs 26 Sep: 18 values differ, all `model1b`
+per-mode scores; every classifier, escalation, Model 3 and alert-feed value is identical. `ablation.py` now
+scores each historical row from the pickle served at the time (the 23 Sep and 26 Sep backups), so "pattern
+table", "+ per-mode offsets" and "+ more data" reproduce 63.6 / 71.5 / 75.4 and a "+ destination" row is
+added; it merges every `context_ablation_*.json` (the 26 Sep run had dropped the 25 Sep rows from the table)
+and computes the interval sentence instead of typing "2-conflict".
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -5227,3 +5380,175 @@ that genuinely breaks the legal minimum, and the alarm appears within a minute.
 
 **Did the headline number move?** No. **94.0% is unchanged**, and so is the running system's 94.7%.
 This changes where the recording starts playing, not when an alarm fires.
+
+
+### 2026-09-25/26 — The system can now listen to the radio
+
+**Files:** everything in `ml_pipeline/voice/` (new), `server/app/services/speech_service.py` (new),
+`server/app/api/routes.py`, `server/app/config.py`, `client/src/components/NLPCommsPanel.jsx`,
+`client/src/lib/api.js`, `docs/RUNNING.md`.
+
+**Before.** The dashboard's radio panel showed a fixed, made-up conversation. Nothing could hear a
+controller. A typed instruction ("descend IGO086 to FL360") could already reshape that aircraft's
+predicted paths, but nothing produced one from speech.
+
+**Now.** A recording of a controller goes in, and out comes: what was said, which aircraft it was for,
+what it was told to do, and whether the system used it. Four steps, each shown on the dashboard:
+
+1. **Hearing.** A speech-recognition model trained here: the free Whisper model, taught air-traffic
+   radio on about 17 hours of real European recordings. Before training it got 88% of words wrong on
+   radio it had not heard; after, 13%.
+2. **Understanding.** Fixed rules pick out the instruction: climb, descend, turn, speed or direct,
+   and the number. Controllers use a small, strict vocabulary, so rules work and can be checked line
+   by line.
+3. **Finding the aircraft.** The heard callsign ("eye-fly zero eight six") is matched against the
+   aircraft actually on the screen at that moment. On real radio that lifted the right-aircraft rate
+   from 13% to 70%.
+4. **Using it.** The instruction goes through the same door as a typed one. It is used only if the
+   system is at least 85% sure (below). It can reshape that aircraft's predicted paths; it can never
+   switch an alarm off.
+
+**How good is it, honestly.** Tested only on recordings, voices and airports it never trained on. On
+real European radio it got the whole instruction exactly right 20 times out of 31. On three new
+simulator controllers it got 95% of words right. **Nothing yet says how it handles Indian accents**:
+the Indian test voices (Svarah) and the tool that makes Indian-accented training speech need you to
+accept their licences first.
+
+**Found and fixed on the way:** the graphics card could not run the fast speech engine until it was
+pointed at the right system files; a newer library saved one settings file under a different name;
+and a test script wrote into a database with no tables. None of these was visible until run.
+
+**Did the headline number move?** No, not from this. Speech reshapes predicted paths; it does not
+decide alarms.
+
+
+### 2026-09-26 — Both main models upgraded at your request, and the headline number went up
+
+**Files:** `server/app/ml/saved_models/trajectory_multipath.pkl` and `xgboost_conflict.json` (replaced;
+the old ones kept beside them as `*_backup*`), `server/app/services/intent_service.py` (new),
+`server/app/ml/inference.py`, `server/app/services/conflict_service.py`, `server/app/main.py`,
+`ml_pipeline/training/conflict_classifier/train_xgboost.py`, `generate_synthetic_scenarios.py`, and the
+checking scripts (`verify_pipeline.py`, `reevaluate_models.py`, `offsets_ab_test.py`,
+`alert_prominence.py`, `build_evaluation_figures.py`, `ablation.py`).
+
+**What it was before.** The warning model (the one that decides whether two aircraft will really get too
+close) knew each aircraft's position, speed and whether it was climbing, but not where the pilot had set
+the autopilot to level off. The path model had been trained on our twelve days of recordings only.
+
+**What it is now.** Two changes, both your decisions.
+
+1. **The warning model now also knows the "dialled altitude"** — the level the crew has set on the
+   autopilot, which most aircraft broadcast. It comes from a free public feed (adsb.lol), live when the
+   system runs live and from saved history when it replays a recording. You chose to spend the gain on
+   catching more real conflicts rather than on fewer false alarms, so the alarm threshold was set to keep
+   the false-alarm rate where it was.
+2. **The path model is the one trained with 400,000 extra examples** from past Mumbai traffic. It predicts
+   where arrivals will be noticeably better (one of its five paths within 5 miles at ten minutes: 71.5%
+   → 75.4%).
+
+**Why.** Our biggest weakness has always been not knowing that a level aircraft is about to climb or
+descend. The dialled altitude is the closest thing to that knowledge available without flight plans.
+
+**What it cost, stated rather than hidden.** On the test pairs the system now raises **four more loud
+alarms for conflicts that never happen** (17 → 21). And the new path model, on the validation pairs,
+turned one real loud alarm into a quiet watch-list entry: you accepted that before it was switched on.
+
+**Checked, not assumed.** The warning model was trained four times from different random starts; every
+one caught 269–271 of the 284 conflicts, against 267 before. Every automatic check passes (111 of 111),
+and the whole system was re-scored from the saved files.
+
+**Also measured, not switched on: destination.** Knowing where a flight is going makes no difference to
+where it will be in ten minutes, but it cuts the height error by 16% for flights leaving Mumbai or passing
+over. Putting it into the model now in use needs about three hours of work first; that is your call
+(`docs/DECISIONS_FOR_ARCHIT.md`).
+
+**Speech gate, explained simply.** When the system hears an instruction it scores how sure it is, from 0 to
+1. It is now used only at 0.85 or above. On real radio that used 12 of 20 correct instructions and no wrong
+ones; the old 0.9 used only 10.
+
+**Did the headline number move?** **Yes: 94.0% → 95.1%** (267 → 270 of 284 conflicts caught with at least
+three minutes of warning, the warning model on its own). What the controller actually gets, through the
+whole running system: **94.7% → 95.4%** (269 → 271). For the first time the warning model also meets the
+project's rule of catching at least 95% of all conflicts, and the threshold was not moved to get there.
+
+
+### 2026-09-27 — The system now listens with our own speech model, and a hidden fallback bug was fixed
+
+**Files:** `server/app/config.py`, `server/app/services/database.py`, `docs/RUNNING.md`,
+`docs/evaluation.md`, `docs/claims.md`, `docs/DECISIONS_FOR_ARCHIT.md`.
+
+**Before.** No speech model was switched on by default; the radio panel said "NO SPEECH MODEL" until
+someone named one. The run guide suggested a published model (a large one trained by another researcher).
+
+**Now.** All four candidate models were tested on the same recordings none of them had learned from. Ours
+got the whole instruction right (right aircraft, right action, right number) 20 times out of 31; the best
+published model managed 11. On radio from a country none of them had heard (Czech), ours got 85% of words
+right against 53% for the published one, and it is about three and a half times faster. The published model
+gets slightly more individual words right on European radio, but it had practised on recordings from those
+same airports, and single words are not what the system uses. You asked for the better one overall, so ours
+is now switched on automatically whenever it is on the computer.
+
+**A second fix, found while testing.** When the main database is not running, the system falls back to a
+small backup database file. That file had been created in September with an older layout, so every attempt
+to record a decision in it failed. The system now adds any missing columns to an old backup file when it
+starts, keeping everything already in it.
+
+**Did the headline number move?** No. **95.1% is unchanged.** Speech can reshape predicted paths, not decide
+alarms. Still unmeasured: how the model copes with Indian accents (waiting on two Hugging Face licences).
+
+
+### 2026-09-27 — The path model now knows where each flight is going
+
+**Files:** `server/app/ml/saved_models/trajectory_multipath.pkl` (replaced; the old one kept as
+`trajectory_multipath_20260926_archive_backup.pkl`), `server/app/ml/inference.py`,
+`ml_pipeline/utils/route_features.py` and `destination_row.py` (new), `offsets_ab_test.py`,
+`replay_timing.py`, `alert_prominence.py`.
+
+**Before.** The model that draws each aircraft's five possible future paths knew its position, speed and
+recent turns, but not where the flight was going.
+
+**Now.** For each aircraft the system looks up its route from its callsign (a free public route database,
+adsbdb) and tells the model how far away the destination airport is and in which direction, plus how far it
+has come from the departure airport. It found the destination for 99% of aircraft in a replayed hour.
+
+**Why, and how it was decided.** You asked for it only if it helped. So before training, the rules were
+written into the script: height predictions must improve, position predictions must not get worse, and on
+both sets of practice pairs no real alarm may be lost and no extra false alarm shown. It passed all eleven
+checks. Height error ten minutes ahead fell from about 1,050 ft to 890 ft; arrivals got slightly better too
+(one of five paths within 5 miles: 75.4% -> 76.5%); and one false loud alarm disappeared on the test pairs.
+It was trained once, so the small position gain should not be over-sold; the height gain is the real one.
+One honest cost: for a flight whose route cannot be looked up, the new model is a little worse than the old
+one. In a replayed hour the route was found for 99% of aircraft, and every route found is saved on disk.
+
+**Did the headline number move?** No. **95.1% is unchanged** (it scores the warning model, which was not
+touched), and the running system stays at 95.4%, with one fewer false loud alarm (21 -> 20).
+
+
+### 2026-09-27 — The README rewritten as the full front page of the project
+
+**File:** `README.md`.
+
+**Before.** The README described the models and how to start the servers, but not why the project
+exists, where each piece of data comes from, how the parts connect, or how the demo is meant to run.
+Several figures were out of date (the path-model numbers from 23 Sep, 110 checks instead of 111, and the
+statement that speech was out of scope).
+
+**Now.** One document for a reader who knows neither aviation nor machine learning. It covers:
+- why the project exists, and a short glossary;
+- two data-flow diagrams, one for what happens every 10 seconds and one for how the models were built;
+- a table of every data source, what it is used for, and whether it is live or offline;
+- each model with its question, method, held-out result and the simpler method underneath it;
+- how an alarm is decided, and the speech chain;
+- which screen panel reads which data;
+- a plain answer to "is the demo live or recorded" (recorded real traffic by default, live optional);
+- a ten-step demo script, including questions to prepare for;
+- the technology choices and their reasons, verification, limitations, the API, and data licences
+  and credits (including the ODbL credit adsb.lol requires).
+
+Every figure was taken from the current reports: `offsets_ab_20260926_210400.json`,
+`destination_row_20260927_023146.json`, `voice_eval_20260927_015420.json` and `docs/metrics.json`.
+
+**Why.** Archit asked for a README carrying the whole context of the project and the demo plan. It is the
+page mentors and examiners open first.
+
+**Did the headline number move?** No. **95.1% is unchanged.** This is documentation only.

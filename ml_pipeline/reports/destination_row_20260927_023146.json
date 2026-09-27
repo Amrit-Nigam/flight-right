@@ -1,0 +1,74 @@
+{
+  "measured_at": "2026-09-27T02:31:46.097996",
+  "rule": " before any\nresult was seen (and printed by `decide` exactly as written here):\n\n  1. HEIGHT: top-1 ten-minute height error, all traffic, falls (the reason to add it).\n  2. POSITION: arrivals best-of-5 within 5 NM does not drop more than 1.2 points and top-1 not more\n     than 0.8 -- twice the four-seed standard deviation of the archive model (0.6 and 0.4).\n  3. ALARMS, on validation AND test, through the real chain (alert_prominence.table with today's\n     classifier): no fewer real tier 1 alarms, no more real conflicts collapsed, no fewer real\n     conflicts shown prominently with >= 3 min warning, and no more false alarms shown\n     (tier 1 false + prominent false).\n\n",
+  "control": {
+    "arrivals_best5": 75.43619568936025,
+    "arrivals_top1": 46.835443037974684,
+    "height_all_ft": 1050.6088105506333,
+    "height_arrivals_ft": 1336.6062912824764,
+    "three_d_arrivals_best5": 46.52754019842627
+  },
+  "destination": {
+    "arrivals_best5": 76.46253848785494,
+    "arrivals_top1": 47.21176873075607,
+    "height_all_ft": 889.1875851243311,
+    "height_arrivals_ft": 1289.8177272292307,
+    "three_d_arrivals_best5": 48.78549435511461
+  },
+  "alerts": {
+    "val/control": {
+      "alerts": 1138,
+      "real_alerted": 433,
+      "tier1_real": 30,
+      "tier1_false": 24,
+      "collapsed_real": 11,
+      "collapsed_false": 278,
+      "prominent_false": 427,
+      "prominent_real_with_3min": 400
+    },
+    "val/destination": {
+      "alerts": 1138,
+      "real_alerted": 433,
+      "tier1_real": 30,
+      "tier1_false": 24,
+      "collapsed_real": 11,
+      "collapsed_false": 278,
+      "prominent_false": 427,
+      "prominent_real_with_3min": 400
+    },
+    "test/control": {
+      "alerts": 768,
+      "real_alerted": 290,
+      "tier1_real": 28,
+      "tier1_false": 21,
+      "collapsed_real": 12,
+      "collapsed_false": 187,
+      "prominent_false": 291,
+      "prominent_real_with_3min": 259
+    },
+    "test/destination": {
+      "alerts": 768,
+      "real_alerted": 290,
+      "tier1_real": 28,
+      "tier1_false": 20,
+      "collapsed_real": 12,
+      "collapsed_false": 187,
+      "prominent_false": 291,
+      "prominent_real_with_3min": 259
+    }
+  },
+  "checks": {
+    "1_height_improves": true,
+    "2_position_best5_within_slack": true,
+    "2_position_top1_within_slack": true,
+    "3_val_tier1_real_not_fewer": true,
+    "3_val_collapsed_real_not_more": true,
+    "3_val_prominent_real_3min_not_fewer": true,
+    "3_val_false_shown_not_more": true,
+    "3_test_tier1_real_not_fewer": true,
+    "3_test_collapsed_real_not_more": true,
+    "3_test_prominent_real_3min_not_fewer": true,
+    "3_test_false_shown_not_more": true
+  },
+  "adopt": true
+}

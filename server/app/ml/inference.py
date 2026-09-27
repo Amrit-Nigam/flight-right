@@ -58,7 +58,9 @@ for extra in (PROJECT_ROOT, PROJECT_ROOT / "ml_pipeline" / "training" / "traject
 import framing  # noqa: E402  (ml_pipeline/training/trajectory)
 from generate_synthetic_scenarios import (  # noqa: E402
     FEATURE_COLUMNS,
+    INTENT_COLUMNS,
     encounter_features,
+    intent_features,
     manoeuvre_summary,
 )
 from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
@@ -94,6 +96,15 @@ MULTIPATH_OFFSETS = (_OFFSETS_ENV or "per_mode").strip().lower()
 MULTIPATH_OFFSETS_EXPLICIT = _OFFSETS_ENV is not None
 
 INPUT_STEPS = 10
+# Destination lookups for a callsign not yet in the route cache: made once, politely, when the
+# served path model uses destination features. "off" keeps the backend fully offline (unknown
+# routes are then treated as missing, as they are in training for ~13% of windows).
+ROUTE_LOOKUP_LIVE = os.environ.get("FLIGHT_RIGHT_ROUTE_LOOKUP", "on").strip().lower() != "off"
+
+
+def _callsign_of(history: Sequence[Mapping[str, Any]]) -> str | None:
+    """The latest callsign in a state history, or None (-> unknown route, NaN destination inputs)."""
+    return str(history[-1].get("callsign") or "").strip() or None
 HORIZON_LABELS = {60: "1min", 180: "3min", 300: "5min", 600: "10min"}
 METRES_TO_FEET = 3.28084
 
@@ -205,13 +216,46 @@ class MultiPathPredictor:
         self.calibration = bundle.get("calibration", {})
         self.config = bundle["config"]
         self.top_k = int(self.config.get("top_k", 5))
+        # Extra inputs the offset regressors were trained with (none on every model before
+        # 27 Sep; the destination features for a route-trained model). Only the route group
+        # can be computed at run time; any other group is refused rather than silently zeroed.
+        self.extra_features = list((self.offset_models or {}).get("extra_features", []))
+        if self.extra_features:
+            from ml_pipeline.utils.route_features import ROUTE_FEATURES
+            if self.extra_features != ROUTE_FEATURES:
+                raise ValueError(f"{path.name} needs extra inputs {self.extra_features}; only the route "
+                                 f"features {ROUTE_FEATURES} can be supplied at run time")
         self.version = f"trajectory_multipath@{path.stat().st_mtime_ns}+{offsets}"
 
-    def predict(self, X: np.ndarray, top_k: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return (probabilities (N, k), positions (N, k, 4, 3), pattern ids (N, k))."""
+    def route_inputs(self, X: np.ndarray, callsigns: Sequence[str | None], fetch: bool = False) -> np.ndarray | None:
+        """The destination features for these windows, or None for a model without them."""
+        if not self.extra_features:
+            return None
+        from ml_pipeline.utils.route_features import route_matrix, track_from_window
+        return route_matrix(list(callsigns), X[:, -1, 0].astype(np.float64), X[:, -1, 1].astype(np.float64),
+                            track_from_window(X), fetch=fetch)
+
+    def saved_split_inputs(self, split: str = "test") -> np.ndarray | None:
+        """The extra inputs for a whole saved split, in row order (for evaluation scripts), or None.
+
+        Read from ml_pipeline/data/processed/context_<split>.npz, the values the model was scored
+        on in training; the live path computes the same features with route_inputs()."""
+        if not self.extra_features:
+            return None
+        context = np.load(PROJECT_ROOT / "ml_pipeline/data/processed" / f"context_{split}.npz", allow_pickle=True)
+        return np.column_stack([context[name].astype(np.float64) for name in self.extra_features])
+
+    def predict(self, X: np.ndarray, top_k: int | None = None,
+                extra: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return (probabilities (N, k), positions (N, k, 4, 3), pattern ids (N, k)).
+
+        extra: the route features per row when the model was trained with them. Omitted on
+        such a model, every route is treated as unknown (NaN), which the regressors handle."""
+        if self.extra_features and extra is None:
+            extra = np.full((len(X), len(self.extra_features)), np.nan)
         probabilities, positions, patterns, _ = self._multipath.candidate_paths(
             self.classifier, self.kmeans, self.pattern_residuals, X, top_k or self.top_k, self.temperature,
-            offset_models=self.offset_models,
+            offset_models=self.offset_models, extra=extra,
         )
         return probabilities, positions, patterns
 
@@ -235,8 +279,12 @@ class ConflictClassifier:
         self.booster.load_model(str(path))
         attributes = self.booster.attributes()
         self.feature_columns = json.loads(attributes["feature_columns"])
-        if self.feature_columns != FEATURE_COLUMNS:
-            raise RuntimeError("Saved model's feature list differs from generate_synthetic_scenarios.FEATURE_COLUMNS.")
+        # The 24 encounter features, optionally followed by the three dialled-level inputs
+        # (served from 26 Sep). Anything else means the file and this code have drifted apart.
+        if self.feature_columns not in (FEATURE_COLUMNS, FEATURE_COLUMNS + INTENT_COLUMNS):
+            raise RuntimeError("Saved model's feature list is neither generate_synthetic_scenarios.FEATURE_COLUMNS "
+                               "nor FEATURE_COLUMNS + INTENT_COLUMNS.")
+        self.uses_dialled_levels = self.feature_columns != FEATURE_COLUMNS
         self.threshold = float(json.loads(attributes["decision_threshold"]))
         self.platt_a = float(json.loads(attributes.get("platt_a", "1.0")))
         self.platt_b = float(json.loads(attributes.get("platt_b", "0.0")))
@@ -252,7 +300,9 @@ class ConflictClassifier:
 
     def predict(self, features: Sequence[Mapping[str, float]]) -> list[dict[str, Any]]:
         """One result per pair: raw and calibrated probability, alert flag, top SHAP reasons."""
-        matrix = np.array([[float(row[column]) for column in self.feature_columns] for row in features])
+        # A dialled level that was not broadcast is NaN, which XGBoost treats as "unknown".
+        matrix = np.array([[float(row.get(column, float("nan"))) for column in self.feature_columns]
+                           for row in features])
         dmatrix = self._xgboost.DMatrix(matrix, feature_names=self.feature_columns)
         raw = self.booster.predict(dmatrix)
         calibrated = self._calibrate(raw)
@@ -350,7 +400,11 @@ class ConflictEngine:
             return {}
         keys = list(usable)
         X = np.concatenate([window_from_states(usable[key]) for key in keys])
-        probabilities, positions, patterns = self.multipath.predict(X)
+        # Destination features, when the served model uses them: the route comes from each
+        # aircraft's callsign (adsbdb, cached; a callsign never seen before is looked up once).
+        extra = self.multipath.route_inputs(X, [_callsign_of(usable[key]) for key in keys],
+                                            fetch=ROUTE_LOOKUP_LIVE)
+        probabilities, positions, patterns = self.multipath.predict(X, extra=extra)
         out: dict[str, Any] = {}
         for index, key in enumerate(keys):
             entry = {"paths": self.multipath.paths_for_cpa(X, index, probabilities, positions),
@@ -377,13 +431,19 @@ class ConflictEngine:
                     pair_history: Sequence[Mapping[str, Any]] = (),
                     traffic: Sequence[Mapping[str, Any]] = (),
                     candidates_a: Mapping[str, Any] | None = None,
-                    candidates_b: Mapping[str, Any] | None = None) -> dict[str, Any]:
+                    candidates_b: Mapping[str, Any] | None = None,
+                    selected_a_ft: float | None = None,
+                    selected_b_ft: float | None = None) -> dict[str, Any]:
         """Everything the dashboard needs for one pair, with a reason for each number.
 
         history_* are each aircraft's recent states, oldest first, at least ten. The
         rule path needs only the latest state; the models need the window.
         pair_history is the list of previous results for this pair (for the
         3-consecutive-updates rule).
+
+        selected_*_ft are the levels each crew has dialled into the autopilot (adsb.lol,
+        intent_service), or None when not broadcast. Used by the classifier when its saved
+        file declares the dialled-level inputs; otherwise ignored.
 
         traffic is every OTHER aircraft nearby, each {"callsign", "history"}. Supplied,
         a suggested manoeuvre is also checked against those aircraft and rejected if it
@@ -417,7 +477,9 @@ class ConflictEngine:
                 patterns = [candidates_a["patterns"], candidates_b["patterns"]]
             else:
                 X = np.concatenate([window_from_states(history_a), window_from_states(history_b)])
-                probabilities, positions, patterns = self.multipath.predict(X)
+                extra = self.multipath.route_inputs(X, [_callsign_of(history_a), _callsign_of(history_b)],
+                                                    fetch=ROUTE_LOOKUP_LIVE)
+                probabilities, positions, patterns = self.multipath.predict(X, extra=extra)
                 paths_a = self.multipath.paths_for_cpa(X, 0, probabilities, positions)
                 paths_b = self.multipath.paths_for_cpa(X, 1, probabilities, positions)
             current_a = (state_a["latitude"], state_a["longitude"], state_a["altitude_m"])
@@ -458,7 +520,12 @@ class ConflictEngine:
             manoeuvre_a = _manoeuvre_from_history(history_a)
             manoeuvre_b = _manoeuvre_from_history(history_b)
             features = encounter_features(state_a, state_b, manoeuvre_a, manoeuvre_b, rule_cpa)
+            if self.classifier.uses_dialled_levels:
+                features.update(intent_features(features["a_altitude_ft"], features["b_altitude_ft"],
+                                                selected_a_ft, selected_b_ft))
             result["classifier"] = self.classifier.predict([features])[0]
+            result["classifier"]["dialled_levels_ft"] = {"a": selected_a_ft, "b": selected_b_ft,
+                                                         "used": self.classifier.uses_dialled_levels}
             result["sources"].append("XGBoost conflict classifier (calibrated, SHAP-explained)")
             # The classifier GATES escalation (see alert_gate in cpa_conflict_detection).
             # It rides on the CPA result rather than being passed as an argument so that
@@ -512,7 +579,8 @@ class ConflictEngine:
                 neighbour_paths = supplied["paths"]
             elif self.multipath is not None and len(neighbour_history) >= INPUT_STEPS:
                 nx = window_from_states(neighbour_history)
-                np_prob, np_pos, _ = self.multipath.predict(nx)
+                np_prob, np_pos, _ = self.multipath.predict(nx, extra=self.multipath.route_inputs(
+                    nx, [_callsign_of(neighbour_history)], fetch=ROUTE_LOOKUP_LIVE))
                 neighbour_paths = self.multipath.paths_for_cpa(nx, 0, np_prob, np_pos)
             neighbours.append({
                 "callsign": str(entry.get("callsign")
@@ -570,7 +638,8 @@ class ConflictEngine:
             out["residual_lstm"] = _horizon_dict(predicted[0])
             out["residual_lstm_version"] = self.trajectory.version
         if self.multipath is not None:
-            probabilities, positions, patterns = self.multipath.predict(X)
+            probabilities, positions, patterns = self.multipath.predict(
+                X, extra=self.multipath.route_inputs(X, [_callsign_of(history)], fetch=ROUTE_LOOKUP_LIVE))
             out["multipath"] = [{"probability": float(p), "pattern": int(patterns[0, i]),
                                  "positions": _horizon_dict(positions[0, i])} for i, p in enumerate(probabilities[0])]
             out["multipath_version"] = self.multipath.version

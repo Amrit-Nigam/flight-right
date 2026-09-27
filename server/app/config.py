@@ -92,11 +92,32 @@ CORS_ORIGINS = [o.strip() for o in os.environ.get(
 #
 # ASR_MODEL_ID is the ONE place the speech model will be named (plan 4.3). Empty means no
 # speech model is installed: transcription endpoints report that, rather than failing.
-ASR_MODEL_ID = os.environ.get("FLIGHT_RIGHT_ASR_MODEL_ID", "").strip()
-ASR_QUANTISATION = os.environ.get("FLIGHT_RIGHT_ASR_QUANTISATION", "int8").strip()
+# Default: our own fine-tune (whisper-small + LoRA, ml_pipeline/voice/train_whisper.py), chosen
+# 27 Sep 2026 after the four-model comparison (reports/voice_eval_20260927_015420.json): on held-out
+# ATCO2 it gets the whole clearance right 64.5% of the time against 35.5% for
+# jlvdoorn/whisper-large-v3-atco2-asr-atcosim, 15.1% word error on unseen Czech radio against 46.9%,
+# and runs ~3.5x faster. Used when its directory exists on this machine; otherwise empty.
+OWN_ASR_MODEL = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "FlightRight/voice/models/flightright-whisper-small-atc-p1"
+ASR_MODEL_ID = os.environ.get("FLIGHT_RIGHT_ASR_MODEL_ID",
+                              str(OWN_ASR_MODEL) if OWN_ASR_MODEL.exists() else "").strip()
+ASR_QUANTISATION = os.environ.get("FLIGHT_RIGHT_ASR_QUANTISATION", "int8_float16").strip()
+# Demo clips for the dashboard's radio panel: <id>.wav plus index.json. Outside OneDrive,
+# beside the speech cache. Every clip there is labelled with where its audio came from.
+SPEECH_DEMO_DIR = Path(os.environ.get(
+    "FLIGHT_RIGHT_SPEECH_DEMO_DIR",
+    Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FlightRight" / "voice" / "demo_clips"))
 # A clearance below this confidence is recorded but not applied. Manual entries carry
-# 1.0. PLACEHOLDER for ASR: the right value comes from the extractor's measured accuracy
-# (plan Phase 6) and must be re-decided then; it is not tuned.
-CLEARANCE_MIN_CONFIDENCE = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_MIN_CONFIDENCE", 0.9))
+# 1.0; a heard one carries extractor confidence x callsign-match score. Set 26 Sep by
+# Archit ("good for numbers and good for safety") from the measurement on our own model and
+# real ATCO2 radio, 24 heard clearances with a known truth: 0.90 applied 10 of 20 correct and
+# 0 wrong; 0.85 applied 12 of 20 correct and 0 wrong; 0.60 applied 18 of 20 and 1 wrong.
+# Our own design, not from a standard; small sample, so re-measure on Mumbai-accent audio.
+# A heard clearance only reshapes predicted paths -- it cannot switch an alarm off.
+# Live dialled (selected) altitude from adsb.lol for the conflict classifier (plan 9.0, served
+# 26 Sep). Polled every 30 s in live and auto mode; replay uses the recorded history instead.
+# "off" disables the poller; the classifier then sees "unknown", as for aircraft that do not
+# broadcast it.
+INTENT_FEED = os.environ.get("FLIGHT_RIGHT_INTENT_FEED", "on").strip().lower()
+CLEARANCE_MIN_CONFIDENCE = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_MIN_CONFIDENCE", 0.85))
 # How long a clearance stays in force without a newer one for the same aircraft.
 CLEARANCE_VALID_SECONDS = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_VALID_SECONDS", 600.0))

@@ -35,9 +35,9 @@ mp_calls = []
 original = inference.MultiPathPredictor.predict
 
 
-def timed(self, X, top_k=None):
+def timed(self, X, top_k=None, extra=None):
     started = time.perf_counter()
-    result = original(self, X, top_k)
+    result = original(self, X, top_k, extra)
     mp_calls.append((len(X), time.perf_counter() - started))
     return result
 

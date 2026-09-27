@@ -1,0 +1,50 @@
+{
+  "source": "adsbdb callsign route cache + OurAirports",
+  "coverage_share_non_missing": {
+    "train": {
+      "dest_dist_nm": 0.8582940070082671,
+      "dest_bearing_sin": 0.8582940070082671,
+      "dest_bearing_cos": 0.8582940070082671,
+      "orig_dist_nm": 0.8601700063667336
+    },
+    "val": {
+      "dest_dist_nm": 0.8975831014308565,
+      "dest_bearing_sin": 0.8975831014308565,
+      "dest_bearing_cos": 0.8975831014308565,
+      "orig_dist_nm": 0.9045949558472293
+    },
+    "test": {
+      "dest_dist_nm": 0.8737315090624527,
+      "dest_bearing_sin": 0.8737315090624527,
+      "dest_bearing_cos": 0.8737315090624527,
+      "orig_dist_nm": 0.8727470086333114
+    }
+  },
+  "groups": {
+    "intent": [
+      "sel_alt_delta_ft",
+      "fms_alt_delta_ft",
+      "sel_heading_delta_deg",
+      "intent_age_s"
+    ],
+    "wind": [
+      "headwind_kt",
+      "crosswind_kt",
+      "oat_c"
+    ],
+    "type": [
+      "mtow_kg",
+      "cruise_mach"
+    ],
+    "traffic": [
+      "traffic_count",
+      "nearest_nm"
+    ],
+    "route": [
+      "dest_dist_nm",
+      "dest_bearing_sin",
+      "dest_bearing_cos",
+      "orig_dist_nm"
+    ]
+  }
+}

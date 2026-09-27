@@ -110,6 +110,55 @@ envelope is typed, so a client can still route them separately.
 subset that should interrupt. Rendering only `notifications` turns a display rule into a
 detection rule, which the alert feed exists to prevent.
 
+## Speech (the radio panel)
+
+On by default when our own fine-tuned model is on the machine
+(`%LOCALAPPDATA%/FlightRight/voice/models/flightright-whisper-small-atc-p1`, produced by
+`ml_pipeline/voice/train_whisper.py` + `export_whisper.py`). It was chosen on 27 Sep 2026 over the
+published models because it gets far more whole clearances right on unseen radio
+(`docs/evaluation.md`, speech section). Without that directory the panel says **NO SPEECH MODEL**.
+
+```bash
+# the one setting that names a different speech model (a Hugging Face id or a local directory)
+FLIGHT_RIGHT_ASR_MODEL_ID=jlvdoorn/whisper-large-v3-atco2-asr-atcosim FLIGHT_RIGHT_DATA_MODE=replay python -m uvicorn server.app.main:app --port 8000
+```
+
+The model is converted to CTranslate2 int8 on first use (a few minutes, once) and loaded on
+the first clip, not at startup.
+
+| Endpoint | Purpose |
+|---|---|
+| GET `/api/speech/status` | Which model is installed, whether it is loaded |
+| GET `/api/speech/clips` | The demo clips, each saying where its audio came from |
+| GET `/api/speech/clips/{id}/audio` | Play one |
+| POST `/api/speech/hear?clip=<id>&cached=true` | Run the chain: transcript, clearance, matched aircraft, applied or not |
+| POST `/api/speech/hear` with an audio body | The same on uploaded audio (30 s at most) |
+| GET `/api/speech/transcriptions` | The append-only transcript log |
+
+A heard clearance goes through the same door as a typed one (`/api/clearances`): it is
+applied only if the aircraft is visible and its confidence clears
+`FLIGHT_RIGHT_CLEARANCE_MIN_CONFIDENCE`. Nothing is ever transmitted.
+
+**Building the speech data and models** (all under `%LOCALAPPDATA%/FlightRight/voice`, never
+in OneDrive):
+
+```bash
+python ml_pipeline/voice/build_audio_cache.py          # decode ATCOSIM, UWB-ATCC, ATCO2; fix the speaker split
+python ml_pipeline/voice/train_whisper.py --stage p1   # ~3 h on the RTX 4050
+python ml_pipeline/voice/mumbai_scripts.py             # Mumbai transmissions from our recordings
+%LOCALAPPDATA%/FlightRight/venv_tts/Scripts/python ml_pipeline/voice/synthesize.py --listen 20
+%LOCALAPPDATA%/FlightRight/venv_tts/Scripts/python ml_pipeline/voice/synthesize.py
+python ml_pipeline/voice/train_whisper.py --stage p2 --init <p1 best_adapter>
+python ml_pipeline/voice/export_whisper.py --adapter <best_adapter> --name <name>
+python ml_pipeline/voice/evaluate_voice.py --extra <merged model dir>
+python ml_pipeline/voice/demo_clips.py --recorded
+python ml_pipeline/voice/demo_clips.py --transcribe <model id>
+```
+
+Text-to-speech runs in its own environment because `parler-tts` pins `transformers==4.46.1`
+and training needs 5.x. Indic Parler-TTS and Svarah are gated on Hugging Face: accept each
+once on the website, and the scripts download them with your saved token.
+
 ## Troubleshooting
 
 **"BACKEND UNREACHABLE"** — the backend is not running, or it is on another port. Check

@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-25T11:41:23.462954+00:00",
+  "generated_utc": "2026-09-26T21:15:39.702673+00:00",
   "test_windows": 39614,
   "rows": [
     {
@@ -250,7 +250,7 @@
     },
     {
       "name": "+ per-mode offsets",
-      "note": "SERVED since 24 Sep 2026",
+      "note": "served 24-26 Sep 2026",
       "ten_minutes": {
         "arrivals": {
           "n": 2923,
@@ -394,7 +394,7 @@
     },
     {
       "name": "+ more data (OpenSky archive)",
-      "note": "measured, not adopted (alert chain: one real tier 1 alarm lost on validation)",
+      "note": "served 26-27 Sep 2026 (Archit accepted one real tier 1 alarm lost on validation)",
       "ten_minutes": {
         "arrivals": {
           "n": 2923,
@@ -463,6 +463,78 @@
           "best5_5nm": 92.38938053097345
         }
       }
+    },
+    {
+      "name": "+ destination (adsbdb route)",
+      "note": "SERVED since 27 Sep 2026 (all 11 pre-set checks passed)",
+      "ten_minutes": {
+        "arrivals": {
+          "n": 2923,
+          "top1_5nm": 47.21176873075607,
+          "top1_both": 34.45090660280534,
+          "best5_5nm": 76.46253848785494,
+          "best5_both": 48.78549435511461
+        },
+        "all": {
+          "n": 18662,
+          "top1_5nm": 68.06880291501447,
+          "top1_both": 55.89968920801629,
+          "best5_5nm": 88.4310363305112,
+          "best5_both": 68.192048012003
+        }
+      },
+      "per_regime": {
+        "turn: straight": {
+          "n": 14302,
+          "top1_5nm": 70.99706334778352,
+          "best5_5nm": 90.26709551111732
+        },
+        "turn: gentle turn": {
+          "n": 2268,
+          "top1_5nm": 66.93121693121694,
+          "best5_5nm": 89.19753086419753
+        },
+        "turn: moderate turn": {
+          "n": 1273,
+          "top1_5nm": 57.9732914375491,
+          "best5_5nm": 81.61822466614296
+        },
+        "turn: sharp turn": {
+          "n": 819,
+          "top1_5nm": 35.775335775335776,
+          "best5_5nm": 64.83516483516483
+        },
+        "vertical: level": {
+          "n": 13320,
+          "top1_5nm": 75.36036036036036,
+          "best5_5nm": 92.2897897897898
+        },
+        "vertical: gentle climb/descent": {
+          "n": 3602,
+          "top1_5nm": 53.08162132148806,
+          "best5_5nm": 79.34480843975568
+        },
+        "vertical: fast climb/descent": {
+          "n": 1740,
+          "top1_5nm": 43.275862068965516,
+          "best5_5nm": 77.70114942528735
+        },
+        "distance to VABB: terminal": {
+          "n": 2923,
+          "top1_5nm": 47.21176873075607,
+          "best5_5nm": 76.46253848785494
+        },
+        "distance to VABB: intermediate": {
+          "n": 2744,
+          "top1_5nm": 60.932944606414,
+          "best5_5nm": 80.57580174927114
+        },
+        "distance to VABB: en-route": {
+          "n": 12995,
+          "top1_5nm": 74.26702577914583,
+          "best5_5nm": 92.78183916891112
+        }
+      }
     }
   ],
   "oracle": {
@@ -472,33 +544,33 @@
     "baseline_same_windows": {
       "arrivals": {
         "n": 2597,
-        "top1_5nm": 42.818636888717755,
-        "top1_both": 30.997304582210244,
-        "best5_5nm": 70.38891028109356,
-        "best5_both": 43.357720446669234
+        "top1_5nm": 45.591066615325374,
+        "top1_both": 33.269156719291495,
+        "best5_5nm": 75.31767423950713,
+        "best5_both": 47.400847131305355
       },
       "all": {
         "n": 17189,
-        "top1_5nm": 66.874163709349,
-        "top1_both": 54.10436907324452,
-        "best5_5nm": 86.70079702135087,
-        "best5_both": 66.55419163418466
+        "top1_5nm": 68.177322706382,
+        "top1_both": 56.012566176042824,
+        "best5_5nm": 88.60899412414916,
+        "best5_both": 68.48565943335855
       }
     },
     "with_oracle": {
       "arrivals": {
         "n": 2597,
-        "top1_5nm": 45.090489025798995,
-        "top1_both": 36.041586445899114,
-        "best5_5nm": 70.27339237581826,
-        "best5_both": 53.75433192144783
+        "top1_5nm": 48.17096649980747,
+        "top1_both": 39.66114747785907,
+        "best5_5nm": 75.08663842895649,
+        "best5_both": 59.722757027339235
       },
       "all": {
         "n": 17189,
-        "top1_5nm": 67.26394787364012,
-        "top1_both": 57.32736052126361,
-        "best5_5nm": 86.68334399906918,
-        "best5_both": 72.13915876432603
+        "top1_5nm": 68.66018965617546,
+        "top1_both": 60.52126359881319,
+        "best5_5nm": 88.56245273139798,
+        "best5_both": 75.27488510093664
       }
     }
   },
@@ -612,26 +684,26 @@
   },
   "headline_intervals": {
     "classifier_alone_94_0": {
-      "caught": 267,
+      "caught": 270,
       "total": 284,
       "wilson95": [
-        90.62,
-        96.23
+        91.9,
+        97.04
       ],
       "source": "docs/metrics.json model2.headline_three_minute_warning.xgboost"
     },
     "running_system_94_7": {
-      "caught": 269,
+      "caught": 271,
       "total": 284,
       "wilson95": [
-        91.47,
-        96.77
+        92.33,
+        97.31
       ],
-      "source": "offsets_ab_20260924_181140.json, per_mode rule_only"
+      "source": "offsets_ab_20260926_210400.json, per_mode rule_only"
     }
   },
   "context_rows": {
-    "source": "context_ablation_20260925_050255.json",
+    "source": "`ml_pipeline/reports/context_ablation_20260925_050255.json`, `ml_pipeline/reports/context_ablation_20260926_175044.json`",
     "none": {
       "extra_features": [],
       "arrivals_best5_5nm": 71.46767020184743,
@@ -832,43 +904,113 @@
       "cap_applied": 9020,
       "served": {
         "arrivals": {
-          "top1_altitude_mean_ft": 1413.6672026686208,
-          "top1_both": 31.885049606568593,
-          "best5_both": 44.064317482039,
-          "best5_within_1000ft": 72.35716729387616
+          "top1_altitude_mean_ft": 1336.6062912824764,
+          "top1_both": 33.80088949709203,
+          "best5_both": 46.52754019842627,
+          "best5_within_1000ft": 66.50701334245637
         },
         "all": {
-          "top1_altitude_mean_ft": 1116.0079737791114,
-          "top1_both": 53.79380559425571,
-          "best5_both": 66.0165041260315,
-          "best5_within_1000ft": 78.53927767656201
+          "top1_altitude_mean_ft": 1050.6088105506333,
+          "top1_both": 55.015539599185516,
+          "best5_both": 67.13642696388384,
+          "best5_within_1000ft": 78.23384417532955
         },
         "with a selected level": {
-          "top1_altitude_mean_ft": 1509.0157307506072,
-          "top1_both": 42.57032542746828,
-          "best5_both": 52.619966905681196,
-          "best5_within_1000ft": 70.7446221731936
+          "top1_altitude_mean_ft": 1388.8008333414793,
+          "top1_both": 44.379481522338665,
+          "best5_both": 54.9034749034749,
+          "best5_within_1000ft": 70.4357418643133
         }
       },
       "served + selected-level cap": {
         "arrivals": {
-          "top1_altitude_mean_ft": 3778.6865764986783,
-          "top1_both": 21.21108450222374,
-          "best5_both": 26.06910708176531,
-          "best5_within_1000ft": 40.30106055422511
+          "top1_altitude_mean_ft": 3667.3857218214257,
+          "top1_both": 23.366404379062608,
+          "best5_both": 29.250769757098873,
+          "best5_within_1000ft": 38.59048922340062
         },
         "all": {
-          "top1_altitude_mean_ft": 1838.58389497693,
-          "top1_both": 51.012753188297076,
-          "best5_both": 61.35462437037831,
-          "best5_within_1000ft": 69.90140392240917
+          "top1_altitude_mean_ft": 1772.9923618331472,
+          "top1_both": 52.36309077269318,
+          "best5_both": 62.69960347229665,
+          "best5_within_1000ft": 70.29793162576358
         },
         "with a selected level": {
-          "top1_altitude_mean_ft": 2996.573573154765,
-          "top1_both": 36.84500827357971,
-          "best5_both": 43.02261445118588,
-          "best5_within_1000ft": 52.96194153337011
+          "top1_altitude_mean_ft": 2875.9626462520446,
+          "top1_both": 38.91891891891892,
+          "best5_both": 45.76944291230006,
+          "best5_within_1000ft": 54.09817981246553
         }
+      }
+    },
+    "route": {
+      "extra_features": [
+        "dest_dist_nm",
+        "dest_bearing_sin",
+        "dest_bearing_cos",
+        "orig_dist_nm"
+      ],
+      "arrivals_best5_5nm": 71.12555593568251,
+      "arrivals_top1_5nm": 43.51693465617516,
+      "all_best5_5nm": 86.69488800771622,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1432.1852024983814,
+          "top1_within_1000ft": 52.34348272322956,
+          "best5_within_1000ft": 67.53335614095107,
+          "top1_both": 30.92712966130688,
+          "best5_both": 42.90112897707834
+        },
+        "all": {
+          "top1_altitude_mean_ft": 938.2548866467783,
+          "top1_within_1000ft": 71.31068481406065,
+          "best5_within_1000ft": 76.82992176615583,
+          "top1_both": 53.71878683956703,
+          "best5_both": 66.28978673239739
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
+      }
+    },
+    "route_intent": {
+      "extra_features": [
+        "dest_dist_nm",
+        "dest_bearing_sin",
+        "dest_bearing_cos",
+        "orig_dist_nm",
+        "sel_alt_delta_ft",
+        "fms_alt_delta_ft",
+        "sel_heading_delta_deg",
+        "intent_age_s"
+      ],
+      "arrivals_best5_5nm": 72.08347588094423,
+      "arrivals_top1_5nm": 43.89326034895655,
+      "all_best5_5nm": 86.91458578930447,
+      "three_d": {
+        "arrivals": {
+          "top1_altitude_mean_ft": 1384.7798538240859,
+          "top1_within_1000ft": 53.30140266849127,
+          "best5_within_1000ft": 67.36229900786863,
+          "top1_both": 31.029763941156347,
+          "best5_both": 44.85118029421827
+        },
+        "all": {
+          "top1_altitude_mean_ft": 930.0711815399563,
+          "top1_within_1000ft": 72.0715893259029,
+          "best5_within_1000ft": 77.49437359339835,
+          "top1_both": 54.32965384203193,
+          "best5_both": 67.20072875361697
+        }
+      },
+      "gates": {
+        "above_60": true,
+        "per_mode_beats_table": true,
+        "top1_not_below_table": true,
+        "beats_constant_velocity_every_horizon": true
       }
     }
   },

@@ -1,0 +1,684 @@
+{
+  "dataset": "encounters_real_outcome_20260906_083724.parquet",
+  "test_pairs": 4690,
+  "served_configuration": "table current",
+  "results": {
+    "none": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3779527559055118,
+      "fbeta_2": 0.729483282674772,
+      "false_alarms_per_1000": 101.06609808102345,
+      "false_negative": 15,
+      "alert_rate": 0.1624733475479744,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 762,
+      "tier_1": {
+        "alerts": 41,
+        "real": 27,
+        "false": 14
+      },
+      "tier_2": {
+        "alerts": 721,
+        "real": 261,
+        "false": 460
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 403,
+          "real": 250
+        },
+        "classifier": {
+          "alerts": 359,
+          "real": 38
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "table current": {
+      "recall": 0.9504950495049505,
+      "precision": 0.34951456310679613,
+      "fbeta_2": 0.7072691552062869,
+      "false_alarms_per_1000": 114.28571428571428,
+      "false_negative": 15,
+      "alert_rate": 0.17569296375266524,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 824,
+      "tier_1": {
+        "alerts": 47,
+        "real": 29,
+        "false": 18
+      },
+      "tier_2": {
+        "alerts": 777,
+        "real": 259,
+        "false": 518
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 475,
+          "real": 241
+        },
+        "classifier": {
+          "alerts": 349,
+          "real": 47
+        }
+      },
+      "beneficial_vs_served": true
+    },
+    "table rule_only": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3779527559055118,
+      "fbeta_2": 0.729483282674772,
+      "false_alarms_per_1000": 101.06609808102345,
+      "false_negative": 15,
+      "alert_rate": 0.1624733475479744,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 762,
+      "tier_1": {
+        "alerts": 47,
+        "real": 29,
+        "false": 18
+      },
+      "tier_2": {
+        "alerts": 715,
+        "real": 259,
+        "false": 456
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 403,
+          "real": 250
+        },
+        "classifier": {
+          "alerts": 359,
+          "real": 38
+        }
+      },
+      "beneficial_vs_served": true
+    },
+    "table rule_or_mp:all": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3210702341137124,
+      "fbeta_2": 0.6827880512091038,
+      "false_alarms_per_1000": 129.85074626865674,
+      "false_negative": 15,
+      "alert_rate": 0.19125799573560767,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 897,
+      "tier_1": {
+        "alerts": 47,
+        "real": 29,
+        "false": 18
+      },
+      "tier_2": {
+        "alerts": 850,
+        "real": 259,
+        "false": 591
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 663,
+          "real": 273
+        },
+        "classifier": {
+          "alerts": 234,
+          "real": 15
+        }
+      },
+      "beneficial_vs_served": true
+    },
+    "table rule_or_mp:mass90": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3516483516483517,
+      "fbeta_2": 0.7090103397341211,
+      "false_alarms_per_1000": 113.21961620469082,
+      "false_negative": 15,
+      "alert_rate": 0.1746268656716418,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 819,
+      "tier_1": {
+        "alerts": 47,
+        "real": 28,
+        "false": 19
+      },
+      "tier_2": {
+        "alerts": 772,
+        "real": 260,
+        "false": 512
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 527,
+          "real": 262
+        },
+        "classifier": {
+          "alerts": 292,
+          "real": 26
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "table rule_or_mp:floor10": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3613550815558344,
+      "fbeta_2": 0.7167745146839224,
+      "false_alarms_per_1000": 108.52878464818764,
+      "false_negative": 15,
+      "alert_rate": 0.16993603411513858,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 797,
+      "tier_1": {
+        "alerts": 46,
+        "real": 28,
+        "false": 18
+      },
+      "tier_2": {
+        "alerts": 751,
+        "real": 260,
+        "false": 491
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 478,
+          "real": 257
+        },
+        "classifier": {
+          "alerts": 319,
+          "real": 31
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "table rule_or_mp:joint05": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3582089552238806,
+      "fbeta_2": 0.7142857142857143,
+      "false_alarms_per_1000": 110.02132196162047,
+      "false_negative": 15,
+      "alert_rate": 0.17142857142857143,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 804,
+      "tier_1": {
+        "alerts": 48,
+        "real": 28,
+        "false": 20
+      },
+      "tier_2": {
+        "alerts": 756,
+        "real": 260,
+        "false": 496
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 497,
+          "real": 260
+        },
+        "classifier": {
+          "alerts": 307,
+          "real": 28
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "table replace:mass90": {
+      "recall": 0.9504950495049505,
+      "precision": 0.36548223350253806,
+      "fbeta_2": 0.72,
+      "false_alarms_per_1000": 106.60980810234541,
+      "false_negative": 15,
+      "alert_rate": 0.16801705756929639,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 788,
+      "tier_1": {
+        "alerts": 47,
+        "real": 28,
+        "false": 19
+      },
+      "tier_2": {
+        "alerts": 741,
+        "real": 260,
+        "false": 481
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 438,
+          "real": 246
+        },
+        "classifier": {
+          "alerts": 350,
+          "real": 42
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "table replace:floor10": {
+      "recall": 0.9471947194719472,
+      "precision": 0.37128072445019406,
+      "fbeta_2": 0.7229219143576826,
+      "false_alarms_per_1000": 103.62473347547974,
+      "false_negative": 16,
+      "alert_rate": 0.16481876332622603,
+      "headline": {
+        "rate": 0.9436619718309859,
+        "caught": 268,
+        "total": 284
+      },
+      "alerts": 773,
+      "tier_1": {
+        "alerts": 46,
+        "real": 28,
+        "false": 18
+      },
+      "tier_2": {
+        "alerts": 727,
+        "real": 259,
+        "false": 468
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 414,
+          "real": 247
+        },
+        "classifier": {
+          "alerts": 359,
+          "real": 40
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "table replace:joint05": {
+      "recall": 0.9471947194719472,
+      "precision": 0.3722438391699092,
+      "fbeta_2": 0.7236510337871911,
+      "false_alarms_per_1000": 103.19829424307036,
+      "false_negative": 16,
+      "alert_rate": 0.16439232409381663,
+      "headline": {
+        "rate": 0.9436619718309859,
+        "caught": 268,
+        "total": 284
+      },
+      "alerts": 771,
+      "tier_1": {
+        "alerts": 48,
+        "real": 28,
+        "false": 20
+      },
+      "tier_2": {
+        "alerts": 723,
+        "real": 259,
+        "false": 464
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 414,
+          "real": 245
+        },
+        "classifier": {
+          "alerts": 357,
+          "real": 42
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode current": {
+      "recall": 0.9537953795379538,
+      "precision": 0.3648989898989899,
+      "fbeta_2": 0.7210578842315369,
+      "false_alarms_per_1000": 107.24946695095949,
+      "false_negative": 14,
+      "alert_rate": 0.16886993603411513,
+      "headline": {
+        "rate": 0.9507042253521126,
+        "caught": 270,
+        "total": 284
+      },
+      "alerts": 792,
+      "tier_1": {
+        "alerts": 45,
+        "real": 28,
+        "false": 17
+      },
+      "tier_2": {
+        "alerts": 747,
+        "real": 261,
+        "false": 486
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 443,
+          "real": 263
+        },
+        "classifier": {
+          "alerts": 349,
+          "real": 26
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode rule_only": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3779527559055118,
+      "fbeta_2": 0.729483282674772,
+      "false_alarms_per_1000": 101.06609808102345,
+      "false_negative": 15,
+      "alert_rate": 0.1624733475479744,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 762,
+      "tier_1": {
+        "alerts": 45,
+        "real": 28,
+        "false": 17
+      },
+      "tier_2": {
+        "alerts": 717,
+        "real": 260,
+        "false": 457
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 403,
+          "real": 250
+        },
+        "classifier": {
+          "alerts": 359,
+          "real": 38
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode rule_or_mp:all": {
+      "recall": 0.9603960396039604,
+      "precision": 0.3548780487804878,
+      "fbeta_2": 0.7160433070866141,
+      "false_alarms_per_1000": 112.79317697228144,
+      "false_negative": 12,
+      "alert_rate": 0.17484008528784648,
+      "headline": {
+        "rate": 0.9577464788732394,
+        "caught": 272,
+        "total": 284
+      },
+      "alerts": 820,
+      "tier_1": {
+        "alerts": 45,
+        "real": 28,
+        "false": 17
+      },
+      "tier_2": {
+        "alerts": 775,
+        "real": 263,
+        "false": 512
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 533,
+          "real": 278
+        },
+        "classifier": {
+          "alerts": 287,
+          "real": 13
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode rule_or_mp:mass90": {
+      "recall": 0.9570957095709571,
+      "precision": 0.3680203045685279,
+      "fbeta_2": 0.725,
+      "false_alarms_per_1000": 106.18336886993605,
+      "false_negative": 13,
+      "alert_rate": 0.16801705756929639,
+      "headline": {
+        "rate": 0.954225352112676,
+        "caught": 271,
+        "total": 284
+      },
+      "alerts": 788,
+      "tier_1": {
+        "alerts": 49,
+        "real": 28,
+        "false": 21
+      },
+      "tier_2": {
+        "alerts": 739,
+        "real": 262,
+        "false": 477
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 482,
+          "real": 273
+        },
+        "classifier": {
+          "alerts": 306,
+          "real": 17
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode rule_or_mp:floor10": {
+      "recall": 0.9570957095709571,
+      "precision": 0.37371134020618557,
+      "fbeta_2": 0.7293762575452716,
+      "false_alarms_per_1000": 103.62473347547974,
+      "false_negative": 13,
+      "alert_rate": 0.16545842217484008,
+      "headline": {
+        "rate": 0.954225352112676,
+        "caught": 271,
+        "total": 284
+      },
+      "alerts": 776,
+      "tier_1": {
+        "alerts": 48,
+        "real": 28,
+        "false": 20
+      },
+      "tier_2": {
+        "alerts": 728,
+        "real": 262,
+        "false": 466
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 465,
+          "real": 272
+        },
+        "classifier": {
+          "alerts": 311,
+          "real": 18
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode rule_or_mp:joint05": {
+      "recall": 0.9570957095709571,
+      "precision": 0.3722721437740693,
+      "fbeta_2": 0.7282772476142642,
+      "false_alarms_per_1000": 104.26439232409382,
+      "false_negative": 13,
+      "alert_rate": 0.16609808102345416,
+      "headline": {
+        "rate": 0.954225352112676,
+        "caught": 271,
+        "total": 284
+      },
+      "alerts": 779,
+      "tier_1": {
+        "alerts": 49,
+        "real": 28,
+        "false": 21
+      },
+      "tier_2": {
+        "alerts": 730,
+        "real": 262,
+        "false": 468
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 468,
+          "real": 273
+        },
+        "classifier": {
+          "alerts": 311,
+          "real": 17
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode replace:mass90": {
+      "recall": 0.9504950495049505,
+      "precision": 0.3764705882352941,
+      "fbeta_2": 0.7283763277693475,
+      "false_alarms_per_1000": 101.70575692963753,
+      "false_negative": 15,
+      "alert_rate": 0.1631130063965885,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 765,
+      "tier_1": {
+        "alerts": 49,
+        "real": 28,
+        "false": 21
+      },
+      "tier_2": {
+        "alerts": 716,
+        "real": 260,
+        "false": 456
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 411,
+          "real": 264
+        },
+        "classifier": {
+          "alerts": 354,
+          "real": 24
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode replace:floor10": {
+      "recall": 0.9504950495049505,
+      "precision": 0.38145695364238413,
+      "fbeta_2": 0.7320793085917641,
+      "false_alarms_per_1000": 99.57356076759062,
+      "false_negative": 15,
+      "alert_rate": 0.16098081023454158,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 755,
+      "tier_1": {
+        "alerts": 48,
+        "real": 28,
+        "false": 20
+      },
+      "tier_2": {
+        "alerts": 707,
+        "real": 260,
+        "false": 447
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 397,
+          "real": 263
+        },
+        "classifier": {
+          "alerts": 358,
+          "real": 25
+        }
+      },
+      "beneficial_vs_served": false
+    },
+    "per_mode replace:joint05": {
+      "recall": 0.9504950495049505,
+      "precision": 0.380449141347424,
+      "fbeta_2": 0.7313357034027425,
+      "false_alarms_per_1000": 100.0,
+      "false_negative": 15,
+      "alert_rate": 0.16140724946695095,
+      "headline": {
+        "rate": 0.9471830985915493,
+        "caught": 269,
+        "total": 284
+      },
+      "alerts": 757,
+      "tier_1": {
+        "alerts": 49,
+        "real": 28,
+        "false": 21
+      },
+      "tier_2": {
+        "alerts": 708,
+        "real": 260,
+        "false": 448
+      },
+      "by_route": {
+        "safety-net": {
+          "alerts": 398,
+          "real": 263
+        },
+        "classifier": {
+          "alerts": 359,
+          "real": 25
+        }
+      },
+      "beneficial_vs_served": false
+    }
+  },
+  "multipath_net_adds": {
+    "table": {
+      "real": 0,
+      "false": 135,
+      "real_with_3min": 0
+    },
+    "per_mode": {
+      "real": 3,
+      "false": 55,
+      "real_with_3min": 3
+    }
+  }
+}

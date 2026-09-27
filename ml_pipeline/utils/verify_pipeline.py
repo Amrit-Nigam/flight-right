@@ -310,10 +310,11 @@ def verify_conflict_classifier() -> None:
     print(f"         threshold {threshold:.4f}, {len(saved_features)} features, "
           f"trained on {booster.attr('training_dataset')}")
 
-    from generate_synthetic_scenarios import FEATURE_COLUMNS, OUTCOME_COLUMNS
-    check("saved feature list matches the generator that produces the data",
-          saved_features == FEATURE_COLUMNS,
-          "identical" if saved_features == FEATURE_COLUMNS else "MISMATCH -- retrain required")
+    from generate_synthetic_scenarios import FEATURE_COLUMNS, INTENT_COLUMNS, OUTCOME_COLUMNS
+    known = saved_features in (FEATURE_COLUMNS, FEATURE_COLUMNS + INTENT_COLUMNS)
+    check("saved feature list matches the generator (the 24 features, optionally + 3 dialled-level inputs)",
+          known, ("identical" if saved_features == FEATURE_COLUMNS else "24 + dialled levels")
+          if known else "MISMATCH -- retrain required")
     overlap = sorted(set(saved_features).intersection(OUTCOME_COLUMNS))
     check("no outcome column is being used as a feature (the circular-label defect)",
           not overlap, f"overlap {overlap}" if overlap else "features and outcomes are disjoint")
@@ -325,7 +326,8 @@ def verify_conflict_classifier() -> None:
     from train_xgboost import rule_predictions, split_by_session
     splits = split_by_session(dataset)
     test = splits["test"]
-    probabilities = booster.inplace_predict(test[saved_features].to_numpy(dtype=np.float32))
+    from train_xgboost import classifier_raw_scores
+    probabilities = classifier_raw_scores(booster, test)
     check("probabilities are in [0, 1]",
           bool((probabilities >= 0).all() and (probabilities <= 1).all()),
           f"range {probabilities.min():.4f} to {probabilities.max():.4f}")

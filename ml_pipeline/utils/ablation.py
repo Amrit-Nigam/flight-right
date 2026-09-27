@@ -130,20 +130,29 @@ def main() -> None:
     cv = framing.constant_velocity_predict(X)[:, None]
     lstm = TrajectoryPredictor().predict(X)[0][:, None]
     tree = np.load(PROCESSED / "tree_reference_test_predictions.npy")[:, None]
-    table_probabilities, table_positions, _ = MultiPathPredictor(MULTIPATH_PATH, offsets="table").predict(X)
-    per_mode = MultiPathPredictor(MULTIPATH_PATH, offsets="per_mode")
-    probabilities, positions, _ = per_mode.predict(X)
-    archive_path = PROCESSED / "seed_runs/multipath_archive_seed42.pkl"
-    archive = MultiPathPredictor(archive_path, offsets="per_mode").predict(X)[1] if archive_path.exists() else None
+    # Each historical row is scored from the pickle that was served at the time, so a row's label
+    # stays true after the served file changes (it changed on 24, 26 and 27 Sep).
+    saved = MULTIPATH_PATH.parent
+    per_mode_2309 = saved / "trajectory_multipath_20260923_per_mode_backup.pkl"   # served 24-26 Sep
+    archive_2609 = saved / "trajectory_multipath_20260926_archive_backup.pkl"      # served 26-27 Sep
+    early = per_mode_2309 if per_mode_2309.exists() else MULTIPATH_PATH
+    _, table_positions, _ = MultiPathPredictor(early, offsets="table").predict(X)
+    probabilities_2309, positions_2309, _ = MultiPathPredictor(early, offsets="per_mode").predict(X)
+    served = MultiPathPredictor(MULTIPATH_PATH, offsets="per_mode")
+    probabilities, positions, _ = served.predict(X, extra=served.saved_split_inputs("test"))
 
     rows = [("constant velocity", cv, "baseline"),
             ("single-answer LSTM", lstm, "not served as a candidate source; the tree beats it"),
             ("tree reference (single answer)", tree, "reference only"),
             ("multi-path, pattern table", table_positions, "served until 24 Sep 2026"),
-            ("+ per-mode offsets", positions, "SERVED since 24 Sep 2026"),
-            ("+ candidate pruning (90% mass)", prune_mass(probabilities, positions), "measured, not adopted (plan 3.2)")]
-    if archive is not None:
-        rows.append(("+ more data (OpenSky archive)", archive, "measured, not adopted (alert chain: one real tier 1 alarm lost on validation)"))
+            ("+ per-mode offsets", positions_2309, "served 24-26 Sep 2026"),
+            ("+ candidate pruning (90% mass)", prune_mass(probabilities_2309, positions_2309),
+             "measured, not adopted (plan 3.2)")]
+    if archive_2609.exists():
+        rows.append(("+ more data (OpenSky archive)", MultiPathPredictor(archive_2609, offsets="per_mode").predict(X)[1],
+                     "served 26-27 Sep 2026 (Archit accepted one real tier 1 alarm lost on validation)"))
+    if served.extra_features:
+        rows.append(("+ destination (adsbdb route)", positions, "SERVED since 27 Sep 2026 (all 11 pre-set checks passed)"))
     result = {"generated_utc": datetime.now(timezone.utc).isoformat(), "test_windows": int(len(X)), "rows": []}
     for name, pos, note in rows:
         result["rows"].append({"name": name, "note": note, "ten_minutes": ten_minute_scores(pos, X, y, mask, rows10),
@@ -184,10 +193,15 @@ def main() -> None:
                                 "wilson95": wilson(served["caught"], served["total"]),
                                 "source": f"{sorted(REPORTS.glob('offsets_ab_*.json'))[-1].name}, per_mode rule_only"}}
     # Plan 9.x rows, read from their own reports (never typed).
+    # Each run adds rows (25 Sep: intent/wind/type/traffic/all; 26 Sep: route, route + intent), so
+    # merge every report, a newer one overriding a row both contain.
     ctx = sorted(REPORTS.glob("context_ablation_*.json"))
     if ctx:
-        result["context_rows"] = {"source": ctx[-1].name, **json.loads(ctx[-1].read_text())}
-    clf = sorted(REPORTS.glob("classifier_intent_*.json"))
+        merged: dict = {}
+        for report in ctx:
+            merged.update(json.loads(report.read_text()))
+        result["context_rows"] = {"source": ", ".join(f"`ml_pipeline/reports/{r.name}`" for r in ctx), **merged}
+    clf = sorted(REPORTS.glob("classifier_intent_2*.json"))   # the 25 Sep ablation, not the 26 Sep *_seeds_* check
     if clf:
         result["classifier_intent"] = {"source": clf[-1].name, **json.loads(clf[-1].read_text())}
 
@@ -244,11 +258,12 @@ def render(r: dict) -> str:
     if "context_rows" in r:
         c = r["context_rows"]
         lines += ["", "## Plan 9: context features for the offset regressors (seed 42, one change at a time)", "",
-                  f"Source: `ml_pipeline/reports/{c['source']}`. Features reach the offset regressors only, so "
-                  "candidate shapes and probabilities are identical in every row.", "",
+                  f"Sources: {c['source']}. Standard split (no archive data), so `none` is the 24-26 Sep model. "
+                  "Features reach the offset regressors only, so candidate shapes and probabilities are identical "
+                  "in every row. `route` = destination; the served model carries it on archive data (table above).", "",
                   "| Row | Arrivals best-of-5 | Arrivals top-1 | Arrivals best-of-5 3-D | Arrivals top-1 3-D | All: top-1 height error |",
                   "|---|---|---|---|---|---|"]
-        for name in ("none", "intent", "wind", "type", "traffic", "all"):
+        for name in ("none", "intent", "wind", "type", "traffic", "all", "route", "route_intent"):
             if name in c:
                 x = c[name]
                 lines.append(f"| {name} | {x['arrivals_best5_5nm']:.1f}% | {x['arrivals_top1_5nm']:.1f}% | "
@@ -281,7 +296,8 @@ def render(r: dict) -> str:
               f"{h['classifier_alone_94_0']['wilson95'][1]}%.",
               f"* Running system: {h['running_system_94_7']['caught']} of {h['running_system_94_7']['total']}; "
               f"95% interval {h['running_system_94_7']['wilson95'][0]}–{h['running_system_94_7']['wilson95'][1]}%.",
-              "", "The two intervals overlap almost entirely: on 284 conflicts, a 2-conflict difference is "
+              "", f"The two intervals overlap almost entirely: on {h['classifier_alone_94_0']['total']} conflicts, a "
+              f"{abs(h['running_system_94_7']['caught'] - h['classifier_alone_94_0']['caught'])}-conflict difference is "
               "not statistically distinguishable. Report both figures, never as a significant gain."]
     return "\n".join(lines) + "\n"
 

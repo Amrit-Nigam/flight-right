@@ -11,3 +11,16 @@ fastapi
 uvicorn
 certifi
 openap
+# Speech chain (ml_pipeline/voice). Versions are the ones measured on 25 Sep 2026.
+# Text-to-speech (parler-tts) is NOT here: it pins transformers==4.46.1 and lives in its own
+# environment, %LOCALAPPDATA%/FlightRight/venv_tts (see ml_pipeline/voice/synthesize.py).
+transformers>=5.17
+faster-whisper>=1.2.1
+ctranslate2>=4.8.2
+peft>=0.21.0
+accelerate>=1.15.0
+jiwer>=4.0
+rapidfuzz>=3.14
+librosa>=1.0
+soundfile>=0.14
+scipy

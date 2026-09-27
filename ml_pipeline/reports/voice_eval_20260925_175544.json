@@ -1,0 +1,60 @@
+{
+  "measured_at_utc": "2026-09-25T12:25:43.885332+00:00",
+  "truth": {
+    "atco2": "official ATCO2 XML annotations (authors' annotations; 2/877 tag-verified)",
+    "aircraft_list": "proxy: identities annotated on the same airport, frequency and day",
+    "atcosim_uwb": "agreement with the extractor on the human transcript, not labelled accuracy"
+  },
+  "atco2_clips": {
+    "clean": 762,
+    "contaminated": 109,
+    "with_aircraft_identity": 345,
+    "with_usable_clearance": 70,
+    "clearance_types": {
+      "CLIMB": 31,
+      "SPEED": 18,
+      "DESCEND": 13,
+      "TURN": 5,
+      "DIRECT": 3
+    }
+  },
+  "models": {
+    "human_transcript": {
+      "model_id": "human transcript (upper bound for the extractor)",
+      "corpora": {
+        "atco2_clean": {
+          "clips": 762,
+          "clearance_accuracy": 77.42,
+          "clearance_n": 31,
+          "clearance_accuracy_plausible_tags": 95.83,
+          "clearance_n_plausible_tags": 24,
+          "callsign_accuracy_list_free": 38.41,
+          "callsign_accuracy_with_list": 93.9,
+          "callsign_n": 328,
+          "mean_aircraft_list_size": 5.6,
+          "action_accuracy": 71.43,
+          "value_accuracy": 60.32,
+          "action_n": 63,
+          "confidence_when_right": 0.938,
+          "confidence_when_wrong": 0.786
+        },
+        "atco2_contaminated": {
+          "clips": 109,
+          "clearance_accuracy": NaN,
+          "clearance_n": 0,
+          "clearance_accuracy_plausible_tags": NaN,
+          "clearance_n_plausible_tags": 0,
+          "callsign_accuracy_list_free": 11.76,
+          "callsign_accuracy_with_list": 94.12,
+          "callsign_n": 17,
+          "mean_aircraft_list_size": 8.8,
+          "action_accuracy": 85.71,
+          "value_accuracy": 57.14,
+          "action_n": 7,
+          "confidence_when_right": NaN,
+          "confidence_when_wrong": NaN
+        }
+      }
+    }
+  }
+}
