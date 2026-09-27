@@ -201,7 +201,7 @@ export default function LogsPage() {
           ) : (
             <>
               This tab&apos;s own log in <strong style={{ color: "var(--text-primary)" }}>sessionStorage</strong>{" "}
-              (console, toasts, errors, mock activity and audit events). It clears when the tab closes; the audit
+              (console, toasts, errors, dashboard activity and audit events). It clears when the tab closes; the audit
               events in it are also sent to the server log.
             </>
           )}

@@ -375,7 +375,42 @@ SQUAWK, FUEL and WAYPOINT as though they were measured fact. Every aircraft show
 
 ---
 
+### H6. A heard callsign snaps to a same-airline aircraft with a different flight number
+
+Found in the 27 Sep demo run. The recorded clip says "speedbird eight five five" (BAW855), which is
+not in the Mumbai replay. `ml_pipeline/voice/callsigns.match()` scored it 73.2 against **BAW138** —
+over its 70 minimum — because the airline word ("speedbird") dominates the character-level
+similarity, and matched it. The 0.85 confidence floor then refused the clearance (0.49), so nothing
+was applied: the safety gate worked. But the radio panel shows "AIRCRAFT BAW138", a wrong aircraft,
+and at a slightly higher recogniser confidence the floor is the only thing standing between a wrong
+match and an applied clearance.
+
+**Proposed fix (our own design, no source):** require the flight-number part to agree (for example,
+score airline and number separately and demand both), then re-measure callsign accuracy with the
+aircraft list on the 328 ATCO2 callsigns (currently 70.4%) before adopting it. Not changed yet.
+
+---
+
 ## Hardcoded values that should not be
+
+**RESOLVED 27 Sep 2026: every row below.** Each value now comes from real data or was removed where no
+source exists (docs/CLAUDE.md §14/§15, 27 Sep, "Nothing on the dashboard is invented any more"):
+
+| Was | Now |
+|---|---|
+| "ATIS M", "RWY 27R / 27L" | Runway in use derived from observed landings (or the METAR wind), plus METAR wind and QNH. No ATIS (none readable) |
+| "A. SHARMA" | The identity the server records (`FLIGHT_RIGHT_CONTROLLER_ID`, default `demo-controller`) |
+| Fixed METAR | The METAR actually issued: aviationweather.gov live, Iowa Environmental Mesonet archive in replay |
+| "Saved 14 minutes" / AI AUTO-BALANCE | Removed; the runway panel shows movements observed in the tracks and estimated arrivals |
+| SEVERE WX cell, deviation route | Removed; the weather overlay is the real METAR |
+| "No new system notifications." | The alert feed's own notifications |
+| 38 s and weights in `adapters.js`; 5 NM / 1,000 ft | Served by `/api/health` `constants`, read from the modules that use them |
+| `dur: 2` | The bar is as wide as the 15 s prediction grid |
+| Wall-clock UTC while replaying | The recording's own time, labelled REC |
+| Also found and fixed | Waypoints DEGAN/ARSIN/OKLOV/DISHA/LUCKY and an FIR outline (unverifiable), "SECTOR 7B-ALPHA", approach lines 27L/27R/09L/09R, conflict lines bent to fixed map points, a radar view that never placed aircraft at their real positions and showed "28 TRACKS · 6 RWYS · 87% OPT", a timeline that drew every predicted closest approach ~30 min in the past, per-aircraft route "BOM TMA" / type "UNK" / fuel / a guessed waypoint, and three drawer buttons that only showed a toast (ISSUE CLEARANCE now records a real clearance; sequence and holding removed) |
+
+The original table, kept for the record:
+
 
 | Value | Where | Why it is a problem |
 |---|---|---|

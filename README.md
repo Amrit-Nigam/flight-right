@@ -206,7 +206,9 @@ flowchart LR
 | **OpenSky historical archive** (Trino) | Full days of past Mumbai traffic | 400,000 extra training windows for the path model. Indian low-altitude coverage only starts in Jan 2025, which we measured | Offline |
 | **adsb.lol** | `nav_altitude_mcp`: the altitude the crew has **dialled into the autopilot** (OpenSky does not carry it) | 3 inputs to the conflict classifier | Live API in live mode; saved history in replay |
 | **adsbdb** | Each callsign's route (origin → destination) | 4 destination inputs to the path model | Looked up once per callsign, then cached |
-| **OurAirports** | Airport coordinates | Distance and bearing to destination | Offline file |
+| **OurAirports** | Airport coordinates; Mumbai's runways (09/27, 14/32) with threshold positions | Distance and bearing to destination; the runway panel and the runways on the map | Offline file |
+| **METAR** (official half-hourly airport weather report) | Wind, visibility, cloud, temperature, QNH for VABB | Top bar, flight list, map weather overlay; runway in use when no movement is seen yet | Live: aviationweather.gov (NOAA). Replay: the Iowa Environmental Mesonet archive, cached by `scripts/fetch_metar_archive.py` |
+| **adsb.lol** (aircraft details) | Registration, type, squawk | Flight details drawer | Replay: saved trace headers (97% of 1,721 airframes have a type). Live: the same adsb.lol feed |
 | **ATCOSIM, UWB-ATCC** | Real and simulated European controller speech with transcripts | Training the speech model | Offline |
 | **ATCO2 test set** | Real radio with annotated clearances | **Testing only** (762 clips never trained on) | Offline |
 | **Svarah** (AI4Bharat) | Real Indian-accented English | **Testing only**: how the speech model handles Indian accents | Offline |
@@ -306,12 +308,12 @@ flowchart LR
 
 | Panel | Shows | Comes from |
 |---|---|---|
-| **Top bar** | Clock, controller profile, alarm badge | Backend health; some text is still hard-coded (see [docs/ISSUES.md](docs/ISSUES.md)) |
+| **Top bar** | VABB runway in use (derived from observed landings, or the METAR wind), METAR wind and QNH, the clock **of the data on screen** (the recording's own UTC time in replay), the controller identity the server records, a microphone that runs the speech chain, and the alert feed's notifications | `/api/airport`, `/api/health`, `/api/speech/hear`, alert feed |
 | **Data source bar** | LIVE or REPLAY, which recording, aircraft count, pairs assessed and how long it took, and the permanent strip "PROTOTYPE · DECISION SUPPORT · CONTROLLER DECIDES" | `/api/aircraft/source`, WebSocket |
 | **Conflict banner** | The most urgent tier 1 alarm, with a **RESOLVE NOW** button | Alert feed `attention` |
-| **Flight list** | Every aircraft, searchable | `/ws/stream` aircraft |
+| **Flight list** | Every aircraft, searchable; the METAR strip (raw and decoded, with its source and issue time) | `/ws/stream` aircraft, `/api/airport` |
 | **Map / radar sweep** | Aircraft positions and conflict pairs over Mumbai (MapLibre / canvas) | `/ws/stream` |
-| **Flight detail drawer** | One aircraft's state and history | `/api/aircraft/history` |
+| **Flight detail drawer** | Route (adsbdb lookup), type and registration (adsb.lol), altitude, speed, vertical rate, distance and bearing from VABB, ETA only for VABB-bound flights (an estimate, labelled), squawk when received; **ISSUE CLEARANCE** records a typed instruction that reshapes the aircraft's predicted paths | `/ws/stream`, `POST /api/clearances` |
 | **AI suggestions** | Ranked manoeuvres with explanation, confidence and cost | Model 3 via the alert feed |
 | **Resolve dialog** | Choose an option; **ACCEPT, RECORD DECISION**. The button stays disabled until an option is picked | `/api/recommend/resolution` → `/api/actions/accept` |
 | **Watch list** | Tier 2 pairs, plus the counted low-confidence group | Alert feed `active` |
@@ -319,7 +321,8 @@ flowchart LR
 | **Timeline** | Predicted closest approaches on a time axis | Alert feed |
 | **Radio panel** | Play a clip; see transcript → instruction → matched aircraft → applied or not | `/api/speech/*` |
 | **Audit trail / Logs page** | Every suggestion and decision, with model versions | `/api/audit` (PostgreSQL) |
-| **Runway panel, weather** | **Labelled DEMO**: no data source exists | Static |
+| **Runway panel** | Mumbai's real runways; landings and departures **observed** in the tracks over the last 45 min, arrivals **estimated** for the next 30 min | `/api/airport` (derived; see `airport_service.py`) |
+| **Map / radar overlays** | The OpenSky query box, a 50 NM ring, the real runways with a 10 NM extended centreline on the runway in use; for an alarm, each aircraft's straight-line position at the predicted closest approach | `/api/airport`, alert feed |
 
 The five predicted paths are used for tiering, conflict probability and manoeuvre checks. They
 are **not yet drawn on the map**.
@@ -332,7 +335,7 @@ are **not yet drawn on the map**.
 
 | Mode (`FLIGHT_RIGHT_DATA_MODE`) | What the audience sees | When to use it |
 |---|---|---|
-| **`replay`** (recommended) | Real aircraft recorded from OpenSky over Mumbai on **4 Sep 2026, 20:45 IST** (the newest session, `session_c_20260904_204503`). Dialled altitudes come from saved adsb.lol history; routes from the cache | **The main demo.** Works offline, identical every run, and starts three minutes before a genuine encounter in the recording |
+| **`replay`** (recommended) | Real aircraft recorded from OpenSky over Mumbai on **4 Sep 2026, 20:45–22:15 UTC** (5 Sep, 02:15–03:45 IST; the newest session, `session_c_20260904_204503`, named in UTC). It falls inside the **held-out test period**, so the models never trained on this traffic. Dialled altitudes, aircraft types and routes come from saved adsb.lol and adsbdb data; the weather is the METAR actually issued at that time | **The main demo.** Works offline, identical every run, and starts three minutes before a genuine encounter in the recording |
 | `live` | Aircraft over Mumbai **right now**, from OpenSky (needs `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` in `.env` and internet). Dialled altitudes from the adsb.lol live API every 30 s | A short segment proving the system works on live data. **Live traffic usually has no conflict on cue**; say so |
 | `auto` (default) | Live, falling back to replay if OpenSky is down or credits drop below 200 | Day-to-day running |
 
@@ -351,8 +354,10 @@ FLIGHT_RIGHT_DATA_MODE=replay python -m uvicorn server.app.main:app --port 8000
 cd client && npm run dev                                            # second terminal
 ```
 
-Open <http://localhost:5173>. The backend log names the pair the replay has jumped to. Allow
-about a minute for the first alarm. On PowerShell, set the mode with
+Open <http://localhost:5173>. The backend log names the pair the replay has jumped to. **The
+first alarm arrives about 3½–4 minutes after the backend starts** (measured 27 Sep: the pair joins
+the watch list at ~3 min 20 s and becomes an alarm at ~3 min 45 s). Replay starts three minutes
+before the encounter on purpose, so use that time for steps 1 and 2. On PowerShell, set the mode with
 `$env:FLIGHT_RIGHT_DATA_MODE="replay"` first.
 
 ### The demo script (about 10 minutes)
@@ -481,8 +486,11 @@ python ml_pipeline/utils/ablation.py             # regenerates docs/ablation.md
 - **Speech:** tested on European radio and simulator speech. Indian-accent results (Svarah) are
   being measured now. No public recording of real Indian ATC radio exists.
 - **Not yet built:** scenario-simulation mode, drawing the five paths on the map, a
-  machine-learned manoeuvre ranker, and login (a fixed demo controller profile is used).
-  Runway status and weather are labelled DEMO.
+  machine-learned manoeuvre ranker, and login (a single configured controller identity,
+  `FLIGHT_RIGHT_CONTROLLER_ID`, is used).
+- **Derived, not official:** the runway in use and runway movements are inferred from the tracks
+  (an aircraft low and lined up with a runway), not read from ATC. No ATIS is shown, because none
+  is published in a form we can read. Arrival times are distance ÷ ground speed.
 - **Known issues** found by testing the running system are listed in
   [docs/ISSUES.md](docs/ISSUES.md).
 

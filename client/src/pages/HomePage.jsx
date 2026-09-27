@@ -18,6 +18,7 @@ import NLPCommsPanel from "@/components/NLPCommsPanel";
 import { BlurFade } from "@/components/ui/blur-fade";
 
 import { useLiveData } from "@/hooks/useLiveData";
+import { useBackendInfo } from "@/hooks/useBackendInfo";
 import {
   conflictFromAlerts, metricsFromState, resolveOptionsFromAlert,
   suggestionsFromAlerts, timelineFromAlerts, watchListFromAlerts, withConflictStatus,
@@ -30,16 +31,36 @@ export default function HomePage() {
   // conflict and no mock resolution: if the backend is unreachable the dashboard says
   // so rather than showing aircraft that do not exist.
   const { flights: rawFlights, conflicts, feed, connection, lastError } = useLiveData();
+  // Runways, METAR, runway in use (derived from the tracks), safety constants and the controller
+  // identity -- the facts the panels used to invent.
+  const { health, airport } = useBackendInfo();
+  const constants = health?.constants || null;
 
   const active = conflicts.active || [];
   const flights = useMemo(() => withConflictStatus(rawFlights, active), [rawFlights, active]);
-  const conflict = useMemo(() => conflictFromAlerts(active), [active]);
+  const conflict = useMemo(() => conflictFromAlerts(active, constants), [active, constants]);
   const suggestions = useMemo(() => suggestionsFromAlerts(active), [active]);
   const watchList = useMemo(() => watchListFromAlerts(active), [active]);
   const metrics = useMemo(
     () => metricsFromState(flights, conflicts, feed), [flights, conflicts, feed]);
-  const resolveOptions = useMemo(() => resolveOptionsFromAlert(conflict), [conflict]);
-  const timelineRows = useMemo(() => timelineFromAlerts(active), [active]);
+  const resolveOptions = useMemo(() => resolveOptionsFromAlert(conflict, constants), [conflict, constants]);
+  const timelineRows = useMemo(() => timelineFromAlerts(active, constants), [active, constants]);
+
+  // The bell: the alert feed's own notifications (the updates that should interrupt), kept
+  // for this page session. It used to say "No new system notifications" whatever was happening.
+  const [notificationLog, setNotificationLog] = useState([]);
+  useEffect(() => {
+    const incoming = conflicts.notifications || [];
+    if (!incoming.length) return;
+    setNotificationLog((prev) => {
+      const seen = new Set(prev.map((n) => n.key));
+      const at = (feed.dataTimeUtc || new Date().toISOString()).slice(11, 19) + "Z";
+      const fresh = incoming
+        .map((n) => ({ key: `${n.id}|${n.reason}`, pair: n.pair || [], tier: n.tier, reason: n.reason, at }))
+        .filter((n) => !seen.has(n.key));
+      return fresh.length ? [...fresh, ...prev].slice(0, 30) : prev;
+    });
+  }, [conflicts.notifications, feed.dataTimeUtc]);
 
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState("OPT_1");
@@ -203,8 +224,10 @@ export default function HomePage() {
         theme={theme}
         onToggleTheme={toggleTheme}
         conflict={conflict}
-        weatherOn={weatherOn}
-        onWeatherToggle={() => setWeatherOn((w) => !w)}
+        feed={feed}
+        airport={airport}
+        health={health}
+        notifications={notificationLog}
       />
 
       <DataSourceBar feed={feed} connection={connection} lastError={lastError}
@@ -223,6 +246,7 @@ export default function HomePage() {
             activeTab={activeTab}
             onTabChange={handleTabChange}
             theme={theme}
+            airport={airport}
           />
         </BlurFade>
 
@@ -248,7 +272,7 @@ export default function HomePage() {
             <button
               type="button"
               onClick={() => setWeatherOn((w) => !w)}
-              title="Weather overlay is illustrative only — no weather feed is connected."
+              title="The METAR (official airport weather report) for the time on screen"
               className="font-display ml-2 px-4 py-1.5 text-[11px] tracking-widest transition-all"
               style={{
                 background: weatherOn ? "var(--teal)" : "transparent",
@@ -256,7 +280,7 @@ export default function HomePage() {
                 border: "1px solid var(--teal)",
               }}
             >
-              ☁ WEATHER (DEMO)
+              ☁ METAR {airport?.metar ? airport.metar.issuedUtc.slice(11, 16) + "Z" : ""}
             </button>
 
             <div className="relative ml-auto" style={{ zIndex: 950 }}>
@@ -273,13 +297,33 @@ export default function HomePage() {
                   selectedFlight={selectedFlight}
                   onSelectFlight={handleSelectFlight}
                   theme={theme}
+                  airport={airport}
+                  constants={constants}
+                  source={feed.source}
                 />
               </Suspense>
             </div>
             <div style={{ position: "absolute", inset: 0, display: mapView === "radar" ? "block" : "none" }}>
               <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme}
-                           weatherOn={weatherOn} weatherDevAccepted={false} />
+                           conflict={conflict} airport={airport} feed={feed} />
             </div>
+            {weatherOn && (
+              <div className="absolute top-2 right-2 z-[800] max-w-[420px] p-3 font-display text-[11px] space-y-1"
+                   style={{ background: "var(--bg-panel-alt)", border: "1px solid var(--teal)", color: "var(--text-secondary)" }}>
+                {airport?.metar ? (
+                  <>
+                    <p style={{ color: "var(--teal)" }}>METAR {airport.metar.raw}</p>
+                    <p>
+                      Wind {airport.metar.windVariable ? "variable" : airport.metar.windDirDeg != null ? `${String(airport.metar.windDirDeg).padStart(3, "0")}°` : "—"} {airport.metar.windKt ?? "—"} kt
+                      {" · "}Vis {airport.metar.visibilityM ?? "—"} m · QNH {airport.metar.qnhHpa ?? "—"}
+                      {airport.metar.weather.length ? ` · ${airport.metar.weather.join(" ")}` : ""}
+                    </p>
+                    <p>Cloud: {airport.metar.clouds.length ? airport.metar.clouds.map((c) => `${c.cover} ${c.baseFt} ft${c.type ? ` ${c.type}` : ""}`).join(", ") : "none reported"}</p>
+                    <p style={{ color: "var(--text-muted)" }}>{airport.metar.source} · {airport.metar.issuedUtc.slice(0, 16).replace("T", " ")}Z{airport.metar.stale ? " · STALE" : ""}</p>
+                  </>
+                ) : <p style={{ color: "var(--text-muted)" }}>No METAR for this time.</p>}
+              </div>
+            )}
           </div>
         </BlurFade>
 
@@ -293,14 +337,15 @@ export default function HomePage() {
             acceptedCount={acceptedCount}
           />
           <WatchListPanel items={watchList} lowConfidence={conflicts.lowConfidence} theme={theme} />
-          <RunwayStatusPanel />
+          <RunwayStatusPanel airport={airport} />
           <NLPCommsPanel />
           <div className="h-4 shrink-0" />
         </BlurFade>
       </div>
 
       <TimelinePanel isOpen={timelineOpen} onToggle={() => setTimelineOpen((o) => !o)}
-                     rows={timelineRows} />
+                     rows={timelineRows} dataTimeUtc={feed.dataTimeUtc}
+                     lookAheadSeconds={constants?.lookAheadSeconds} />
 
       <ResolveModal
         open={resolveModalOpen}

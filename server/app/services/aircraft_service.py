@@ -24,6 +24,8 @@ from datetime import datetime, timezone
 
 from ..config import DATA_MODE, HISTORY_LENGTH
 from .normalizer import from_opensky_state, is_valid
+from .aircraft_info import aircraft_info
+from .airport_service import airport_service
 from .opensky_client import OpenSkyClient, OpenSkyUnavailable
 from .replay_service import ReplayService
 
@@ -77,6 +79,9 @@ class AircraftService:
                 error = f"{error + '; ' if error else ''}replay failed: {failure}"
                 log.error("Replay failed: %s", failure)
 
+        # Real registration, type, route and ETA in place of the old placeholders.
+        flights = [aircraft_info.enrich(a) for a in flights]
+
         with self._lock:
             self.flights = flights
             self.source = source
@@ -85,7 +90,17 @@ class AircraftService:
             self.updated_at = datetime.now(timezone.utc).isoformat()
             self.updates += 1
             self._record_history(flights)
+            recent = {k: list(v) for k, v in self.histories.items() if k in self.current_keys}
+        airport_service.observe(recent)                 # runway movements, derived from the tracks
         return self.snapshot()
+
+    def data_time(self) -> float:
+        """Epoch seconds the current picture describes: the recording's own time in replay."""
+        if self.source == "replay":
+            status = self.replay.status()
+            if status.get("dataTimeUtc"):
+                return datetime.fromisoformat(status["dataTimeUtc"]).timestamp()
+        return time.time()
 
     def warm_up(self) -> int:
         """Pre-fill the history from the replay's own past, so the models start ready.
@@ -163,6 +178,7 @@ class AircraftService:
                 "provider": self.provider,
                 "error": self.error,
                 "updatedAt": self.updated_at,
+                "dataTimeUtc": datetime.fromtimestamp(self.data_time(), tz=timezone.utc).isoformat(),
                 "updates": self.updates,
                 "replay": self.replay.status() if self.source == "replay" else None,
                 "creditsRemaining": self.opensky.credits_remaining,

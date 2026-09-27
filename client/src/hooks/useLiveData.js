@@ -49,6 +49,8 @@ export function useLiveData() {
       setFeed({
         mode: aircraft.mode, source: aircraft.source, provider: aircraft.provider,
         updatedAt: aircraft.updatedAt, error: aircraft.error, replay: aircraft.replay,
+        // The time the picture describes: the recording's own time in replay, now in live.
+        dataTimeUtc: aircraft.dataTimeUtc || aircraft.replay?.dataTimeUtc || null,
         creditsRemaining: aircraft.creditsRemaining, count: aircraft.count ?? 0,
       });
     }

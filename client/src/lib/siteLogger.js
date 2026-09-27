@@ -59,11 +59,11 @@ export function appendSiteLog({ level = "info", source = "app", message, detail 
 }
 
 /**
- * Structured log for mock / dashboard actions (shown as level "mock").
+ * Structured log for dashboard actions (shown as level "activity").
  */
 export function logActivity(source, message, detail) {
   return appendSiteLog({
-    level: "mock",
+    level: "activity",
     source: String(source),
     message: String(message),
     detail: detail != null ? (typeof detail === "string" ? detail : JSON.stringify(detail)) : undefined,
@@ -224,7 +224,7 @@ export function initSiteLogger() {
         level: "info",
         source: "system",
         message:
-          "Logger ready — console, toasts, window errors, mock activity (level: mock), and operator audit (level: audit) are recorded for this tab.",
+          "Logger ready — console, toasts, window errors, dashboard activity (level: activity), and operator audit (level: audit) are recorded for this tab.",
       });
     }
   } catch {

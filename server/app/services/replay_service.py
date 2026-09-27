@@ -175,9 +175,6 @@ class ReplayService:
             # collected (CLAUDE.md, 30 Aug), so there is nothing to show here.
             "squawk": None,
             "timePosition": float(row.time_position),
-            "route": "Replay",
-            "aircraft": "ADS-B",
-            "eta": "REPLAY",
             "source": "replay",
         }, now)
 
@@ -229,6 +226,10 @@ class ReplayService:
             "frame": index,
             "frames": len(self.frames),
             "positionSeconds": (self.frames[index] - self.frames[0]) if self.frames else 0,
+            # When this frame was actually recorded (the OpenSky poll time), so the dashboard
+            # clock can show the recording's time instead of today's wall clock.
+            "dataTimeUtc": (datetime.fromtimestamp(float(self.frames[index]), tz=timezone.utc).isoformat()
+                            if self.frames else None),
             "speed": REPLAY_SPEED,
             "seekedTo": self.seek_note,
         }

@@ -14,11 +14,13 @@ from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from ..services.aircraft_service import aircraft_service
-from ..services.database import database
+from ..services.database import DEFAULT_USER, database
 from ..services.conflict_service import conflict_service
 from ..services.clearance_service import clearance_service
 from ..services.speech_service import decode_wav, speech_service
 from ..services.intent_service import intent_service
+from ..services.aircraft_info import aircraft_info
+from ..services.airport_service import airport_service
 from ..config import SPEECH_DEMO_DIR
 
 log = logging.getLogger("flightright.api")
@@ -50,6 +52,8 @@ def aircraft_source():
 def set_mode(mode: str = Body(..., embed=True)):
     try:
         aircraft_service.set_mode(mode)
+        if mode in ("live", "auto"):
+            intent_service.start_live()      # dialled levels, types and squawks come from this feed
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     database.record({"level": "audit", "source": "api:aircraft",
@@ -132,7 +136,7 @@ def accept_suggestion(payload: dict = Body(...)):
         "conflictId": payload.get("conflictId"),
         "confidence": payload.get("confidence"),
         "modelVersion": _served_model_versions() or payload.get("modelVersion"),
-        "userId": payload.get("userId", "demo-controller"),
+        "userId": payload.get("userId", DEFAULT_USER),
         "detail": {**(payload.get("detail") or payload), "clientModelVersion": payload.get("modelVersion")},
     })}
 
@@ -146,7 +150,7 @@ def dismiss_suggestion(payload: dict = Body(...)):
         "callsign": payload.get("callsign"),
         "conflictId": payload.get("conflictId"),
         "modelVersion": _served_model_versions() or payload.get("modelVersion"),
-        "userId": payload.get("userId", "demo-controller"),
+        "userId": payload.get("userId", DEFAULT_USER),
         "detail": payload.get("detail", payload),
     })}
 
@@ -265,6 +269,31 @@ def read_audit(limit: int = Query(200, ge=1, le=2000), level: str | None = None,
     return {"ok": True, "count": len(entries), "total": database.count(), "entries": entries}
 
 
+# ---------------------------------------------------------------------- airport
+@router.get("/airport")
+def airport():
+    """VABB: real runways (OurAirports), the METAR for the time the picture describes (live:
+    aviationweather.gov; replay: the archived report), runway in use and movements derived
+    from the tracks, and upcoming arrivals with estimated times. See airport_service.py."""
+    snapshot = aircraft_service.snapshot()
+    return {"ok": True, **airport_service.summary(snapshot["flights"], snapshot["source"],
+                                                  aircraft_service.data_time(), aircraft_info.destination)}
+
+
+def _constants() -> dict:
+    """The numbers the dashboard quotes, served from the modules that use them, so the UI can
+    never drift from the backend (ISSUES.md: adapters.js used to hard-code 38 s and the weights)."""
+    from ml_pipeline.utils import cpa_conflict_detection as cpa
+    from ml_pipeline.utils import resolution_engine as re_
+    return {"separationLateralNm": cpa.SEPARATION_LATERAL_NM, "separationVerticalFt": cpa.SEPARATION_VERTICAL_FT,
+            "alertLateralNm": cpa.ALERT_LATERAL_NM, "alertVerticalFt": cpa.ALERT_VERTICAL_FT,
+            "cpaGridStepSeconds": cpa.CPA_GRID_STEP_SECONDS, "lookAheadSeconds": cpa.CPA_GRID_END_SECONDS,
+            "consecutiveUpdates": cpa.CONSECUTIVE_UPDATES_TO_NOTIFY,
+            "responseDelaySeconds": re_.RESPONSE_DELAY_SECONDS,
+            "weights": {"safety": re_.WEIGHT_SAFETY, "delay": re_.WEIGHT_DELAY, "fuel": re_.WEIGHT_FUEL,
+                        "workload": re_.WEIGHT_WORKLOAD, "confidence": re_.WEIGHT_CONFIDENCE}}
+
+
 # ---------------------------------------------------------------------- health
 @router.get("/health")
 def health():
@@ -274,7 +303,10 @@ def health():
         "ok": True,
         "aircraft": {"count": snapshot["count"], "source": snapshot["source"],
                      "mode": snapshot["mode"], "updatedAt": snapshot["updatedAt"],
-                     "error": snapshot["error"]},
+                     "dataTimeUtc": snapshot.get("dataTimeUtc"), "error": snapshot["error"]},
+        # The identity every audit row is written under (no login: MVP security posture).
+        "controller": DEFAULT_USER,
+        "constants": _constants(),
         "conflicts": {"active": len(conflicts.get("active", [])),
                       "assessed": conflicts.get("pairsAssessed", 0),
                       "durationMs": conflicts.get("durationMs")},

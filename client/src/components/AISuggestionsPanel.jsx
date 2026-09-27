@@ -81,7 +81,10 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
   );
 
   return (
-    <div className="panel flex flex-col h-full relative overflow-hidden">
+    // shrink-0, not h-full: this panel sits in the scrolling right-hand column, where h-full let the
+    // column squash it to 2 px at every screen size (found in the 27 Sep demo run). Capped so a long
+    // queue scrolls inside the panel.
+    <div className="panel flex flex-col shrink-0 max-h-[560px] relative overflow-hidden">
       <div className="panel-header py-3 px-4 flex items-center justify-between gap-3">
         <h3 className="font-display text-[13px] tracking-widest text-[var(--amber)]">
           ✦ AI suggestions queue

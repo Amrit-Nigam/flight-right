@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { getSpeechClips, getSpeechStatus, getTranscriptions, hearClip, speechClipAudioUrl } from "@/lib/api";
 import { logAudit } from "@/lib/siteLogger";
 
+// A model is named by a Hugging Face id ("org/name") or a local directory, which on Windows uses
+// backslashes; show only the last part either way.
+const shortModel = (id) => String(id || "").split(/[\\/]/).filter(Boolean).pop() || "";
+
 // The radio panel: speech -> transcript -> clearance -> the aircraft it is for.
 //
 // Every step is shown, because each one can fail on its own: the recogniser can mishear,
@@ -38,7 +42,7 @@ function Result({ r }) {
   return (
     <div className="mt-2 p-2 space-y-1" style={{ border: "1px solid var(--border-default)", background: "var(--bg-panel-alt)" }}>
       <Step label="HEARD">“{r.transcript}”</Step>
-      <Step label="MODEL">{r.modelId} · {r.quantisation}{r.asrConfidence != null ? ` · recogniser confidence ${(r.asrConfidence * 100).toFixed(0)}%` : " · cached transcript"}</Step>
+      <Step label="MODEL">{shortModel(r.modelId)} · {r.quantisation}{r.asrConfidence != null ? ` · recogniser confidence ${(r.asrConfidence * 100).toFixed(0)}%` : " · cached transcript"}</Step>
       <Step label="EXTRACTED">{fmtValue(r.extracted)} · callsign heard “{r.extracted?.callsign_spoken || "—"}”</Step>
       <Step label="AIRCRAFT" tone={m.code ? "var(--text-primary)" : "var(--amber)"}>
         {m.code ? `${m.code} (match ${m.score}, ${m.margin} ahead of the next of ${m.listSize} visible)` : `no visible aircraft matched (of ${m.listSize})`}
@@ -65,6 +69,10 @@ export default function NLPCommsPanel() {
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    window.addEventListener("speech-heard", refresh);
+    return () => window.removeEventListener("speech-heard", refresh);
+  }, [refresh]);
 
   const hear = async (clip, cached) => {
     setBusy(clip.id);
@@ -81,13 +89,15 @@ export default function NLPCommsPanel() {
   };
 
   return (
-    <div className="panel flex flex-col h-full overflow-hidden" style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)" }}>
+    // shrink-0, not h-full: in the scrolling right-hand column h-full let this panel be squashed to
+    // 2 px, hiding every clip and button (27 Sep demo run). Capped so the clip list scrolls inside.
+    <div className="panel flex flex-col shrink-0 max-h-[640px] overflow-hidden" style={{ background: "var(--bg-base)", border: "1px solid var(--border-default)" }}>
       <div className="py-2.5 px-4 flex items-center justify-between border-b border-[var(--border-default)]" style={{ background: "var(--bg-panel-alt)" }}>
         <h3 className="font-display text-[11px] tracking-[0.2em] text-[var(--text-secondary)] uppercase">
           Radio — speech to clearance
         </h3>
         <span className="font-display text-[9px] tracking-widest" style={{ color: status?.installed ? "var(--green)" : "var(--amber)" }}>
-          {status?.installed ? status.modelId?.split("/").pop() : "NO SPEECH MODEL"}
+          {status?.installed ? shortModel(status.modelId) : "NO SPEECH MODEL"}
         </span>
       </div>
 
@@ -136,7 +146,7 @@ export default function NLPCommsPanel() {
             <p className="font-display text-[9px] tracking-widest mt-2 mb-1" style={{ color: "var(--text-muted)" }}>RECENT TRANSCRIPTIONS (APPEND-ONLY)</p>
             {history.map((h) => (
               <p key={h.id} className="font-body text-[10px] leading-snug" style={{ color: "var(--text-secondary)" }}>
-                #{h.id} · {h.model_id?.split("/").pop()} · “{h.transcript}”
+                #{h.id} · {shortModel(h.model_id)} · “{h.transcript}”
               </p>
             ))}
           </div>

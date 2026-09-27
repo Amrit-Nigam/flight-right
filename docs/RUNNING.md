@@ -79,8 +79,9 @@ aircraft that really did converge over Mumbai.
 - **33–38 aircraft**, of which **20–28** clear the 10,000 ft en-route floor.
 - **15–30 pairs** assessed per update, in **0.3–1.7 s** against a ten-second budget
   (the upper end is when Model 3 is simulating manoeuvres for a live alarm).
-- A tier 1 alarm needs the pair to qualify on **three consecutive updates**, so allow about
-  30 seconds after startup before anything fires.
+- In replay, the first alarm arrives about **3½–4 minutes** after startup (measured 27 Sep 2026):
+  replay starts three minutes before the encounter, and a tier 1 alarm then needs the pair to
+  qualify on **three consecutive updates**.
 
 ## Endpoints
 
@@ -167,7 +168,8 @@ once on the website, and the scripts download them with your saved token.
 **Dashboard says "polling" instead of "streaming"** — the WebSocket did not connect.
 Everything still works, just less efficiently. Usually `pip install websockets`.
 
-**No conflicts appear** — allow 30 s for the three-consecutive-updates rule. Only en-route
+**No conflicts appear** — in replay, allow about 4 minutes (three minutes of lead-in, then the
+three-consecutive-updates rule). Only en-route
 traffic above 10,000 ft is assessed, so quiet periods genuinely produce nothing. In replay
 mode the log line "Replay starts N frames before a real encounter" names the pair to watch.
 

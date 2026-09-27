@@ -96,6 +96,9 @@ class IntentService:
                 count = 0
                 with self._lock:
                     for ac in aircraft:
+                        # Registration, type and squawk for the flight details (aircraft_info.py).
+                        from .aircraft_info import aircraft_info
+                        aircraft_info.record_live(ac, now)
                         level = ac.get("nav_altitude_mcp")
                         if level is None or not ac.get("hex"):
                             continue

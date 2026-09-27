@@ -52,6 +52,17 @@ export const getAuditLog = ({ limit = 200, level, search } = {}) => {
 
 export const getHealth = () => request("/api/health");
 
+// ---------------------------------------------------------------------- airport
+// VABB's real runways, the METAR for the time on screen, runway in use and movements derived
+// from the tracks (server/app/services/airport_service.py).
+export const getAirport = () => request("/api/airport");
+
+// ---------------------------------------------------------------------- clearances
+// A typed instruction to one aircraft. Recorded, and it reshapes that aircraft's predicted
+// paths; nothing is ever transmitted.
+export const submitClearance = (payload) =>
+  request("/api/clearances", { method: "POST", body: JSON.stringify(payload) });
+
 // ---------------------------------------------------------------------- speech
 export const getSpeechStatus = () => request("/api/speech/status");
 export const getSpeechClips = () => request("/api/speech/clips");
@@ -59,6 +70,16 @@ export const speechClipAudioUrl = (id) => `${API_BASE_URL}/api/speech/clips/${en
 export const hearClip = (id, cached = true) =>
   request(`/api/speech/hear?clip=${encodeURIComponent(id)}&cached=${cached}`, { method: "POST" });
 export const getTranscriptions = (limit = 20) => request(`/api/speech/transcriptions?limit=${limit}`);
+// Audio recorded from the controller's microphone (a WAV blob, 30 s at most) through the
+// whole speech chain.
+export const hearAudio = async (wavBlob) => {
+  const response = await fetch(`${API_BASE_URL}/api/speech/hear`, {
+    method: "POST", headers: { "Content-Type": "audio/wav" }, body: wavBlob,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.ok === false) throw new Error(data.detail || data.error || `Request failed: ${response.status}`);
+  return data;
+};
 
 export const streamUrl = () => `${API_BASE_URL.replace(/^http/, "ws")}/ws/stream`;
 export { API_BASE_URL };

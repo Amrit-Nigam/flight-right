@@ -49,7 +49,9 @@ log = logging.getLogger("flightright.database")
 
 # A caller cannot invent levels. Anything else is stored as "audit".
 LEVELS = {"audit", "system", "mock", "console:error", "warning", "error"}
-DEFAULT_USER = "demo-controller"
+# The identity every audit row is written under. There is no login (MVP security posture,
+# Section 3), so it is one configured name; the dashboard shows this same value.
+DEFAULT_USER = os.environ.get("FLIGHT_RIGHT_CONTROLLER_ID", "demo-controller").strip() or "demo-controller"
 MAX_DETAIL_BYTES = 16_384
 MAX_TEXT = 2_000
 

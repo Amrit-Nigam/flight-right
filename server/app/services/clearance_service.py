@@ -23,7 +23,7 @@ import time
 from typing import Any
 
 from ..config import CLEARANCE_MIN_CONFIDENCE, CLEARANCE_VALID_SECONDS, PROJECT_ROOT
-from .database import database
+from .database import DEFAULT_USER, database
 
 sys.path.insert(0, str(PROJECT_ROOT))
 from ml_pipeline.utils.clearance import ACTIONS, Clearance  # noqa: E402
@@ -54,7 +54,7 @@ class ClearanceService:
             source=source, issued_at=time.time(),
             valid_seconds=float(payload.get("valid_seconds", CLEARANCE_VALID_SECONDS)),
             transcription_id=payload.get("transcription_id"),
-            notes={"callsign_heard": wanted[:16], "requested_by": payload.get("user", "demo-controller")})
+            notes={"callsign_heard": wanted[:16], "requested_by": payload.get("user", DEFAULT_USER)})
 
         problems = clearance.problems()
         if not match:

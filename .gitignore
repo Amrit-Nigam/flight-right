@@ -71,3 +71,4 @@ server/*.sqlite3
 # Both are reproducible from scripts/postgres.py (which downloads and initialises
 # them), so neither belongs in the repository.
 .postgres/
+ml_pipeline/data/weather/*

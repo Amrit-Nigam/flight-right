@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { AnimatePresence } from "framer-motion";
-import { statusColors, statusColorsLight, statusIcons, weather, sortByUrgency, getAltBandCounts } from "@/data/mockData";
+import { AnimatePresence, motion } from "framer-motion";
+import { statusColors, statusColorsLight, sortByUrgency, getAltBandCounts } from "@/lib/flightDisplay";
 import { logActivity, logAudit } from "@/lib/siteLogger";
 import { Cloud } from "lucide-react";
 
@@ -21,7 +21,8 @@ function CpaBadge({ cpaSeconds }) {
   );
 }
 
-export default function FlightListPanel({ flightsData, selectedFlight, onSelectFlight, activeTab, onTabChange, theme = "dark" }) {
+export default function FlightListPanel({ flightsData, selectedFlight, onSelectFlight, activeTab, onTabChange, theme = "dark", airport = null }) {
+  const metar = airport?.metar;
   const [showWeather, setShowWeather] = useState(false);
   const bands = getAltBandCounts(flightsData);
   const palette = theme === "light" ? statusColorsLight : statusColors;
@@ -71,26 +72,38 @@ export default function FlightListPanel({ flightsData, selectedFlight, onSelectF
         onClick={() =>
           setShowWeather((w) => {
             const next = !w;
-            logAudit("flights:weather-strip", "METAR/ATIS strip header toggled", { expanded: next });
-            logActivity(
-              "flights:weather-strip",
-              `Mock METAR/ATIS strip ${next ? "expanded" : "collapsed"}`,
-              next ? { metar: weather.metar, atis: weather.atis } : undefined
-            );
+            logAudit("flights:weather-strip", "METAR strip toggled", { expanded: next, metar: metar?.raw });
+            logActivity("flights:weather-strip", `METAR strip ${next ? "expanded" : "collapsed"}`);
             return next;
           })
         }
       >
-        <span className="font-display text-[11px] uppercase" style={{ color: 'var(--text-muted)' }}>Weather & ATIS</span>
+        <span className="font-display text-[11px] uppercase" style={{ color: 'var(--text-muted)' }}>
+          Weather · METAR{metar ? ` ${metar.issuedUtc.slice(11, 16)}Z` : " unavailable"}
+        </span>
         <Cloud className="w-4 h-4" style={{ color: showWeather ? 'var(--teal)' : 'var(--text-muted)' }} />
       </div>
       <AnimatePresence>
         {showWeather && (
           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden" style={{ background: 'var(--bg-panel-alt)', borderBottom: '1px solid var(--border-default)' }}>
             <div className="p-4 font-display text-[11px] space-y-1.5" style={{ color: 'var(--text-secondary)' }}>
-              <p style={{ color: 'var(--teal)' }}>METAR: {weather.metar}</p>
-              <p>{weather.atis} | W: {weather.wind} | VIS: {weather.visibility} | QNH: {weather.qnh}</p>
-              <p>{weather.activeRwys}</p>
+              {metar ? (
+                <>
+                  <p style={{ color: 'var(--teal)' }}>METAR {metar.raw}</p>
+                  <p>
+                    Wind {metar.windVariable ? "variable" : metar.windDirDeg != null ? `${String(metar.windDirDeg).padStart(3, "0")}°` : "—"} {metar.windKt ?? "—"} kt{metar.gustKt ? ` gusting ${metar.gustKt}` : ""}
+                    {" · "}Vis {metar.visibilityM != null ? (metar.visibilityM >= 10000 ? "10 km+" : `${metar.visibilityM} m`) : "—"}
+                    {" · "}QNH {metar.qnhHpa ?? "—"} hPa · {metar.tempC ?? "—"}°C / {metar.dewpointC ?? "—"}°C
+                  </p>
+                  <p>{metar.weather.length ? `Weather: ${metar.weather.join(" ")} · ` : ""}Cloud: {metar.clouds.length ? metar.clouds.map((c) => `${c.cover} ${c.baseFt} ft${c.type ? ` ${c.type}` : ""}`).join(", ") : "none reported"}</p>
+                  <p style={{ color: 'var(--text-muted)' }}>
+                    {metar.source} · issued {metar.issuedUtc.slice(0, 16).replace("T", " ")}Z{metar.stale ? " · STALE (older than 90 min)" : ""}
+                  </p>
+                  <p>Runway in use: {airport?.inUse ? `${airport.inUse.end} — ${airport.inUse.basis}` : "not yet determined"}</p>
+                </>
+              ) : (
+                <p style={{ color: 'var(--text-muted)' }}>No METAR for this time{airport?.metarError ? ` (${airport.metarError})` : ""}.</p>
+              )}
             </div>
           </motion.div>
         )}
