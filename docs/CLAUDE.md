@@ -3052,6 +3052,100 @@ It lies inside the test split (4 Sep 02:31 – 5 Sep 03:58 UTC).
 `vite build` passes, 24 unit tests pass, all endpoints return valid JSON, and the page has no console
 errors or failed requests.
 
+### 2026-09-27 — Indian-accent speech generation made ~400x faster
+
+**Measured, before the change.** `synthesize.py --limit 48 --batch 8` wrote ~40 s of audio (about 8 calls)
+in 2.5 h. It shared the 6 GB RTX 4050 with the whisper-small Svarah baseline and the backend: 5.75 of 6.1 GB
+in use, "100%" utilisation at 31 W, which is Windows paging GPU memory to system RAM. Three causes:
+- the model loads in float32 (its config default);
+- sampling runs to the generation config's `max_length` of 2,610 steps (~30 s of audio), so one runaway call
+  holds its batch of 8 to the limit;
+- the job was contending with two others for the GPU.
+
+**Change** (`ml_pipeline/voice/synthesize.py`):
+- `torch_dtype=float16` on CUDA (`--dtype`; T4 has no bfloat16);
+- `attn_implementation="sdpa"`, falling back if unsupported;
+- pending scripts sorted by word count, so batches are not padded to their longest call;
+- `max_new_tokens = 86.13 x (2.0 + 0.6 x words)`, and a call reaching it is dropped as a runaway (retried
+  next run);
+- manifest written every 50 calls;
+- `--shard i/n` writes `manifest_shard{i}of{n}.parquet` / `audio_int16_shard...bin` for multi-GPU runs, and
+  `train_whisper.all_rows()` reads every `tts/manifest*.parquet`.
+
+**Measured after, alone on the GPU:** 64 calls in 193 s wall including model load, 2.57 s per call, 0 runaways.
+
+**Quality check:** read back by our speech model, 19.4% WER on these 64 half-precision calls, against 20.3%
+on the 20 full-precision listening samples, so no loss.
+
+Kaggle 2xT4 was considered and not used. The gated model needs the HF token as a Kaggle secret (set in the
+UI), and with upload, queue and a ~600 MB download the total time is similar to ~3 h locally. The Kaggle CLI
+is installed in `%LOCALAPPDATA%/FlightRight/venv_kaggle` (not the project venv); the key is kept for the
+session only, outside the repo.
+
+The Svarah whisper-small baseline was paused at 3,700/12,053 clips (it caches every 100) and resumes after
+generation.
+
+### 2026-09-27 — Svarah measured: the gap is specialisation, not accent; Indian-accent synthetic set complete
+
+`evaluate_voice.py`, `reports/voice_eval_20260927_235608.json`. Svarah (6,656 clips, 9.6 h, 19 first
+languages; no speaker id, so the grouping is by first language): our model 33.2% WER (numerals spoken 28.9);
+untouched openai/whisper-small 9.3% (8.5), range 6.4% (Hindi) to 13.6% (Bodo), Marathi 9.1% vs ours 33.7%.
+Error decomposition on the same clips:
+- ours: substitutions 18.8%, deletions 4.0%, insertions 10.4%;
+- base: 5.6%, 1.7%, 2.0%;
+- ATC-vocabulary share of output words: ours 5.8%, base 0.9%, reference 0.8%.
+
+The LoRA fine-tune traded general English for ATC phraseology (catastrophic forgetting is the expected
+effect of narrow fine-tuning). Svarah measures that, not ATC-on-Indian-accent. On ATC audio, untouched
+whisper-small is far worse (ATCO2 75.2% WER, clearance accuracy 12.9%). The comparison that matters for the
+served system is unchanged.
+
+**Consequence for pass 2.** The plan's rule is "use pass 2 only if Svarah improves and the European scores
+do not drop", but Svarah would move mostly with forgetting, not accent. There is no valid real-audio test of
+Indian ATC speech. Real Indian speakers reading `mumbai_scripts` would be one.
+
+**Synthetic set:** 3,757 / 3,757 calls, 5.5 h, 21 voices (3 held out for validation), train 3,333 / val 416.
+The first full run took 4,882 s (1.3 s per call after the speed fix). 8 runaways were retried successfully.
+The GPU shut down afterwards; the files were checked intact (every manifest row inside the bin, no
+duplicates, last clip non-silent).
+
+### 2026-09-28 — Demo preparation: Mumbai voice clips, callsign rule tried and rejected, whole-project frontend test
+
+**Speech model for the demo: the current one is kept.** Pass 2 was not run. The reason is the risk of
+retraining overnight, and that its benefit cannot be measured (Svarah is confounded; no real Indian ATC
+audio). Recorded in DECISIONS_FOR_ARCHIT 1b.
+
+**Demo clips.** `demo_clips.py --synthetic` retries a runaway (`Synth` returns None) and clips before int16.
+Three Indic Parler-TTS clips for the replayed pair were written and pre-transcribed with the served model
+(keyed by the exact `config.ASR_MODEL_ID` string):
+- "ifly zero eight six descend flight level three three zero" was heard as "five flight zero eight six …";
+- its readback was heard as "… i have flight zero eight six";
+- "sky dubai one three four six turn right heading three one zero" was heard as "sky do bye …".
+
+Actions and values were all correct. `match()` against the 35 aircraft at the alarm frame gives IGO086
+(85.0) and FDB1346 (87.7). The callsign garbling is the accent gap pass 2 would target.
+
+**H6 rule tried and rejected.** Requiring the flight number among the heard digits gave ATCO2 callsign
+accuracy 70.43 -> 64.63 and clearance accuracy 64.52 -> 61.29 (`voice_eval_20260928_001807_rejected_number_rule.json`).
+Reverted; a comment in `callsigns.match` records it.
+
+**Whole-project frontend test** (Playwright/Chrome, replay then live then replay; `full_test.mjs` in the session
+scratchpad): 31/32 checks passed.
+- PostgreSQL with append-only enforced; all models loaded.
+- Top bar: RWY 27 derived, METAR wind and QNH, REC clock, server controller id. No invented text.
+- The archived METAR is shown; the runways are 09/27 and 14/32; movements are derived.
+- Drawer: real type and route. ISSUE CLEARANCE via the UI was applied.
+- The alarm arrived at 180 s: banner, suggestions card, bell notification, timeline bar.
+- Resolve: 2 options, accept audited with model versions, dismiss recorded.
+- Radio: 5 clips through HEAR:
+  - FDB1346 TURN 310 applied at 0.877;
+  - IGO086 DESCEND 33000 matched but refused at 0.595;
+  - BAW -> BAW138 refused at 0.49 and 0.51.
+- The logs page reads the server log.
+- Live mode: 29 OpenSky aircraft and the live aviationweather METAR (VABB 271830Z). Switched back to replay.
+- 0 console errors.
+- The failure: 2 Carto basemap tile requests failed, most likely cancelled when the map panned to the alarm.
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -5720,3 +5814,86 @@ Every figure was taken from the current README and this file.
 **Why.** The presenters must explain the project to examiners without having built it.
 
 **Did the headline number move?** No. **95.1% is unchanged.** This is documentation only.
+
+
+### 2026-09-27 — Making Indian-accent practice speech took far too long; now it is about 400 times faster
+
+**File:** `ml_pipeline/voice/synthesize.py` (and `train_whisper.py`, which now reads the output in parts).
+
+**Before.** Generating the practice radio calls in Indian-accented voices was painfully slow: about 8 calls
+in two and a half hours. Three reasons:
+- The graphics card has 6 GB of memory and three jobs were sharing it. When it overflows, Windows quietly
+  borrows ordinary memory, which is many times slower.
+- The voice model was running at full numerical precision, which uses twice the memory needed.
+- The model makes speech with some randomness. Occasionally a call does not know when to stop and rambles
+  for 30 seconds, and the other 7 calls in its batch had to wait for it.
+
+**Now.**
+- The job runs on the graphics card alone, at half precision.
+- Calls of similar length are made together.
+- Each call gets a sensible maximum length for its number of words; a call that hits it is thrown away and
+  redone later.
+- Result: **about 2.6 seconds per call instead of about 18 minutes**, and the voices are just as clear. Our
+  speech model read back the fast ones with 19.4% of words wrong, against 20.3% for the slow originals.
+
+**Why not Kaggle's free graphics cards?** Considered. They would compute it perhaps twice as fast, but setting
+them up (the voice model needs your Hugging Face login added to Kaggle), uploading and downloading takes about
+as long as simply running it here, about 3 hours.
+
+**Did the headline number move?** No. **95.1% is unchanged.** This only makes practice audio for the speech
+model faster to produce.
+
+
+### 2026-09-27 — How the speech model handles Indian voices: the honest answer is subtler than a single number
+
+**Files:** `docs/evaluation.md`, `docs/claims.md`, `README.md` (results only; no code changed).
+
+**What was measured.** Both speech models were tested on Svarah: 6,656 recordings of real people from all over
+India speaking everyday English.
+- The plain Whisper model we started from gets **9.3% of words wrong**. So Indian accents are not a problem
+  for it.
+- Our air-traffic version gets **33.2% wrong**.
+
+**Why ours does worse, and why that is not about accents.** Our model was trained only on radio talk, and now
+it hears radio talk everywhere. About 6 in every 100 words it writes are radio words ("decimal", "flight
+level"), when people said them less than 1 time in 100. Asked to transcribe "is there any loan EMI due this
+month", it wrote "due decimal one". That is the model specialising, which is what it was trained to do. On
+real radio it is far better than the plain model (it gets whole instructions right 20 times out of 31,
+against 4).
+
+**What this means.** Nobody can yet say how well our model hears an *Indian controller on the radio*, because
+no real recording of that exists publicly. The honest way to find out would be real Indian speakers reading
+our Mumbai radio scripts.
+
+**Also finished.** All 3,757 Indian-accented practice radio calls are made, 5.5 hours of audio, ready for the
+second training pass.
+
+**Did the headline number move?** No. **95.1% is unchanged.**
+
+
+### 2026-09-28 — Ready for the demo: Mumbai voice clips added, one fix tried and rejected, everything tested
+
+**Files:** `ml_pipeline/voice/demo_clips.py`, `ml_pipeline/voice/callsigns.py` (a comment only; the change was
+undone), `README.md`, `docs/ISSUES.md`, `docs/DECISIONS_FOR_ARCHIT.md`.
+
+**Decision for the demo.** Keep the current speech model. Retraining it overnight on the Indian-accent practice
+calls is a risk before a demo, and nothing could show whether it helped.
+
+**What is new on screen.** The radio panel now has three clips about the two aircraft in the alarm, spoken in
+Indian-accented synthetic voices, as well as the two real Prague clips. The system hears the instructions
+correctly.
+- **SkyDubai 1346:** the system is confident enough (0.88), so it uses the instruction.
+- **IFLY 086:** it mishears the name ("five flight zero eight six"). It still finds the right aircraft, but it
+  is only 0.59 sure, below the 0.85 rule, so it records the instruction and does not use it. That is the
+  safety rule doing its job, and a good thing to show.
+
+**A fix that was tried and undone.** The Prague clip for British Airways 855 gets matched to a different British
+Airways flight in the Mumbai recording (the confidence rule stops it being used). Making the system insist on
+hearing the flight number fixed that case, but made real European radio worse (right aircraft 70% -> 65%), so
+it was undone.
+
+**Everything tested from the dashboard.** 31 of 32 checks passed, including a switch to live traffic (29 real
+aircraft and today's real weather report) and back. The one failure was the map provider's picture downloads
+being cancelled while the map moved, not our system.
+
+**Did the headline number move?** No. **95.1% is unchanged.**

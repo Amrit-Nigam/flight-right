@@ -298,9 +298,12 @@ flowchart LR
   cleared level. A heading instruction removes paths that contradict it.
 - **The 0.85 floor**, measured on 24 real heard clearances, applied 12 correct instructions and
   0 wrong ones. It was Archit's decision.
-- **Indian accents: being measured now (27 Sep 2026).** The model is being scored on Svarah,
-  which is real Indian speakers. Synthetic Indian-accented radio calls are awaiting a human
-  listening check before any are used for training. Generated audio is never used for scoring.
+- **Indian accents, measured on Svarah (real Indian speakers, everyday English):** untouched
+  Whisper-small gets 9.3% of words wrong, so accents are handled well; our radio-tuned model gets
+  33.2%, because it now hears everyday speech as radio phrases. That tells us how far the model has
+  specialised, not how it copes with Indian-accented *radio*. No real recording of that exists, so it is
+  still unmeasured. 3,757 Indian-accented synthetic radio calls (approved by ear) are ready for a
+  second training pass; generated audio is never used for scoring.
 
 ---
 
@@ -354,7 +357,9 @@ FLIGHT_RIGHT_DATA_MODE=replay python -m uvicorn server.app.main:app --port 8000
 cd client && npm run dev                                            # second terminal
 ```
 
-Open <http://localhost:5173>. The backend log names the pair the replay has jumped to. **The
+Open <http://localhost:5173>. **Start (or restart) the backend just before presenting**: the replay
+clock runs from startup, so a backend started hours earlier will already be past the encounter. The
+backend log names the pair the replay has jumped to. **The
 first alarm arrives about 3½–4 minutes after the backend starts** (measured 27 Sep: the pair joins
 the watch list at ~3 min 20 s and becomes an alarm at ~3 min 45 s). Replay starts three minutes
 before the encounter on purpose, so use that time for steps 1 and 2. On PowerShell, set the mode with
@@ -378,11 +383,20 @@ before the encounter on purpose, so use that time for steps 1 and 2. On PowerShe
 6. **The audit trail.** Open the Logs page: the decision, the time, the confidence and the
    exact model versions. Then show that the log cannot be edited:
    `python scripts/postgres.py verify` → *UPDATE / DELETE refused by the database*.
-7. **The radio.** In the radio panel, play a recorded clip. The screen shows the transcript,
-   the extracted instruction and the callsign match. The clips are real European radio, so no
-   Mumbai aircraft matches, and the panel says so. Then submit a typed clearance for IGO086
-   (`POST /api/clearances`, e.g. `{"callsign":"IGO086","action":"DESCEND","value":37000}`)
-   and show that the aircraft's predicted altitude is now capped.
+7. **The radio.** Scroll to the radio panel and press **HEAR** on each clip. The first three are for
+   the alarm pair and use a *synthetic* Indian-accented voice (labelled so); the last two are real
+   European radio. Each clip shows what was heard, the instruction extracted, the matched aircraft and
+   whether it was used. What to expect, measured 28 Sep:
+   - "SkyDubai 1346, turn right heading 310" → heard, matched to **FDB1346**, confidence 0.88, **applied**.
+   - "IFLY 086, descend flight level 330" (and its readback) → instruction heard correctly, callsign heard
+     as "five flight / I have flight zero eight six", still matched to **IGO086**, but confidence 0.59 is
+     below the 0.85 floor, so it is **recorded and not used**. That is the safety gate working: a
+     mis-heard callsign is never acted on.
+   - The two Prague clips → heard word for word. The BAW clip matches the wrong British Airways flight on
+     screen (BAW138), and the floor refuses it (issue H6); say so.
+
+   Then open any aircraft (e.g. AXB1693) and use **ISSUE CLEARANCE** to type an instruction: it is
+   recorded and reshapes that aircraft's predicted paths. Nothing is transmitted.
 8. **Too late is too late.** Let the encounter run on. Near closest approach the resolve dialog
    offers **nothing**, because no manoeuvre can work in the time left. Explain that this is the
    honest answer.

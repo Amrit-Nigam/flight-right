@@ -387,7 +387,13 @@ match and an applied clearance.
 
 **Proposed fix (our own design, no source):** require the flight-number part to agree (for example,
 score airline and number separately and demand both), then re-measure callsign accuracy with the
-aircraft list on the 328 ATCO2 callsigns (currently 70.4%) before adopting it. Not changed yet.
+aircraft list on the 328 ATCO2 callsigns (currently 70.4%) before adopting it.
+
+**Tried 28 Sep and rejected:** requiring the candidate's flight number among the heard digits fixed the
+demo case but cut ATCO2 callsign accuracy with the list 70.4% -> 64.6% and clearance accuracy
+64.5% -> 61.3% (`reports/voice_eval_20260928_001807_rejected_number_rule.json`): controllers and the
+recogniser often drop or garble digits. Reverted. The 0.85 floor remains what stops such a match being
+applied (the full frontend test confirmed it: BAW138 at 0.49 and 0.51, refused).
 
 ---
 

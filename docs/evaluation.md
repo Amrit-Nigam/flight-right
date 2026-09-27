@@ -995,6 +995,20 @@ right aircraft, the right action (climb, descend, turn, speed, direct) and the r
 excluded above, per Phase 2.5), so its ATCO2 figures are flattering to it.
 ² trained on these ATCOSIM speakers: not a held-out figure.
 
+**Indian voices, measured 27 Sep** (Svarah, AI4Bharat, 6,656 real clips, everyday English, 19 first
+languages; `ml_pipeline/reports/voice_eval_20260927_235608.json`):
+
+| model | word error on Svarah | range across first languages | ATC words in its output (reference: 0.8%) |
+|---|---|---|---|
+| untouched openai/whisper-small | **9.3%** | 6.4% (Hindi) – 13.6% (Bodo); Marathi 9.1% | 0.9% |
+| ours (whisper-small + ATC LoRA) | 33.2% | 26.2% (Maithili) – 47.2% (Assamese); Marathi 33.7% | **5.8%** |
+
+Read this as **specialisation, not accent**: our model hears everyday speech as radio phraseology (insertions
+10.4% vs 2.0%; "loan EMI due this month" -> "due decimal one"). Whisper's base handling of Indian accents is
+good. Svarah therefore cannot say how our model handles Indian-accented *radio* speech; no real recording of
+that exists publicly. The valid test would be real Indian speakers reading the Mumbai radio scripts
+(plan Phase 5).
+
 **Chosen: ours** (`server/app/config.py`, default whenever its directory exists). The only output the
 rest of the system uses is the whole clearance, and ours gets nearly twice as many right; it also
 generalises to a country none of them trained on and is the fastest. The caveat: 31 clearances is a

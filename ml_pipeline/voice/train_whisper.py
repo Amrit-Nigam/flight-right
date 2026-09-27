@@ -95,8 +95,10 @@ class Audio:
 def all_rows() -> pd.DataFrame:
     """The real-corpus manifest plus, when it exists, the generated-speech manifest."""
     frames = [pd.read_parquet(CACHE / "manifest.parquet")]
-    if (CACHE / "tts" / "manifest.parquet").exists():
-        frames.append(pd.read_parquet(CACHE / "tts" / "manifest.parquet"))
+    # One manifest per synthesis shard (synthesize.py --shard i/n, e.g. one per GPU); each row
+    # names its own audio file in "bin".
+    for path in sorted((CACHE / "tts").glob("manifest*.parquet")):
+        frames.append(pd.read_parquet(path))
     return pd.concat(frames, ignore_index=True)
 
 

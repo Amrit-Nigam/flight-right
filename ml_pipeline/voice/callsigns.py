@@ -191,6 +191,11 @@ def match(heard: str, candidates: list[str], minimum: float = 70.0) -> dict:
     should show rather than hide.
     """
     words = heard.split()
+    # Tried and rejected 28 Sep 2026 (ISSUES.md H6): requiring the candidate's flight number among
+    # the heard digits fixed the BAW855 -> BAW138 demo case but cut ATCO2 callsign accuracy with the
+    # list from 70.4% to 64.6% and clearance accuracy from 64.5% to 61.3%
+    # (reports/voice_eval_20260928_001807.json): real controllers and the recogniser often drop or
+    # garble digits. The confidence floor is what stops such a match from being applied.
     scored = []
     for code in dict.fromkeys(candidates):
         best = 0.0

@@ -68,28 +68,51 @@ def description(speaker: str, rng: random.Random) -> str:
             f"The recording is very close with almost no background noise.")
 
 
+# Speed (27 Sep 2026). The first full run managed ~8 calls in 2.5 h: the model ran in float32
+# (its config default) on a 6 GB card shared with two other jobs, so Windows paged GPU memory
+# into system RAM; and with sampling up to max_length 2,610 steps (~30 s of audio), one runaway
+# call held its whole batch of 8 to the limit. Now: half precision on CUDA, the SDPA attention
+# kernel, calls batched with others of similar length, and a length cap scaled to each batch's
+# word count (FRAMES_PER_S x (BASE_S + PER_WORD_S x words)). A call that reaches the cap is a
+# runaway and is dropped, never kept as truncated audio. Run it alone on the GPU.
+FRAMES_PER_S = 86.13          # DAC codec: 44.1 kHz audio / 512 hop
+BASE_S, PER_WORD_S = 2.0, 0.6  # generous for ATC read speed (~0.35 s per word measured on the listen set)
+
+
 class Synth:
-    def __init__(self, device: str):
+    def __init__(self, device: str, dtype: str = "float16"):
         import torch
         from parler_tts import ParlerTTSForConditionalGeneration
         from transformers import AutoTokenizer
         self.torch, self.device = torch, device
-        self.model = ParlerTTSForConditionalGeneration.from_pretrained(MODEL).to(device)
+        torch_dtype = getattr(torch, dtype) if device == "cuda" else torch.float32
+        try:
+            self.model = ParlerTTSForConditionalGeneration.from_pretrained(
+                MODEL, torch_dtype=torch_dtype, attn_implementation="sdpa").to(device)
+        except (ValueError, TypeError):          # an older parler-tts without SDPA support
+            self.model = ParlerTTSForConditionalGeneration.from_pretrained(MODEL, torch_dtype=torch_dtype).to(device)
         self.tok = AutoTokenizer.from_pretrained(MODEL)
         self.desc_tok = AutoTokenizer.from_pretrained(self.model.config.text_encoder._name_or_path)
         self.rate = self.model.config.sampling_rate
 
-    def __call__(self, texts: list[str], descriptions: list[str]) -> list[np.ndarray]:
+    def __call__(self, texts: list[str], descriptions: list[str]) -> list[np.ndarray | None]:
+        """One waveform per text at 16 kHz, or None for a runaway that reached the length cap."""
+        words = max(len(t.split()) for t in texts)
+        cap = min(2600, int(FRAMES_PER_S * (BASE_S + PER_WORD_S * words)))
         d = self.desc_tok(descriptions, return_tensors="pt", padding=True).to(self.device)
         p = self.tok(texts, return_tensors="pt", padding=True).to(self.device)
         with self.torch.no_grad():
             out = self.model.generate(input_ids=d.input_ids, attention_mask=d.attention_mask,
                                       prompt_input_ids=p.input_ids, prompt_attention_mask=p.attention_mask,
-                                      return_dict_in_generate=True, do_sample=True)
+                                      return_dict_in_generate=True, do_sample=True, max_new_tokens=cap)
         audios = []
+        cap_seconds = cap / FRAMES_PER_S
         for i in range(len(texts)):
             length = int(out.audios_length[i]) if getattr(out, "audios_length", None) is not None else None
             wave = out.sequences[i, :length].float().cpu().numpy()
+            if len(wave) / self.rate >= cap_seconds - 0.25:
+                audios.append(None)               # hit the cap: a runaway, not a finished call
+                continue
             audios.append(resample_poly(wave, SR, self.rate).astype(np.float32))
         return audios
 
@@ -100,6 +123,8 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="speak at most this many scripts")
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--dtype", default="float16", help="float16 (any CUDA card, incl. T4) or bfloat16 (Ampere+)")
+    ap.add_argument("--shard", default="0/1", help="i/n: speak only every n-th pending script from i (one per GPU)")
     args = ap.parse_args()
     rng, nrng = random.Random(SEED), np.random.default_rng(SEED)
     scripts = pd.read_parquet(TTS / "mumbai_scripts.parquet")
@@ -108,7 +133,7 @@ def main():
     trainers = speakers[:-HELD_OUT_SPEAKERS]
     bank_path = TTS / "uwb_noise_bank_int16.npy"
     bank = np.load(bank_path).astype(np.float32) / 32768.0 if bank_path.exists() else None
-    synth = Synth(args.device)
+    synth = Synth(args.device, args.dtype)
     print(f"{len(speakers)} English speakers on the model card; held out for validation: {held_out}")
 
     if args.listen:
@@ -117,6 +142,9 @@ def main():
         sample = scripts.sample(args.listen, random_state=SEED)
         for row, speaker in zip(sample.itertuples(), [rng.choice(speakers) for _ in range(len(sample))]):
             clean = synth([row.tts_text], [description(speaker, rng)])[0]
+            if clean is None:
+                print(f"  {row.script_id} {speaker}: runaway, skipped")
+                continue
             sf.write(out / f"{row.script_id}_{speaker}_clean.wav", clean, SR)
             sf.write(out / f"{row.script_id}_{speaker}_radio.wav", radio(clean, bank, nrng), SR)
             print(f"  {row.script_id} {speaker}: {row.tts_text}")
@@ -124,11 +152,18 @@ def main():
         print(f"wrote {args.listen * 2} WAVs to {out} -- listen before generating the full set")
         return
 
-    manifest_path, bin_path = TTS / "manifest.parquet", TTS / "audio_int16.bin"
+    shard, shards = (int(x) for x in args.shard.split("/"))
+    suffix = f"_shard{shard}of{shards}" if shards > 1 else ""
+    manifest_path, bin_path = TTS / f"manifest{suffix}.parquet", TTS / f"audio_int16{suffix}.bin"
     done = pd.read_parquet(manifest_path) if manifest_path.exists() else pd.DataFrame(columns=["script_id"])
     todo = scripts[~scripts.script_id.isin(set(done.script_id))]
+    todo = todo.iloc[shard::shards]
     if args.limit:
         todo = todo.head(max(0, args.limit - len(done)))
+    # Similar lengths together, so a batch is not padded out to its longest call. The voice for
+    # each call still comes from the seeded rng, in this order.
+    todo = todo.assign(_words=todo.tts_text.str.split().str.len()).sort_values("_words", kind="stable")
+    skipped = 0
     offset = bin_path.stat().st_size // 2 if bin_path.exists() else 0
     rows, started = [], time.time()
     with open(bin_path, "ab") as sink:
@@ -137,22 +172,23 @@ def main():
             voices = [rng.choice(held_out if s == "val" else trainers) for s in chunk.split]
             audios = synth(list(chunk.tts_text), [description(v, rng) for v in voices])
             for row, voice, clean in zip(chunk.itertuples(), voices, audios):
-                if len(clean) < SR // 2 or len(clean) > 30 * SR:
+                if clean is None or len(clean) < SR // 2 or len(clean) > 30 * SR:
+                    skipped += 1
                     continue                     # a failed or runaway generation; never kept
                 pcm = np.clip(radio(clean, bank, nrng) * 32767, -32768, 32767).astype(np.int16)
                 sink.write(pcm.tobytes())
                 rows.append({"uid": f"tts/{row.script_id}", "script_id": row.script_id, "corpus": "tts_indian",
                              "group": row.icao24, "split": row.split, "role": row.role, "speaker": voice,
                              "text_raw": row.text, "text": row.text, "offset": offset, "n_samples": len(pcm),
-                             "duration_s": len(pcm) / SR, "bin": "tts/audio_int16.bin", "contaminated": False})
+                             "duration_s": len(pcm) / SR, "bin": f"tts/{bin_path.name}", "contaminated": False})
                 offset += len(pcm)
-            if len(rows) >= 200 or start + args.batch >= len(todo):
+            if len(rows) >= 50 or start + args.batch >= len(todo):
                 done = pd.concat([done, pd.DataFrame(rows)], ignore_index=True)
                 done.to_parquet(manifest_path, index=False)
                 rows = []
                 rate = (time.time() - started) / max(1, start + len(chunk))
-                print(f"  {len(done)}/{len(scripts)} spoken, {rate:.2f} s per clip", flush=True)
-    print(f"done: {len(done)} clips in {manifest_path}")
+                print(f"  {len(done)}/{len(scripts)} spoken, {rate:.2f} s per clip, {skipped} runaways skipped", flush=True)
+    print(f"done: {len(done)} clips in {manifest_path}; {skipped} runaways skipped (they are retried on the next run)")
 
 
 if __name__ == "__main__":

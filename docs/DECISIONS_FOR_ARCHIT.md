@@ -26,6 +26,14 @@ gets 20 of 31 held-out ATCO2 clearances completely right against 11 for the best
 15.1% word error on unseen Czech radio against 46.9%, and is ~3.5x faster. It is now the default in
 `server/app/config.py` whenever its directory exists.
 
+**1b. Second speech training pass on the Indian-accent calls — NOT RUN for the demo (28 Sep).** The
+3,757 synthetic calls are ready. It was not run before the demo: the current model is verified end to end,
+retraining overnight is a risk, and its benefit cannot be proven. Svarah measures specialisation, not
+accent, and no real Indian ATC recording exists. Options after the demo:
+- have classmates read the Mumbai scripts to create a real test;
+- train it and adopt it only if the European scores do not drop;
+- leave it.
+
 **2. Destination in the trajectory model — DONE 27 Sep (you: "if adding destination gets us benefit then
 do that").** Rebuilt and retrained; it passed all 11 checks written before training
 (`ml_pipeline/reports/destination_row_20260927_023146.json`) and is now served. Ten-minute height error

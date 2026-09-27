@@ -114,10 +114,17 @@ def synthetic() -> None:
     bank = np.load(CACHE / "tts" / "uwb_noise_bank_int16.npy").astype(np.float32) / 32768.0
     for clip_id, text, code, action, value in scripts:
         speaker = rng.choice(speakers)
-        clean = synth([text.replace("ifly", "eye fly")], [description(speaker, rng)])[0]
+        clean = None
+        for _ in range(4):                    # a sampled call can run away (synthesize.Synth returns None)
+            clean = synth([text.replace("ifly", "eye fly")], [description(speaker, rng)])[0]
+            if clean is not None:
+                break
+        if clean is None:
+            print("gave up on", clip_id)
+            continue
         audio = radio(clean, bank, np.random.default_rng(7))
         OUT.mkdir(parents=True, exist_ok=True)
-        sf.write(OUT / f"{clip_id}.wav", (audio * 32767).astype(np.int16), SR, subtype="PCM_16")
+        sf.write(OUT / f"{clip_id}.wav", np.clip(audio * 32767, -32768, 32767).astype(np.int16), SR, subtype="PCM_16")
         _upsert({"id": clip_id, "synthetic": True, "label": f"{code} — {text}",
                  "source": f"Synthetic Indian-accented voice (Indic Parler-TTS, speaker {speaker}, AI4Bharat) "
                            "through a simulated radio channel. Real callsign from the replayed recording; "
