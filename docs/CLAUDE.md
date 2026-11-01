@@ -6144,3 +6144,233 @@ preservation. All original served artifact SHA-256 values are unchanged.
 
 **Did the headline move?** No. The recorded classifier warning metric stays 95.1%; it
 was not remeasured and cannot be improved by quoting an isolated LSTM trajectory result.
+
+
+### 2026-11-01 ? Branch naming clarified; multi-path tuning completed locally
+
+**Git instruction.** At Archit's request the checkpoint branch was renamed to `fine-tuning`,
+the already-existing LSTM commit `2bcaba1` was fast-forwarded onto it and pushed, and the
+old checkpoint and `experiment/trajectory-tuning-20261101` branch names were deleted
+locally/remotely. No new commit was created for the fast-forward. From that point forward,
+Archit explicitly prohibits commits or pushes without another instruction. All multi-path
+work below is local and uncommitted. Root `CLAUDE.md` records that rule; active experiment
+links now use the surviving branch/checkpoint commit rather than deleted branch URLs.
+
+**Files added:** `ml_pipeline/training/trajectory/tune_multipath.py`;
+`ml_pipeline/tests/test_multipath_tuning.py`; `scripts/audit_multipath_future.py`;
+`scripts/benchmark_multipath_candidate.py`; `scripts/bootstrap_multipath_audit.py`;
+`scripts/report_multipath_tuning.py`; `docs/experiments/multipath_tuning_20261101.md`
+and its confusion-matrix figure; `ml_pipeline/reports/multipath_tuning_20261101/`.
+`.gitattributes` preserves the exact training-source snapshot bytes if a future commit
+is authorized. `docs/evaluation.md` and `docs/experiments/README.md` link the new study
+without replacing the deployed baseline tables.
+
+**Before.** The three ten-minute per-mode offset regressors in the served Model 1b bundle
+had all reached their 400-tree training cap. No controlled continuation/regularization
+comparison had been measured against both trajectory quality and the full alert chain.
+
+**Design, fixed before training.** Keep forty route patterns, classifier, temperature,
+top-K=5, features/targets, earlier horizons and all alert thresholds unchanged. Train on
+the existing 605757 archive-augmented windows (342606 ten-minute targets). Split validation
+by whole chronological collection blocks: first 20091 windows for fresh-model early
+stopping, last 25546 for ranking, with a gap longer than the target horizon. Warm-start
+continuation must preserve the source model's identical data and legacy internal random
+holdout; this limitation is stated. The fresh refit uses explicit chronological validation.
+Three trials: continue to 600, continue to 800, or refit with 31 leaves/minimum 80 per leaf/
+L2 5. Tolerances and a combined error/coverage/energy-score objective were predeclared.
+The stronger-regularization refit was rejected, not hidden. Sources explain the mechanisms;
+the grid, coordinate scaling and practical tolerances are our own experiment design.
+
+**Result.** `continue_800` was selected and frozen using validation before the historical
+test audit. It passes the recorded trajectory and alert-chain checks. Arrival-bucket
+best-of-five horizontal coverage: 76.46254 -> 76.90729%; joint 5 NM/1000 ft coverage:
+48.78549 -> 49.02497%. All-traffic top-1 ten-minute mean error: 5.53280 -> 5.49463 NM;
+energy score (lower is better): 1.35628 -> 1.35153. Earlier horizons and route probabilities
+remain unchanged. Continuation is deterministic from the fixed seed-0 source; no
+independent multi-seed replication is claimed.
+
+**Downstream evidence.** Baseline and candidate are each checked against the actual
+escalation function on all 6564 validation and 4690 test encounter pairs. Test full-chain
+results remain 271/284 early catches, 290 real detections, 478 false alerts, and 28 real /
+20 false tier-1 alarms. The pair-identity audit finds no lost real alert or real tier-1
+membership; test alert/tier vectors are identical. Confusion counts, precision, recall,
+F1 and display/collapse outcomes are reported. The route classifier's separate confusion
+matrix, per-class scores and cluster calibration remain unchanged by construction.
+
+**Further checks and tradeoffs.** The shared later-date cohort has 213482 windows (120679
+ten-minute targets; 7480 in the near-airport bucket). It also passes the trajectory guards,
+but is an exploratory shared cohort from prior studies, not a fresh test for every run.
+Aircraft-group bootstrap supports small overall improvements; arrival coverage intervals
+cross zero. Later-date P90 errors increase slightly. Four-thread CPU batch-64 median
+inference time rises from 350.48 to 390.30 ms (~11%); raw model size grows by 5.85 MiB.
+These costs and small regressions are recorded, rather than claiming every metric improved.
+
+**Artifact, not deployment.** The separate candidate is
+`ml_pipeline/data/processed/multipath_experiments/20261101/trajectory_multipath_candidate.pkl`;
+its card is `ml_pipeline/reports/multipath_tuning_20261101/candidate_model_card.json`.
+The production MultiPathPredictor loads it, and its predictions exactly match the audited
+predictions. All original served-file fingerprints remain unchanged. No candidate or
+new code/report has been committed, pushed or deployed.
+
+**Validation.** All 34 unit checks pass. Exact training-source and input-data fingerprints,
+validation-frozen selection, trial fit histories, rejected configurations, calibration,
+confusion matrices, actual gate comparisons, later-date scores, uncertainty diagnostics
+and inference timings are retained in the report directory.
+
+**Did the headline move?** No. The standalone classifier's recorded 95.1% is unchanged.
+The candidate's full-chain test remains 95.42% (271/284), not an operational improvement
+in conflict detection. The measured benefit is a modest improvement in trajectory quality.
+
+### 1 November 2026 - False-alert reduction and multi-path conflict-input experiments
+
+**Request and scope.** Archit requested fewer false outcomes without losing true
+positives, an explanation of the current conflict inputs, and explicitly authorized
+testing multi-path summary features. All changes remain on fine-tuning, local and
+uncommitted. No served threshold, label, safety-net rule or model artifact is changed.
+
+**Input tracing.** The served XGBoost receives 27 features: current pair geometry and
+motion, straight-line CPA, history-derived manoeuvre summaries and three selected-level
+inputs. It does not receive five predicted paths. Those paths are evaluated separately
+as 25 combinations and affect geometry/tiering and resolution checks. The straight-line
+5 NM / 1000 ft safety net is independent of the classifier and remains intact.
+
+**Changes and reason.** Added scripts/experiment_conflict_false_alerts.py for isolated
+threshold and learned-filter comparisons; audit_conflict_false_alerts.py for actual
+production escalation checks; report_conflict_false_alerts.py for reproducible reporting;
+and three recall-constraint/counting tests. Added docs/experiments/conflict_false_alerts_20261101.md,
+its confusion figure and complete raw protocol/selection/results/source snapshot under
+ml_pipeline/reports/conflict_false_alerts_20261101. Linked the study from the experiment
+index and evaluation file; baseline tables and the initial evaluation archive are preserved.
+
+**Results.** Validation chooses raw threshold .07932812720537186 instead of
+.07465646415948868, with fixed weights and calibration. Historical test classifier TP
+stays 289, FP 460 -> 444. Full-chain TP stays 290, FP 478 -> 463, precision .377604 ->
+.385126, recall .957096 unchanged, F1 .541550 -> .549242. Pair-identity checks find no
+lost true pair. Tier-1 stays 28 real / 20 false. Of the original false alerts, 153 arise
+from the preserved straight-line safety net and cannot be removed by classifier tuning.
+
+**Learned-model trials and rejected results.** Six new XGBoost downstream filters test
+depths 2/3/4 with and without four predicted multi-path summaries, keeping original
+classifier score as an input. Frozen upstream models never fitted validation; filters
+fit 3375 early-validation pairs, with thresholds/configurations selected on 3189 later
+validation pairs. This avoids fitting a stack on upstream training examples, but is a
+small fitting set. Validation-selected existing-input depth3 loses four true test pairs;
+multi-path depth3 loses two. Both are rejected. Unselected depth4 diagnostics that happen
+to retain true test pairs are not promoted by choosing on test results. These are learned
+filter experiments, not overwritten production weights or claimed production improvements.
+
+**Verification and limits.** Actual five-path inference and escalate_pair match baseline
+and threshold-proposal decisions on all 6564 validation and 4690 test pairs. Geometry is
+held for three updates as in earlier evaluations, rather than a live persistence replay.
+Served artifact hashes are unchanged. The test is the shared historical relocated-track
+encounter benchmark, not fresh operational conflict observations; future no-loss performance
+is not established. The local proposal is not deployed, committed or pushed.
+
+The complete unit suite passes 37 checks, including three new recall-constraint/counting
+checks. Source scripts, encounter data, dialled-level cache and multi-path input tables
+have SHA-256 provenance records in the conflict study's input_source_manifest.json.
+
+**Did the headline move?** No: standalone early catches remain 270/284 (95.1%) and full
+chain 271/284 (95.42%). This study finds a modest false-alert reduction on the historical
+audit with unchanged observed true positives; it does not claim improved future recall.
+
+### 1 November 2026 - Conservative false-alert refinement, 28 more configurations
+
+**Request and problem.** Archit asked to try further ways to remove false alerts without
+losing previously detected real cases, and for a simple explanation of tiering and
+resolution checks. The first local proposal had 463 test false alerts versus 478 served.
+False alarms are a real detection issue; this experiment changes pair decisions rather
+than hiding alerts in the interface. The original dataset, labels and safety net stay fixed.
+
+**Files and behaviour.** Added scripts/experiment_conflict_refinement.py to compare 18
+multi-path rules, four conservative filter ensembles and six continued/refitted classifiers.
+Added scripts/audit_conflict_refinement.py for actual five-path/escalation evaluation,
+scripts/report_conflict_refinement.py for full reproducible documentation, and
+ml_pipeline/tests/test_conflict_refinement.py for three threshold/protection tests.
+Results and a confusion figure are in docs/experiments/conflict_refinement_20261101.md;
+raw protocol, frozen selection, all-trial CSV, complete counts/F1/precision/recall,
+source snapshot, candidate card and hashes are under
+ml_pipeline/reports/conflict_refinement_20261101. Evaluation and experiment index link
+the study without replacing the original evaluation or first experiment.
+
+**Why and what worked.** Own-design conservative filters suppress only cases the original
+classifier already alerts on, and never overrule the straight-line legal safety net.
+Continued/refitted classifiers use the original 28746 training pairs; validation chooses
+operating floors and one winner per family before this batch opens the historical test.
+The winning classifier-training configuration is a fresh depth-3 XGBoost fit with 400
+trees, learning rate .04, minimum child weight 20, L2=20 and no positive class upweighting.
+It takes the same 27 inputs. Its veto floor is half the smallest score among original
+classifier true-positive validation pairs, a conservative margin of our own design,
+not a published guarantee. The combined rule also retains the previous raw threshold
+.07932812720537186. Its filter-score floor is .00928506813943386; that raw score is not
+a calibrated probability and the artifact is not a drop-in replacement classifier.
+Weights and prediction arrays remain under
+ml_pipeline/data/processed/conflict_experiments/20261101_refinement.
+
+**Results.** Test full-chain false alerts 478 -> 459 (previous proposal 463), true detections
+remain the same 290 pairs, precision .377604 -> .387183, recall .957096 unchanged,
+F1 .541550 -> .551331, matrix [[3928,459],[13,290]]. Standalone classifier/filter retains
+the same 289 real cases, FP 460 -> 440. Real tier-1 cases stay 28; false tier-1 cases
+20 -> 19. Validation retains all original 433 real cases, FP 705 -> 671, and 411/428
+early catches. All identity-loss lists are empty. This is a modest gain, not elimination
+of false alarms. The existing 13 missed real test cases remain missed.
+
+**Other trials and limits.** Multi-path rules and the validation-selected ensemble do
+not improve on the prior proposal. Some unselected ensemble diagnostics remove one or
+two false test pairs but are not chosen on test. The historical benchmark has already
+been inspected in prior rounds; this is explicitly exploratory repeated evaluation.
+Fresh labelled encounters and calibration of the combined output remain needed before
+deployment. Low false-positive counts on these data do not guarantee future no-loss recall.
+
+**Plain explanations.** Tiering means urgency: within three minutes is tier 1, three
+to ten minutes tier 2, beyond that tier 0. The classifier/safety gate and persistence
+must still qualify before a notification. Resolution checks test suggested turns or
+altitude changes against the original pair and nearby traffic's available predicted
+paths, rejecting a suggestion that creates another conflict. Suggestions are for the
+controller and do not automatically control an aircraft.
+
+**Verification and headline.** All 40 unit checks pass. Actual served five-path geometry
+and escalate_pair match the proposal on all 6564 validation / 4690 test pairs, assuming
+the same geometry holds for three updates as in earlier studies. No true pair or tier
+membership is lost. Model hashes remain unchanged. Early catches are unchanged: classifier
+270/284 (95.1%), full chain 271/284 (95.42%). All changes remain local and uncommitted;
+no served artifact, live threshold, commit or push was changed.
+
+### 1 November 2026 - Restore the local checkpoint before the all-pairs five-path experiment
+
+**Request and before.** Archit requested the code and fine-tuned models saved just
+before the path-confidence experiment, while keeping its report. Five experimental
+source/test files remained in the active folders, although all 379 files recorded in
+`checkpoints/20261101_pre_path_confidence/manifest.json` already matched their saved
+SHA-256 fingerprints (checksums that identify the exact file contents).
+
+**Files and result.** Removed only `ml_pipeline/utils/path_confidence_monitor.py`,
+`ml_pipeline/tests/test_path_confidence_monitor.py`, `scripts/experiment_path_confidence.py`,
+`scripts/replay_path_confidence.py` and `scripts/report_path_confidence.py` from active
+code after verifying their exact copies under
+`ml_pipeline/reports/path_confidence_20261101/archived_source/`. Retained
+`docs/experiments/path_confidence_20261101.md`, its figure, all raw reports and recorded
+outputs. Updated `ml_pipeline/reports/path_confidence_20261101/rollback_record.json`
+with the removed paths and preserved-file checksums. The historical report describes
+the experiment as performed; its reproduction commands require restoring the archived
+sources first. This entry is the only intentional change to a checkpoint-listed file.
+
+**Why and models.** This returns the active project to the requested saved state
+without losing the study. Served models, selected LSTM/trajectory candidates and
+conflict XGBoost experiment weights retain the exact checkpoint bytes. The existing
+fine-tuning work above commit `2bcaba1` remains local; no commit or push was made.
+
+**Did the headline move?** No model or alert behaviour changed. Recorded classifier
+early catches remain 270/284 (95.1%), and full-chain early catches remain 271/284
+(95.42%); these are existing measurements, not a new benchmark run.
+
+### 1 November 2026 - Publish the restored fine-tuning work
+
+Archit explicitly authorized committing and pushing the restored project to
+`fine-tuning` with message `fine tuned trajectory prediction and conflict detection`.
+The commit includes tuning code and reports, including the preserved five-path report
+and archived experiment source. `.gitattributes` now preserves those archived source
+bytes across checkouts so their recorded checksums remain valid. Ignored local model
+weights and restore checkpoint ZIPs remain on disk under the existing repository rules.
+The restored unit suite passed all 40 tests. No model behaviour or recorded headline
+metric changed: classifier early catches remain 95.1% (270/284).

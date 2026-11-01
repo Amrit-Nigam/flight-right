@@ -75,3 +75,6 @@ ml_pipeline/data/weather/*
 
 # Backend and per-update model trace logs (server/app/services/model_trace.py)
 server/logs/
+
+# Local restore checkpoints; code and selected model artifacts, never committed.
+/checkpoints/

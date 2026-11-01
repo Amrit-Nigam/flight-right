@@ -2,7 +2,7 @@
 
 The isolated finalist improves the combined validation objective and passes the recorded guards on all three test seeds. It is a candidate for a later integration review, not a deployed change.
 
-The checkpoint is preserved remotely at [checkpoint/pre-trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/tree/checkpoint/pre-trajectory-tuning-20261101), commit `a502c7e`. Experiments are on `experiment/trajectory-tuning-20261101`.
+The checkpoint is preserved remotely at [checkpoint/pre-trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/commit/a502c7e), commit `a502c7e`. Experiments are on `fine-tuning`.
 
 ## Scope and method
 

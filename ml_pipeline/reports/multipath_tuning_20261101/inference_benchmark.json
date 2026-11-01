@@ -1,0 +1,45 @@
+{
+  "policy": {
+    "batch_size": 64,
+    "warmups": 2,
+    "interleaved_repetitions": 7,
+    "cpu_threads": 4,
+    "comparison": "candidate median <= baseline median * 1.25 + 0.010 seconds",
+    "purpose": "Practical inference-cost check, not a full backend latency benchmark or aviation requirement",
+    "inputs": "First 64 validation windows and their saved route features; no timing-based parameter or seed selection"
+  },
+  "times_seconds": {
+    "baseline": [
+      0.32822259998647496,
+      0.33878740001819097,
+      0.3386510999989696,
+      0.4143929999845568,
+      0.44547470001270995,
+      0.3504767999984324,
+      0.371260899992194
+    ],
+    "candidate": [
+      0.3409424000128638,
+      0.34366259997477755,
+      0.3903005999745801,
+      0.4567326999967918,
+      0.35735350000322796,
+      0.4210612000024412,
+      0.4173966000089422
+    ]
+  },
+  "median_seconds": {
+    "baseline": 0.3504767999984324,
+    "candidate": 0.3903005999745801
+  },
+  "passes_cost_guard": true,
+  "probabilities_identical": true,
+  "patterns_identical": true,
+  "earlier_horizons_identical": true,
+  "finite_output": true,
+  "artifact_bytes": {
+    "baseline": 121584812,
+    "candidate": 127721278
+  },
+  "candidate_sha256": "ad64df89266b4c5980acb564c7e83d864b522de2f3ec43331147f42232952c2b"
+}

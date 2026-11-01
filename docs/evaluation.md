@@ -142,3 +142,28 @@ This replay uses rule-generated assessments to isolate the display filter. It do
 ## Trajectory experiments ? 1 November 2026
 
 See the [trajectory experiment summary](experiments/README.md) for isolated LSTM fine-tuning studies. A ten-minute-head candidate improves several error and hit-rate metrics while preserving shorter horizons. It has not replaced the served artifacts; all deployed-model tables above remain the baseline.
+
+
+## Multi-path experiments ? 1 November 2026
+
+[Local multi-path tuning results](experiments/multipath_tuning_20261101.md) compare three offset-regressor configurations, including rejected trials, trajectory distributions, classification/calibration, full alert-chain confusion counts, later-date audit and inference cost. The separately packaged candidate has not replaced the served model; the deployed-model tables above remain the baseline. All new work is uncommitted and has not been pushed.
+
+## Conflict false-alert experiments - 1 November 2026
+
+[Local conflict experiment results](experiments/conflict_false_alerts_20261101.md) report
+threshold selection and six learned-filter trials, including multi-path summary inputs.
+The threshold proposal retains the same 290 full-chain true-positive test pairs and
+271/284 early catches while reducing false alerts 478 to 463. Precision improves
+37.76% to 38.51%; F1 .54155 to .54924; recall remains 95.71%. Standalone classifier
+TP remains 289, FP drops 460 to 444. Both validation-selected learned filters fail
+true-positive preservation on test and are rejected. Full confusion matrices and
+per-trial precision/recall/F1 are retained in the linked report and raw JSON.
+Served weights and thresholds are unchanged; the initial evaluation archive remains intact.
+
+[Further conflict refinement](experiments/conflict_refinement_20261101.md) tests 28
+additional configurations. Its validation-selected conservative filter lowers full-chain
+test false alerts to **459**, retaining the same 290 true-positive pairs, 271/284 early
+catches and 28 real tier-1 alarms. False tier-1 alarms fall to 19. Precision is 38.72%,
+recall 95.71%, F1 .55133; confusion matrix [[3928,459],[13,290]]. Classifier/filter TP
+remains 289 and FP falls to 440. Actual escalation agrees on all validation/test pairs.
+This is a local exploratory proposal, not a change to the served baseline above.

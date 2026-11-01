@@ -7,9 +7,9 @@ and the later-date audit. It is **not deployed**. The served multi-path model an
 recorded 95.1% conflict-warning headline are unchanged.
 
 The original project was committed and pushed **before** any experiments:
-[checkpoint/pre-trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/tree/checkpoint/pre-trajectory-tuning-20261101),
+[checkpoint/pre-trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/commit/a502c7e),
 commit `a502c7e`. Source, reports and this summary are on
-[experiment/trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/tree/experiment/trajectory-tuning-20261101).
+[fine-tuning](https://github.com/Amrit-Nigam/flight-right/tree/fine-tuning).
 Datasets, private configuration and model binaries remain excluded from Git.
 
 ## Studies completed
@@ -72,3 +72,49 @@ own fine-tuning metrics in the packaged artifact.
 These are **Model 1 LSTM** results. They do not improve the deployed alert-chain headline:
 that chain uses **Model 1b multi-path trajectories**, which needs its own tuning and
 full-chain regression evaluation before any operational improvement can be claimed.
+
+
+## Multi-path model ? local, uncommitted experiment
+
+[Complete multi-path experiment report](multipath_tuning_20261101.md). Three configurations were tested. Continuing the ten-minute regressors to 800 iterations passed the recorded checks; the stronger-regularization refit was rejected. The packaged candidate is local and is **not served, committed or pushed**.
+
+| Historical ten-minute arrival-bucket metric | Baseline | Candidate |
+|---|---:|---:|
+| Top-1 mean error (NM) | 9.93943 | 9.89244 |
+| Top-1 altitude MAE (ft) | 1289.81773 | 1288.77336 |
+| Best-of-five within 5 NM (%) | 76.46254 | 76.90729 |
+| Best-of-five joint 3-D hit (%) | 48.78549 | 49.02497 |
+| Energy score (lower is better) | 2.03300 | 2.02671 |
+
+The full-chain test retains 271/284 early catches and 28 real / 20 false tier-1 alarms. Pair-level audit found no lost real alerts or real tier-1 memberships. Route classifier/probabilities and earlier-horizon predictions are unchanged.
+
+The benefit is modest: isolated CPU inference median rose from 350.48 to 390.30 ms per 64 aircraft; raw model size rose by 5.85 MiB. Later-date arrival coverage confidence intervals cross zero, and later-date P90 error worsens slightly. These tradeoffs are included in the report.
+
+Candidate: `ml_pipeline/data/processed/multipath_experiments/20261101/trajectory_multipath_candidate.pkl`. [Model card](../../ml_pipeline/reports/multipath_tuning_20261101/candidate_model_card.json). No further commits or pushes will be made without Archit?s explicit instruction.
+
+## Conflict false-alert experiments - 1 November 2026
+
+[Complete conflict study](conflict_false_alerts_20261101.md). A validation-selected
+threshold reduces historical test full-chain false alerts from **478 to 463**, retaining
+the same **290 true-positive pairs**, **271/284 early catches**, and **28 real tier-1 alerts**.
+Full-chain precision increases from 37.76% to 38.51%; F1 increases from .54155 to .54924.
+The classifier alone also retains all 289 true positives, with false positives 460 to 444.
+
+Six learned filters were tested with and without four multi-path summary features.
+The validation-selected existing-input and multi-path filters lose four and two true
+test conflicts respectively and are rejected. The served classifier currently receives
+straight-line CPA/state/history/selected-altitude inputs, not the five paths; the 25
+path combinations affect separate geometry and tiering. The hard safety net is preserved.
+All candidates and the threshold proposal remain local, uncommitted and undeployed.
+
+## Further conflict refinement - 1 November 2026
+
+[Second false-alert batch](conflict_refinement_20261101.md): 28 configurations test
+multi-path conjunction rules, conservative ensembles and classifier continuation/refits.
+The validation-selected unweighted refit, used as a conservative filter, reduces test
+false alerts **478 -> 459** (previous proposal: 463), preserving the same **290 real
+system detections**, **289 real classifier detections**, and **271/284 early catches**.
+False tier-1 alarms fall **20 -> 19**; all 28 real tier-1 alarms remain. Full-chain
+precision is 38.72%, recall 95.71%, F1 .55133. All 40 tests and actual escalation audits
+pass. This remains a repeated historical benchmark, not a future no-loss guarantee.
+No candidate is deployed, committed or pushed.

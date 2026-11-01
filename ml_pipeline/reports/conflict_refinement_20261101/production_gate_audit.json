@@ -1,0 +1,21 @@
+{
+  "candidate": "refit_unweighted",
+  "splits": {
+    "val": {
+      "pairs": 6564,
+      "notifications_match": true,
+      "tiers_match": true,
+      "no_lost_real_pairs": true,
+      "lost_pair_rows": [],
+      "persistence": "Same geometry for three updates, not live transition replay"
+    },
+    "test": {
+      "pairs": 4690,
+      "notifications_match": true,
+      "tiers_match": true,
+      "no_lost_real_pairs": true,
+      "lost_pair_rows": [],
+      "persistence": "Same geometry for three updates, not live transition replay"
+    }
+  }
+}

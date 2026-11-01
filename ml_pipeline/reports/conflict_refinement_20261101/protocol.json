@@ -1,0 +1,70 @@
+{
+  "created_at_utc": "2026-11-01T11:28:53.424410+00:00",
+  "base_threshold": 0.07932812720537186,
+  "masses": [
+    0.0,
+    0.01,
+    0.05,
+    0.1,
+    0.25,
+    0.5
+  ],
+  "refits": [
+    {
+      "name": "continue_unweighted",
+      "continuation": true,
+      "depth": 3,
+      "rounds": 150,
+      "weighted": false
+    },
+    {
+      "name": "continue_weighted",
+      "continuation": true,
+      "depth": 3,
+      "rounds": 150,
+      "weighted": true
+    },
+    {
+      "name": "refit_depth2",
+      "continuation": false,
+      "depth": 2,
+      "rounds": 400,
+      "weighted": true
+    },
+    {
+      "name": "refit_depth3",
+      "continuation": false,
+      "depth": 3,
+      "rounds": 400,
+      "weighted": true
+    },
+    {
+      "name": "refit_depth4",
+      "continuation": false,
+      "depth": 4,
+      "rounds": 400,
+      "weighted": true
+    },
+    {
+      "name": "refit_unweighted",
+      "continuation": false,
+      "depth": 3,
+      "rounds": 400,
+      "weighted": false
+    }
+  ],
+  "raw_rule_margin": 0.8,
+  "raw_rule_cap": 0.25,
+  "learned_floor_margin": 0.5,
+  "fit": "Original 28746 training pairs for refits/continuation; previously saved early-validation filters for ensembles",
+  "guard": "No lost original classifier true pair AND no lost original full-chain true pair; unchanged safety net and tiers",
+  "selection": "One winner per family by validation false alerts, then simpler name; require no classifier/system true losses on validation",
+  "test": "Existing historical audit has already been inspected. Freeze all family winners before loading it. Never choose an unselected diagnostic using test outcomes.",
+  "limitations": "Exploratory repeated benchmark. No guarantee of no lost future conflicts.",
+  "source": "Conservative conjunctions, margins and veto design are our own design, not a published guarantee.",
+  "reference": "https://xgboost.readthedocs.io/en/stable/python/python_api.html",
+  "hashes_before": {
+    "xgboost_conflict.json": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65",
+    "trajectory_multipath.pkl": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589"
+  }
+}

@@ -1,0 +1,668 @@
+{
+  "winner": "existing_inputs_depth3",
+  "multipath_winner": "multipath_depth3",
+  "candidates": [
+    {
+      "name": "threshold_classifier",
+      "threshold": 0.07932812720537186,
+      "kind": "threshold",
+      "validation": {
+        "classifier": {
+          "tp": 433,
+          "fp": 655,
+          "fn": 17,
+          "tn": 5459,
+          "precision": 0.39797794117647056,
+          "recall": 0.9622222222222222,
+          "f1": 0.5630689206762028,
+          "confusion_matrix": [
+            [
+              5459,
+              655
+            ],
+            [
+              17,
+              433
+            ]
+          ]
+        },
+        "system": {
+          "tp": 433,
+          "fp": 679,
+          "fn": 17,
+          "tn": 5435,
+          "precision": 0.3893884892086331,
+          "recall": 0.9622222222222222,
+          "f1": 0.5544174135723432,
+          "confusion_matrix": [
+            [
+              5435,
+              679
+            ],
+            [
+              17,
+              433
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 411,
+        "early_total": 428,
+        "tier1_true": 30,
+        "tier1_false": 23,
+        "ranking": {
+          "pr_auc": 0.7885283894147559,
+          "roc_auc": 0.9787671282666377,
+          "raw_brier": 0.03292304277420044
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "threshold_system",
+      "threshold": 0.07932812720537186,
+      "kind": "threshold",
+      "validation": {
+        "classifier": {
+          "tp": 433,
+          "fp": 655,
+          "fn": 17,
+          "tn": 5459,
+          "precision": 0.39797794117647056,
+          "recall": 0.9622222222222222,
+          "f1": 0.5630689206762028,
+          "confusion_matrix": [
+            [
+              5459,
+              655
+            ],
+            [
+              17,
+              433
+            ]
+          ]
+        },
+        "system": {
+          "tp": 433,
+          "fp": 679,
+          "fn": 17,
+          "tn": 5435,
+          "precision": 0.3893884892086331,
+          "recall": 0.9622222222222222,
+          "f1": 0.5544174135723432,
+          "confusion_matrix": [
+            [
+              5435,
+              679
+            ],
+            [
+              17,
+              433
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 411,
+        "early_total": 428,
+        "tier1_true": 30,
+        "tier1_false": 23,
+        "ranking": {
+          "pr_auc": 0.7885283894147559,
+          "roc_auc": 0.9787671282666377,
+          "raw_brier": 0.03292304277420044
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "existing_inputs_depth2",
+      "kind": "veto",
+      "with_mp": false,
+      "columns": [
+        "current_lateral_separation_nm",
+        "current_vertical_separation_ft",
+        "relative_speed_ms",
+        "relative_heading_deg",
+        "closing_speed_ms",
+        "vertical_convergence_rate_ms",
+        "predicted_cpa_lateral_nm",
+        "predicted_cpa_vertical_ft",
+        "predicted_time_to_cpa_seconds",
+        "predicted_is_converging",
+        "max_abs_turn_rate_deg_s",
+        "a_abs_turn_rate_deg_s",
+        "b_abs_turn_rate_deg_s",
+        "a_abs_vertical_rate_ms",
+        "b_abs_vertical_rate_ms",
+        "a_abs_vertical_accel_ms2",
+        "b_abs_vertical_accel_ms2",
+        "a_abs_along_accel_ms2",
+        "b_abs_along_accel_ms2",
+        "min_distance_to_vabb_nm",
+        "a_altitude_ft",
+        "b_altitude_ft",
+        "a_velocity_ms",
+        "b_velocity_ms",
+        "a_sel_alt_delta_ft",
+        "b_sel_alt_delta_ft",
+        "sel_level_separation_ft",
+        "classifier_raw"
+      ],
+      "threshold": 0.0313766673207283,
+      "selection": {
+        "classifier": {
+          "tp": 206,
+          "fp": 298,
+          "fn": 5,
+          "tn": 2680,
+          "precision": 0.4087301587301587,
+          "recall": 0.976303317535545,
+          "f1": 0.5762237762237762,
+          "confusion_matrix": [
+            [
+              2680,
+              298
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "system": {
+          "tp": 206,
+          "fp": 313,
+          "fn": 5,
+          "tn": 2665,
+          "precision": 0.3969171483622351,
+          "recall": 0.976303317535545,
+          "f1": 0.5643835616438356,
+          "confusion_matrix": [
+            [
+              2665,
+              313
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 193,
+        "early_total": 198,
+        "tier1_true": 17,
+        "tier1_false": 13,
+        "ranking": {
+          "pr_auc": 0.8344489306758995,
+          "roc_auc": 0.983634329474599,
+          "raw_brier": 0.0212591253221035
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "existing_inputs_depth3",
+      "kind": "veto",
+      "with_mp": false,
+      "columns": [
+        "current_lateral_separation_nm",
+        "current_vertical_separation_ft",
+        "relative_speed_ms",
+        "relative_heading_deg",
+        "closing_speed_ms",
+        "vertical_convergence_rate_ms",
+        "predicted_cpa_lateral_nm",
+        "predicted_cpa_vertical_ft",
+        "predicted_time_to_cpa_seconds",
+        "predicted_is_converging",
+        "max_abs_turn_rate_deg_s",
+        "a_abs_turn_rate_deg_s",
+        "b_abs_turn_rate_deg_s",
+        "a_abs_vertical_rate_ms",
+        "b_abs_vertical_rate_ms",
+        "a_abs_vertical_accel_ms2",
+        "b_abs_vertical_accel_ms2",
+        "a_abs_along_accel_ms2",
+        "b_abs_along_accel_ms2",
+        "min_distance_to_vabb_nm",
+        "a_altitude_ft",
+        "b_altitude_ft",
+        "a_velocity_ms",
+        "b_velocity_ms",
+        "a_sel_alt_delta_ft",
+        "b_sel_alt_delta_ft",
+        "sel_level_separation_ft",
+        "classifier_raw"
+      ],
+      "threshold": 0.03327775374054909,
+      "selection": {
+        "classifier": {
+          "tp": 206,
+          "fp": 249,
+          "fn": 5,
+          "tn": 2729,
+          "precision": 0.45274725274725275,
+          "recall": 0.976303317535545,
+          "f1": 0.6186186186186187,
+          "confusion_matrix": [
+            [
+              2729,
+              249
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "system": {
+          "tp": 206,
+          "fp": 265,
+          "fn": 5,
+          "tn": 2713,
+          "precision": 0.43736730360934184,
+          "recall": 0.976303317535545,
+          "f1": 0.6041055718475073,
+          "confusion_matrix": [
+            [
+              2713,
+              265
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 193,
+        "early_total": 198,
+        "tier1_true": 17,
+        "tier1_false": 13,
+        "ranking": {
+          "pr_auc": 0.8325864263720505,
+          "roc_auc": 0.9840473106095571,
+          "raw_brier": 0.021599803119897842
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "existing_inputs_depth4",
+      "kind": "veto",
+      "with_mp": false,
+      "columns": [
+        "current_lateral_separation_nm",
+        "current_vertical_separation_ft",
+        "relative_speed_ms",
+        "relative_heading_deg",
+        "closing_speed_ms",
+        "vertical_convergence_rate_ms",
+        "predicted_cpa_lateral_nm",
+        "predicted_cpa_vertical_ft",
+        "predicted_time_to_cpa_seconds",
+        "predicted_is_converging",
+        "max_abs_turn_rate_deg_s",
+        "a_abs_turn_rate_deg_s",
+        "b_abs_turn_rate_deg_s",
+        "a_abs_vertical_rate_ms",
+        "b_abs_vertical_rate_ms",
+        "a_abs_vertical_accel_ms2",
+        "b_abs_vertical_accel_ms2",
+        "a_abs_along_accel_ms2",
+        "b_abs_along_accel_ms2",
+        "min_distance_to_vabb_nm",
+        "a_altitude_ft",
+        "b_altitude_ft",
+        "a_velocity_ms",
+        "b_velocity_ms",
+        "a_sel_alt_delta_ft",
+        "b_sel_alt_delta_ft",
+        "sel_level_separation_ft",
+        "classifier_raw"
+      ],
+      "threshold": 0.021695803850889206,
+      "selection": {
+        "classifier": {
+          "tp": 206,
+          "fp": 298,
+          "fn": 5,
+          "tn": 2680,
+          "precision": 0.4087301587301587,
+          "recall": 0.976303317535545,
+          "f1": 0.5762237762237762,
+          "confusion_matrix": [
+            [
+              2680,
+              298
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "system": {
+          "tp": 206,
+          "fp": 313,
+          "fn": 5,
+          "tn": 2665,
+          "precision": 0.3969171483622351,
+          "recall": 0.976303317535545,
+          "f1": 0.5643835616438356,
+          "confusion_matrix": [
+            [
+              2665,
+              313
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 193,
+        "early_total": 198,
+        "tier1_true": 17,
+        "tier1_false": 13,
+        "ranking": {
+          "pr_auc": 0.8252986191874985,
+          "roc_auc": 0.9824224407105504,
+          "raw_brier": 0.021401476114988327
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "multipath_depth2",
+      "kind": "veto",
+      "with_mp": true,
+      "columns": [
+        "current_lateral_separation_nm",
+        "current_vertical_separation_ft",
+        "relative_speed_ms",
+        "relative_heading_deg",
+        "closing_speed_ms",
+        "vertical_convergence_rate_ms",
+        "predicted_cpa_lateral_nm",
+        "predicted_cpa_vertical_ft",
+        "predicted_time_to_cpa_seconds",
+        "predicted_is_converging",
+        "max_abs_turn_rate_deg_s",
+        "a_abs_turn_rate_deg_s",
+        "b_abs_turn_rate_deg_s",
+        "a_abs_vertical_rate_ms",
+        "b_abs_vertical_rate_ms",
+        "a_abs_vertical_accel_ms2",
+        "b_abs_vertical_accel_ms2",
+        "a_abs_along_accel_ms2",
+        "b_abs_along_accel_ms2",
+        "min_distance_to_vabb_nm",
+        "a_altitude_ft",
+        "b_altitude_ft",
+        "a_velocity_ms",
+        "b_velocity_ms",
+        "a_sel_alt_delta_ft",
+        "b_sel_alt_delta_ft",
+        "sel_level_separation_ft",
+        "classifier_raw",
+        "mp_p_alert_volume",
+        "mp_p_legal_minimum",
+        "mp_p_alert_volume_within_180s",
+        "mp_worst_time_s"
+      ],
+      "threshold": 0.021982910111546516,
+      "selection": {
+        "classifier": {
+          "tp": 206,
+          "fp": 283,
+          "fn": 5,
+          "tn": 2695,
+          "precision": 0.4212678936605317,
+          "recall": 0.976303317535545,
+          "f1": 0.5885714285714285,
+          "confusion_matrix": [
+            [
+              2695,
+              283
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "system": {
+          "tp": 206,
+          "fp": 299,
+          "fn": 5,
+          "tn": 2679,
+          "precision": 0.4079207920792079,
+          "recall": 0.976303317535545,
+          "f1": 0.5754189944134078,
+          "confusion_matrix": [
+            [
+              2679,
+              299
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 193,
+        "early_total": 198,
+        "tier1_true": 17,
+        "tier1_false": 13,
+        "ranking": {
+          "pr_auc": 0.8566561171295904,
+          "roc_auc": 0.9864822282838763,
+          "raw_brier": 0.018407057970762253
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "multipath_depth3",
+      "kind": "veto",
+      "with_mp": true,
+      "columns": [
+        "current_lateral_separation_nm",
+        "current_vertical_separation_ft",
+        "relative_speed_ms",
+        "relative_heading_deg",
+        "closing_speed_ms",
+        "vertical_convergence_rate_ms",
+        "predicted_cpa_lateral_nm",
+        "predicted_cpa_vertical_ft",
+        "predicted_time_to_cpa_seconds",
+        "predicted_is_converging",
+        "max_abs_turn_rate_deg_s",
+        "a_abs_turn_rate_deg_s",
+        "b_abs_turn_rate_deg_s",
+        "a_abs_vertical_rate_ms",
+        "b_abs_vertical_rate_ms",
+        "a_abs_vertical_accel_ms2",
+        "b_abs_vertical_accel_ms2",
+        "a_abs_along_accel_ms2",
+        "b_abs_along_accel_ms2",
+        "min_distance_to_vabb_nm",
+        "a_altitude_ft",
+        "b_altitude_ft",
+        "a_velocity_ms",
+        "b_velocity_ms",
+        "a_sel_alt_delta_ft",
+        "b_sel_alt_delta_ft",
+        "sel_level_separation_ft",
+        "classifier_raw",
+        "mp_p_alert_volume",
+        "mp_p_legal_minimum",
+        "mp_p_alert_volume_within_180s",
+        "mp_worst_time_s"
+      ],
+      "threshold": 0.02043812721967697,
+      "selection": {
+        "classifier": {
+          "tp": 206,
+          "fp": 261,
+          "fn": 5,
+          "tn": 2717,
+          "precision": 0.4411134903640257,
+          "recall": 0.976303317535545,
+          "f1": 0.6076696165191741,
+          "confusion_matrix": [
+            [
+              2717,
+              261
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "system": {
+          "tp": 206,
+          "fp": 277,
+          "fn": 5,
+          "tn": 2701,
+          "precision": 0.42650103519668736,
+          "recall": 0.976303317535545,
+          "f1": 0.5936599423631124,
+          "confusion_matrix": [
+            [
+              2701,
+              277
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 193,
+        "early_total": 198,
+        "tier1_true": 17,
+        "tier1_false": 11,
+        "ranking": {
+          "pr_auc": 0.8575233343032674,
+          "roc_auc": 0.9873909459257302,
+          "raw_brier": 0.018871577456593513
+        },
+        "passes_true_preservation": true
+      }
+    },
+    {
+      "name": "multipath_depth4",
+      "kind": "veto",
+      "with_mp": true,
+      "columns": [
+        "current_lateral_separation_nm",
+        "current_vertical_separation_ft",
+        "relative_speed_ms",
+        "relative_heading_deg",
+        "closing_speed_ms",
+        "vertical_convergence_rate_ms",
+        "predicted_cpa_lateral_nm",
+        "predicted_cpa_vertical_ft",
+        "predicted_time_to_cpa_seconds",
+        "predicted_is_converging",
+        "max_abs_turn_rate_deg_s",
+        "a_abs_turn_rate_deg_s",
+        "b_abs_turn_rate_deg_s",
+        "a_abs_vertical_rate_ms",
+        "b_abs_vertical_rate_ms",
+        "a_abs_vertical_accel_ms2",
+        "b_abs_vertical_accel_ms2",
+        "a_abs_along_accel_ms2",
+        "b_abs_along_accel_ms2",
+        "min_distance_to_vabb_nm",
+        "a_altitude_ft",
+        "b_altitude_ft",
+        "a_velocity_ms",
+        "b_velocity_ms",
+        "a_sel_alt_delta_ft",
+        "b_sel_alt_delta_ft",
+        "sel_level_separation_ft",
+        "classifier_raw",
+        "mp_p_alert_volume",
+        "mp_p_legal_minimum",
+        "mp_p_alert_volume_within_180s",
+        "mp_worst_time_s"
+      ],
+      "threshold": 0.012492881156504154,
+      "selection": {
+        "classifier": {
+          "tp": 206,
+          "fp": 300,
+          "fn": 5,
+          "tn": 2678,
+          "precision": 0.40711462450592883,
+          "recall": 0.976303317535545,
+          "f1": 0.5746164574616457,
+          "confusion_matrix": [
+            [
+              2678,
+              300
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "system": {
+          "tp": 206,
+          "fp": 316,
+          "fn": 5,
+          "tn": 2662,
+          "precision": 0.3946360153256705,
+          "recall": 0.976303317535545,
+          "f1": 0.5620736698499318,
+          "confusion_matrix": [
+            [
+              2662,
+              316
+            ],
+            [
+              5,
+              206
+            ]
+          ]
+        },
+        "lost_true_pair_rows": [],
+        "gained_true_pair_rows": [],
+        "lost_classifier_true_rows": [],
+        "early_true": 193,
+        "early_total": 198,
+        "tier1_true": 17,
+        "tier1_false": 12,
+        "ranking": {
+          "pr_auc": 0.8570803695732466,
+          "roc_auc": 0.9871808745969654,
+          "raw_brier": 0.01835879497230053
+        },
+        "passes_true_preservation": true
+      }
+    }
+  ]
+}

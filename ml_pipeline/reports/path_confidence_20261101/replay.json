@@ -1,0 +1,78 @@
+{
+  "source": "ml_pipeline\\data\\raw\\session_b_20260905_023002_combined.parquet",
+  "source_sha256": "af68c2d82317e62c856632930bea2840b1a354b07e63f9183f29116569778bb1",
+  "threshold": 0.2,
+  "score": "total_weight",
+  "consecutive": 3,
+  "ticks": [
+    {
+      "time": 1788575713,
+      "aircraft": 17,
+      "excluded": 187,
+      "pairs": 136,
+      "combinations": 3400,
+      "pending": 1,
+      "visible": 0,
+      "new_notifications": 0,
+      "inference_and_monitor_seconds": 0.7467667000018992
+    },
+    {
+      "time": 1788575723,
+      "aircraft": 17,
+      "excluded": 187,
+      "pairs": 136,
+      "combinations": 3400,
+      "pending": 1,
+      "visible": 0,
+      "new_notifications": 0,
+      "inference_and_monitor_seconds": 0.5340624999953434
+    },
+    {
+      "time": 1788575733,
+      "aircraft": 18,
+      "excluded": 186,
+      "pairs": 153,
+      "combinations": 3825,
+      "pending": 0,
+      "visible": 1,
+      "new_notifications": 1,
+      "inference_and_monitor_seconds": 0.5621570000075735
+    },
+    {
+      "time": 1788575743,
+      "aircraft": 17,
+      "excluded": 187,
+      "pairs": 136,
+      "combinations": 3400,
+      "pending": 0,
+      "visible": 1,
+      "new_notifications": 0,
+      "inference_and_monitor_seconds": 0.5204457999789156
+    },
+    {
+      "time": 1788575753,
+      "aircraft": 16,
+      "excluded": 188,
+      "pairs": 120,
+      "combinations": 3000,
+      "pending": 0,
+      "visible": 1,
+      "new_notifications": 0,
+      "inference_and_monitor_seconds": 0.54562900000019
+    },
+    {
+      "time": 1788575763,
+      "aircraft": 16,
+      "excluded": 188,
+      "pairs": 120,
+      "combinations": 3000,
+      "pending": 0,
+      "visible": 1,
+      "new_notifications": 0,
+      "inference_and_monitor_seconds": 0.7751912999956403
+    }
+  ],
+  "label_caveat": "Recorded traffic, no labelled pair outcomes here. Demonstrates state/all-pairs/latency, not detection accuracy or warning-time quality.",
+  "scope": "All current aircraft with ten valid states, airborne >=10000 ft and >50 m/s. No spatial prefilter or pair cap; no network route lookup.",
+  "live_controller_changed": false
+}

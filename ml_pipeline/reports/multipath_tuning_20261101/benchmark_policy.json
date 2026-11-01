@@ -1,0 +1,9 @@
+{
+  "batch_size": 64,
+  "warmups": 2,
+  "interleaved_repetitions": 7,
+  "cpu_threads": 4,
+  "comparison": "candidate median <= baseline median * 1.25 + 0.010 seconds",
+  "purpose": "Practical inference-cost check, not a full backend latency benchmark or aviation requirement",
+  "inputs": "First 64 validation windows and their saved route features; no timing-based parameter or seed selection"
+}

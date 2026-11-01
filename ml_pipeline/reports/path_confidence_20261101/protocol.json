@@ -1,0 +1,36 @@
+{
+  "created_utc": "2026-11-01T14:25:28.474711+00:00",
+  "thresholds": [
+    0.0,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.2,
+    0.4,
+    0.6,
+    0.8
+  ],
+  "scores": [
+    "total_weight",
+    "max_joint_weight",
+    "both_path_weight"
+  ],
+  "modes": [
+    "path_only",
+    "safety_plus_paths",
+    "served_with_path_gate",
+    "refined_with_path_gate",
+    "served_plus_paths"
+  ],
+  "selection": "For each score/policy, minimize validation FP preserving every originally detected real pair. If infeasible, record no candidate; best-F1 threshold is diagnostic only.",
+  "caveat": "Historical benchmark already examined. Static snapshots cannot measure warning delay or real stream persistence. No live threshold changes.",
+  "checkpoint": "checkpoints/20261101_pre_path_confidence",
+  "threshold_zero": "Still requires at least one predicted conflicting combination; no combination is not treated as a zero-threshold alert.",
+  "probability": "Top-five weights normalized per aircraft; products assume independent choices. Not calibrated conflict probabilities.",
+  "own_design": "All-pairs shadow state, threshold policies and persistence are our own experimental design.",
+  "hashes": {
+    "trajectory_multipath.pkl": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589",
+    "xgboost_conflict.json": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "val": {
+    "pairs": 6564,
+    "all_notifications_match": true,
+    "all_tiers_match": true,
+    "lost_true_pairs": 0,
+    "persistence": "same geometry repeated for three updates; not a live stream replay"
+  },
+  "test": {
+    "pairs": 4690,
+    "all_notifications_match": true,
+    "all_tiers_match": true,
+    "lost_true_pairs": 0,
+    "persistence": "same geometry repeated for three updates; not a live stream replay"
+  }
+}

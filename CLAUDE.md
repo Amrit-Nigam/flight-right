@@ -6,6 +6,15 @@ not look inside `docs/`.
 
 @docs/CLAUDE.md
 
+## Git workflow — Archit's instruction, 1 November 2026
+
+Continue experiment work on `fine-tuning`. Do **not** create a commit or push changes
+unless Archit explicitly instructs it. Keep subsequent experiments, reports and model
+artifacts local and uncommitted. The branch contains the preserved checkpoint
+`a502c7e` followed by the LSTM experiment commit `2bcaba1`. The former checkpoint
+branch name and `experiment/trajectory-tuning-20261101` were deleted at Archit's request;
+their history remains on `fine-tuning`.
+
 ---
 
 **If the import above did not resolve — that is, if you cannot see the operating rules, the

@@ -101,8 +101,8 @@ def main():
                 "Retain the deployed baseline; inspect the regressions below before another experiment.")
     DOC.parent.mkdir(exist_ok=True)
     lines = ["# Trajectory tuning — 1 November 2026" + (" (ten-minute head)" if head_only else " (refinement)" if future else ""), "", decision, "",
-             "The checkpoint is preserved remotely at [checkpoint/pre-trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/tree/checkpoint/pre-trajectory-tuning-20261101), commit `a502c7e`. "
-             "Experiments are on `experiment/trajectory-tuning-20261101`.", "",
+             "The checkpoint is preserved remotely at [checkpoint/pre-trajectory-tuning-20261101](https://github.com/Amrit-Nigam/flight-right/commit/a502c7e), commit `a502c7e`. "
+             "Experiments are on `fine-tuning`.", "",
              "## Scope and method", "",
              "This round fine-tunes **Model 1, the residual LSTM** from the existing checkpoint. "
              "Model 1b, the multi-path model used by the served alert chain, is separate and is unchanged. "
