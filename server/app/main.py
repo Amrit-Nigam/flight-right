@@ -27,11 +27,14 @@ from .services.aircraft_service import aircraft_service
 from .services.database import database
 from .services.conflict_service import conflict_service
 from .services.intent_service import intent_service
+from .services.speech_service import speech_service
+from .services.model_trace import setup_file_logging, write_tick
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s  %(levelname)-7s %(name)-24s %(message)s",
                     datefmt="%H:%M:%S")
 log = logging.getLogger("flightright")
+setup_file_logging()      # server/logs/backend.log and server/logs/model_trace.log
 
 app = FastAPI(
     title="Flight Right",
@@ -55,6 +58,7 @@ async def _ingest_loop() -> None:
             # Persist what was raised. The audit log stays the append-only record of
             # decisions; this is the working state behind /api/conflicts/history.
             await asyncio.to_thread(database.record_conflicts, assessment.get("active", []))
+            await asyncio.to_thread(write_tick, aircraft_service, conflict_service)
             await _broadcast()
         except Exception as failure:                          # noqa: BLE001
             log.exception("Ingestion tick failed: %s", failure)
@@ -137,6 +141,8 @@ async def startup() -> None:
                                      "models": conflict_service.engine.status()
                                      if conflict_service.engine else {}}})
     app.state.ingest = asyncio.create_task(_ingest_loop())
+    # Speech model loads and warms up in the background, so the first live transcription is quick.
+    app.state.speech_warmup = asyncio.create_task(asyncio.to_thread(speech_service.warm_up))
     log.info("Ready. %d aircraft from %s.", len(aircraft_service.flights), aircraft_service.source)
 
 

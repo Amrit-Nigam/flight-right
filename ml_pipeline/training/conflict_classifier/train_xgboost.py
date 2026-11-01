@@ -295,8 +295,11 @@ def metrics_from_predictions(y_true: np.ndarray, predictions: np.ndarray) -> dic
     return {
         "recall": float(recall_score(y_true, predictions, zero_division=0)),
         "precision": float(precision_score(y_true, predictions, zero_division=0)),
+        "f1": float(f1_score(y_true, predictions, zero_division=0)),
         "fbeta_2": float(fbeta_score(y_true, predictions, beta=2, zero_division=0)),
         "false_alarms_per_1000": float(false_positive / len(y_true) * 1000.0),
+        "true_positive": int(true_positive), "false_positive": int(false_positive),
+        "true_negative": int(true_negative),
         "false_negative": int(false_negative), "alert_rate": float(predictions.mean()),
     }
 

@@ -1,0 +1,215 @@
+{
+  "measured_at_utc": "2026-10-30T16:33:21.205848+00:00",
+  "truth": {
+    "atco2": "official ATCO2 XML annotations (authors' annotations; 2/877 tag-verified)",
+    "aircraft_list": "proxy: identities annotated on the same airport, frequency and day",
+    "atcosim_uwb": "agreement with the extractor on the human transcript, not labelled accuracy"
+  },
+  "atco2_clips": {
+    "clean": 762,
+    "contaminated": 109,
+    "with_aircraft_identity": 345,
+    "with_usable_clearance": 70,
+    "clearance_types": {
+      "CLIMB": 31,
+      "SPEED": 18,
+      "DESCEND": 13,
+      "TURN": 5,
+      "DIRECT": 3
+    }
+  },
+  "models": {
+    "additional:openai/whisper-small": {
+      "model_id": "openai/whisper-small",
+      "quantisation": "int8_float16",
+      "asr_version": "fw1-beam5-v1",
+      "cached_clips_rescored": 6656,
+      "newly_transcribed_clips": 0,
+      "timing_note": "Real-time factors use cached original inference times; this is not a fresh latency benchmark.",
+      "corpora": {
+        "svarah_indian_english": {
+          "clips": 6656,
+          "wer": 9.3,
+          "wer_numerals_spoken": 8.47,
+          "real_time_factor": 0.0636,
+          "held_out": "held out as far as is known (web-scale training data, undisclosed)",
+          "note": "general Indian English, not ATC: accent and vocabulary are confounded",
+          "wer_by_first_language": {
+            "Assamese": {
+              "clips": 205,
+              "wer": 11.37
+            },
+            "Bengali": {
+              "clips": 297,
+              "wer": 9.29
+            },
+            "Bodo": {
+              "clips": 402,
+              "wer": 13.59
+            },
+            "Dogri": {
+              "clips": 255,
+              "wer": 10.59
+            },
+            "Gujarati": {
+              "clips": 242,
+              "wer": 6.85
+            },
+            "Hindi": {
+              "clips": 256,
+              "wer": 6.4
+            },
+            "Kannada": {
+              "clips": 577,
+              "wer": 8.54
+            },
+            "Kashmiri": {
+              "clips": 310,
+              "wer": 8.74
+            },
+            "Konkani": {
+              "clips": 302,
+              "wer": 8.6
+            },
+            "Maithili": {
+              "clips": 462,
+              "wer": 6.56
+            },
+            "Malayalam": {
+              "clips": 503,
+              "wer": 10.81
+            },
+            "Marathi": {
+              "clips": 231,
+              "wer": 9.1
+            },
+            "Nepali": {
+              "clips": 599,
+              "wer": 12.72
+            },
+            "Odia": {
+              "clips": 456,
+              "wer": 7.43
+            },
+            "Punjabi": {
+              "clips": 189,
+              "wer": 9.96
+            },
+            "Sindhi": {
+              "clips": 138,
+              "wer": 9.07
+            },
+            "Tamil": {
+              "clips": 384,
+              "wer": 7.14
+            },
+            "Telugu": {
+              "clips": 334,
+              "wer": 9.29
+            },
+            "Urdu": {
+              "clips": 514,
+              "wer": 8.62
+            }
+          }
+        }
+      }
+    },
+    "additional:C:\\Users\\singh\\AppData\\Local\\FlightRight\\voice\\models\\flightright-whisper-small-atc-p1": {
+      "model_id": "C:\\Users\\singh\\AppData\\Local\\FlightRight\\voice\\models\\flightright-whisper-small-atc-p1",
+      "quantisation": "int8_float16",
+      "asr_version": "fw1-beam5-v1",
+      "cached_clips_rescored": 6656,
+      "newly_transcribed_clips": 0,
+      "timing_note": "Real-time factors use cached original inference times; this is not a fresh latency benchmark.",
+      "corpora": {
+        "svarah_indian_english": {
+          "clips": 6656,
+          "wer": 33.17,
+          "wer_numerals_spoken": 28.9,
+          "real_time_factor": 0.0409,
+          "held_out": "held out",
+          "note": "general Indian English, not ATC: accent and vocabulary are confounded",
+          "wer_by_first_language": {
+            "Assamese": {
+              "clips": 205,
+              "wer": 47.2
+            },
+            "Bengali": {
+              "clips": 297,
+              "wer": 38.03
+            },
+            "Bodo": {
+              "clips": 402,
+              "wer": 37.71
+            },
+            "Dogri": {
+              "clips": 255,
+              "wer": 35.45
+            },
+            "Gujarati": {
+              "clips": 242,
+              "wer": 26.27
+            },
+            "Hindi": {
+              "clips": 256,
+              "wer": 30.72
+            },
+            "Kannada": {
+              "clips": 577,
+              "wer": 30.69
+            },
+            "Kashmiri": {
+              "clips": 310,
+              "wer": 32.78
+            },
+            "Konkani": {
+              "clips": 302,
+              "wer": 33.48
+            },
+            "Maithili": {
+              "clips": 462,
+              "wer": 26.15
+            },
+            "Malayalam": {
+              "clips": 503,
+              "wer": 36.04
+            },
+            "Marathi": {
+              "clips": 231,
+              "wer": 33.72
+            },
+            "Nepali": {
+              "clips": 599,
+              "wer": 37.16
+            },
+            "Odia": {
+              "clips": 456,
+              "wer": 29.57
+            },
+            "Punjabi": {
+              "clips": 189,
+              "wer": 28.21
+            },
+            "Sindhi": {
+              "clips": 138,
+              "wer": 35.25
+            },
+            "Tamil": {
+              "clips": 384,
+              "wer": 29.39
+            },
+            "Telugu": {
+              "clips": 334,
+              "wer": 31.44
+            },
+            "Urdu": {
+              "clips": 514,
+              "wer": 35.96
+            }
+          }
+        }
+      }
+    }
+  }
+}

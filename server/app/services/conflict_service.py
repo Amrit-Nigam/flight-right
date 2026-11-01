@@ -61,6 +61,7 @@ class ConflictService:
     pair_histories: dict[tuple, list] = field(default_factory=dict)
     last_result: dict = field(default_factory=dict)
     last_duration_ms: float = 0.0
+    last_assessments: dict = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def load(self) -> None:
@@ -169,6 +170,7 @@ class ConflictService:
             if not self.pair_histories[key]:
                 del self.pair_histories[key]
 
+        self.last_assessments = assessments          # full per-model detail, for model_trace.log
         feed_output = self.feed.update(assessments, now=time.time())
         self.last_duration_ms = (time.perf_counter() - started) * 1000.0
 

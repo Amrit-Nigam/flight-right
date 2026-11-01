@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { getSpeechClips, getSpeechStatus, getTranscriptions, hearClip, speechClipAudioUrl } from "@/lib/api";
 import { logAudit } from "@/lib/siteLogger";
 
@@ -63,12 +64,19 @@ export default function NLPCommsPanel() {
   const [error, setError] = useState(null);
 
   const refresh = useCallback(() => {
-    getSpeechStatus().then(setStatus).catch((e) => setError(e.message));
+    getSpeechStatus().then((s) => { setStatus(s); setError(null); }).catch((e) => setError(e.message));
     getSpeechClips().then((d) => setClips(d.clips || [])).catch(() => {});
     getTranscriptions(8).then((d) => setHistory(d.transcriptions || [])).catch(() => {});
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
+  // Until the backend has answered, keep asking. The panel used to ask once on page load, so a page
+  // opened while the backend was restarting said "unreachable" for good (28 Sep).
+  useEffect(() => {
+    if (status && !error) return undefined;
+    const timer = setInterval(refresh, 5000);
+    return () => clearInterval(timer);
+  }, [status, error, refresh]);
   useEffect(() => {
     window.addEventListener("speech-heard", refresh);
     return () => window.removeEventListener("speech-heard", refresh);
@@ -97,12 +105,14 @@ export default function NLPCommsPanel() {
           Radio — speech to clearance
         </h3>
         <span className="font-display text-[9px] tracking-widest" style={{ color: status?.installed ? "var(--green)" : "var(--amber)" }}>
-          {status?.installed ? shortModel(status.modelId) : "NO SPEECH MODEL"}
+          {status?.installed ? `${shortModel(status.modelId)} · ${String(status.device || "").toUpperCase()}`
+            : status ? "NO SPEECH MODEL" : "CONNECTING…"}
         </span>
       </div>
 
       <div className="px-4 py-1.5 font-body text-[10px]" style={{ color: "var(--text-muted)", background: "rgba(0,0,0,0.03)", borderBottom: "1px solid var(--border-default)" }}>
-        Nothing is transmitted. A heard clearance only adjusts that aircraft's predicted paths, through the same checks as a typed one. Each clip says where its audio came from.
+        Nothing is transmitted. A heard clearance only adjusts that aircraft's predicted paths, through the same checks as a typed one. Each clip says where its audio came from.{" "}
+        <Link to="/radio" className="underline" style={{ color: "var(--teal)" }}>Open the full-screen radio demo →</Link>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3 space-y-3 no-scrollbar">

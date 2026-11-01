@@ -20,6 +20,7 @@ first use, not at startup, so a dashboard that never hears a clip never pays for
 from __future__ import annotations
 
 import io
+import logging
 import sys
 import threading
 import time
@@ -27,7 +28,7 @@ from typing import Any
 
 import numpy as np
 
-from ..config import ASR_MODEL_ID, ASR_QUANTISATION, PROJECT_ROOT
+from ..config import ASR_DEVICE, ASR_MODEL_ID, ASR_QUANTISATION, PROJECT_ROOT
 from .clearance_service import clearance_service
 from .database import database
 
@@ -36,6 +37,7 @@ from ml_pipeline.voice.callsigns import match  # noqa: E402
 from ml_pipeline.voice.extract import asr_confidence_from_logprob, extract  # noqa: E402
 
 SR = 16_000
+log = logging.getLogger("flightright.speech")
 
 
 def decode_wav(payload: bytes) -> np.ndarray:
@@ -57,11 +59,23 @@ class SpeechService:
         self._model = None
         self._error: str | None = None
 
+    @staticmethod
+    def device() -> str:
+        """Where recognition runs: the same choice transcribe.load_model makes."""
+        if ASR_DEVICE in ("cpu", "cuda"):
+            return ASR_DEVICE
+        try:
+            import ctranslate2
+            return "cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu"
+        except Exception:                                            # noqa: BLE001
+            return "cpu"
+
     def status(self) -> dict[str, Any]:
         from ml_pipeline.voice.transcribe import ASR_VERSION
+        device = self.device()
         return {"modelId": ASR_MODEL_ID or None, "quantisation": ASR_QUANTISATION if ASR_MODEL_ID else None,
                 "asrVersion": ASR_VERSION, "loaded": self._model is not None, "error": self._error,
-                "installed": bool(ASR_MODEL_ID)}
+                "installed": bool(ASR_MODEL_ID), "device": device}
 
     def _load(self):
         if self._model is None:
@@ -69,12 +83,25 @@ class SpeechService:
                 if self._model is None:
                     from ml_pipeline.voice.transcribe import load_model
                     try:
-                        self._model = load_model(ASR_MODEL_ID, ASR_QUANTISATION)
+                        self._model = load_model(ASR_MODEL_ID, ASR_QUANTISATION, self.device())
                         self._error = None
                     except Exception as failure:                     # noqa: BLE001
                         self._error = f"{type(failure).__name__}: {failure}"[:500]
                         raise
         return self._model
+
+    def warm_up(self) -> None:
+        """Load the model and run it once on silence, so the first live transcription in a demo takes
+        seconds, not ~16 s (measured 28 Sep on CPU: 6 s to load, 10 s for the first clip, then 2-4 s)."""
+        if not ASR_MODEL_ID:
+            return
+        from ml_pipeline.voice.transcribe import transcribe_array
+        try:
+            started = time.time()
+            transcribe_array(self._load(), np.zeros(SR, dtype=np.float32))
+            log.info("Speech model ready on %s in %.1f s: %s", self.device(), time.time() - started, ASR_MODEL_ID)
+        except Exception as failure:                                     # noqa: BLE001
+            log.warning("Speech model warm-up failed: %s", self._error or failure)
 
     def hear(self, audio: np.ndarray, clip_ref: str, flights: list[dict],
              transcript: str | None = None, heard_at: float | None = None) -> dict[str, Any]:

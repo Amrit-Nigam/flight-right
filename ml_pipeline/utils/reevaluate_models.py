@@ -167,6 +167,23 @@ def model1b() -> dict:
     true_labels[valid] = kmeans.predict(
         residual[valid][:, mp.TEN_MINUTE_INDEX, :2] / framing.METRES_PER_NAUTICAL_MILE)
 
+    # These are learned route-cluster identities, not conflict/no-conflict labels.
+    from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+    cluster_labels = list(range(kmeans.n_clusters))
+    cluster_predictions = patterns[valid, 0]
+    cluster_truth = true_labels[valid]
+    route_classification = {
+        "samples": int(valid.sum()), "labels": cluster_labels,
+        "target": "KMeans cluster of actual ten-minute horizontal residual",
+        "prediction": "highest-probability route cluster before offset regression",
+        "accuracy": float(accuracy_score(cluster_truth, cluster_predictions)),
+        "confusion_matrix": confusion_matrix(cluster_truth, cluster_predictions,
+                                              labels=cluster_labels).tolist(),
+        "classification_report": classification_report(cluster_truth, cluster_predictions,
+                                                       labels=cluster_labels, output_dict=True,
+                                                       zero_division=0),
+    }
+
     ece = {}
     for name, rows in (("arrivals", arrivals), ("all", valid)):
         ece[name] = [
@@ -190,7 +207,7 @@ def model1b() -> dict:
             "ece_arrivals": ece["arrivals"], "ece_all": ece["all"],
             "reliability_before": bands(raw_before[arrivals].ravel(), correct),
             "reliability_after": bands(raw_after[arrivals].ravel(), correct),
-            "per_mode": per_mode}
+            "per_mode": per_mode, "route_classification": route_classification}
 
 
 # =====================================================================  3. Model 2

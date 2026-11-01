@@ -101,6 +101,9 @@ OWN_ASR_MODEL = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "Flight
 ASR_MODEL_ID = os.environ.get("FLIGHT_RIGHT_ASR_MODEL_ID",
                               str(OWN_ASR_MODEL) if OWN_ASR_MODEL.exists() else "").strip()
 ASR_QUANTISATION = os.environ.get("FLIGHT_RIGHT_ASR_QUANTISATION", "int8_float16").strip()
+# "auto" uses the GPU when CTranslate2 can see one and the CPU otherwise (int8 on CPU); set "cpu"
+# to prove the demo runs without a GPU.
+ASR_DEVICE = os.environ.get("FLIGHT_RIGHT_ASR_DEVICE", "auto").strip().lower()
 # Demo clips for the dashboard's radio panel: <id>.wav plus index.json. Outside OneDrive,
 # beside the speech cache. Every clip there is labelled with where its audio came from.
 SPEECH_DEMO_DIR = Path(os.environ.get(

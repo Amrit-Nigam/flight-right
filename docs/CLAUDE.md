@@ -3146,6 +3146,44 @@ scratchpad): 31/32 checks passed.
 - 0 console errors.
 - The failure: 2 Carto basemap tile requests failed, most likely cancelled when the map panned to the alarm.
 
+### 2026-09-28 — Model trace log, read-only database viewer, demo launcher, demo script and data/model reference
+
+- `server/app/services/model_trace.py` (new): `setup_file_logging()` adds `server/logs/backend.log` (root
+  logger) and `server/logs/model_trace.log` (logger `flightright.trace`, not propagated to the console), both
+  rotating. `write_tick()` runs after each ingest tick (`main._ingest_loop`) and writes one block per update:
+  data time, source, counts, then for each pair on screen or flagged by any model the rule CPA, multi-path
+  P(conflict) and breaching combinations, classifier raw/calibrated probability, threshold and top-3 SHAP,
+  escalation tier/gate/consecutive/notify, and Model 3's ranked options; other pairs on one line.
+  `ConflictService.last_assessments` keeps the full per-pair results for it. Logging only, no decision changes.
+  `server/logs/` gitignored.
+- `scripts/db_view.py` (new): overview, newest rows, CSV export, SELECT-only `--sql`, as the app role.
+- `scripts/start_demo.ps1` (new): PostgreSQL start; stops a backend on :8000 only if its command line contains
+  `server.app.main` (refuses otherwise); rotates the trace; starts backend (replay) and the dashboard in their
+  own windows; opens the dashboard and the trace in VS Code. Measured: Ready ~40 s after launch; watch list
+  3 min 43 s and tier 1 alarm 4 min 05 s after backend start.
+- `docs/DEMO_SCRIPT.md`, `docs/DATA_AND_MODELS.md` (new). Found while writing them: Model 1 (the residual
+  LSTM) is loaded by `ConflictEngine` but `predict_trajectory` is not called by any route or by `assess_pair`,
+  so it plays no part in the running system; stated in the reference doc.
+
+### 2026-09-28 — Radio demo page; speech status retry; speech runs and warms up on CPU; battery finding
+
+- Defect: `NLPCommsPanel.jsx` fetched `/api/speech/status` once on mount and never cleared the error, so a
+  page opened while the backend restarted showed "Speech service unreachable: Failed to fetch" and
+  "NO SPEECH MODEL" permanently. Now retries every 5 s until answered; header shows model and device.
+- `client/src/pages/RadioDemoPage.jsx` (new, route `/radio`): play a clip to the room, then reveal
+  transcript word by word, instruction, matched aircraft, decision, and the clip's truth. "recognise live"
+  (`cached=false`) or pre-computed; microphone record; uses existing `/api/speech/hear`. Linked from the panel.
+- `config.ASR_DEVICE` (`FLIGHT_RIGHT_ASR_DEVICE`, default auto); `speech_service.device()`; status reports
+  `device`; `speech_service.warm_up()` loads the model and transcribes 1 s of silence in the background at
+  startup (log: "Speech model ready on cpu in 3.0 s").
+- Measured, standalone CPU int8, mains power: demo clips 2.0-4.3 s each (first call 9.9 s cold, load 6.2 s),
+  transcripts identical to the GPU pre-computed ones. On battery (31%, discharging): the RTX 4050 shows
+  status Unknown and CUDA reports no device; CPU recognition ~9-10 s per clip; cpu_threads 0/8/16 no help.
+  In the backend, live recognition 8.0-9.4 s on battery. Browser test of `/radio`: 3 clips, 0 console errors.
+- Live vs pre-computed confidence: a cached transcript has no avg_logprob, so its clearance confidence is
+  extractor x match only; live adds recogniser confidence. SkyDubai 1346: live 0.72 (not applied), cached
+  0.877 (applied). Both below/above the unchanged 0.85 floor as designed; documented in DEMO_SCRIPT.md.
+
 ## 15. Plain-English change log (every change, explained for a beginner)
 
 Governed by Section 1a, Part 8. Every entry states: which file, what it was before,
@@ -5897,3 +5935,143 @@ aircraft and today's real weather report) and back. The one failure was the map 
 being cancelled while the map moved, not our system.
 
 **Did the headline number move?** No. **95.1% is unchanged.**
+
+
+### 2026-09-28 — You can now watch every model's answer in a log file, browse the database, and start the demo with one command
+
+**Files:** `server/app/services/model_trace.py`, `scripts/db_view.py`, `scripts/start_demo.ps1`,
+`docs/DEMO_SCRIPT.md`, `docs/DATA_AND_MODELS.md` (all new); `server/app/main.py`,
+`server/app/services/conflict_service.py`, `.gitignore`, `docs/RUNNING.md`.
+
+**Before.** The backend printed only start-up messages and web requests. To see what the models had decided
+you had to read JSON in the browser. Looking at the database meant typing SQL in a shell. Starting the demo
+meant four commands in the right order, at the right moment.
+
+**Now.**
+- Every ten seconds the backend writes `server/logs/model_trace.log`: for each pair of aircraft, what the
+  straight-line rule, the five-path model, the conflict classifier (with its top reasons), the alarm tiers
+  and the manoeuvre engine each said. Open it in VS Code during the demo.
+- `python scripts\db_view.py` lists what is stored in PostgreSQL and shows the newest rows; it can only read.
+- `scripts\start_demo.ps1` starts everything fresh; the alarm arrives about four minutes later.
+- `docs/DEMO_SCRIPT.md` is the click-by-click demo with what to say; `docs/DATA_AND_MODELS.md` lists all data,
+  what the demo shows (recorded real traffic by default), and each model's inputs, outputs and test numbers.
+
+**Why.** Archit asked to show the backend working and which model gives what, to see the stored data, and for
+a demo script.
+
+**Found on the way.** The single-answer path model (Model 1) is loaded but nothing in the running system uses
+it any more; the five-path model replaced it. The documents now say so.
+
+**Did the headline number move?** No. **95.1% is unchanged.** This only records and displays; no decision changed.
+
+
+### 2026-09-28 — A full-screen "hear it, then read it" radio page, and why speech said "unreachable"
+
+**Files:** `client/src/pages/RadioDemoPage.jsx` (new), `client/src/App.jsx`,
+`client/src/components/NLPCommsPanel.jsx`, `server/app/services/speech_service.py`, `server/app/config.py`,
+`server/app/main.py`, `docs/DEMO_SCRIPT.md`.
+
+**Before.** The radio panel asked the backend "is speech available?" only once, when the page opened. If the
+backend was restarting at that moment, the panel said "unreachable" and "no speech model" until the page was
+reloaded, even though speech was working. The speech model also loaded only on first use, so the first live
+transcription in a demo took about 16 seconds. There was no big, audience-friendly way to play a clip and show
+its text.
+
+**Now.**
+- The panel keeps asking every 5 seconds until the backend answers, and shows whether speech runs on the GPU
+  or the processor.
+- The speech model loads and warms up in the background when the backend starts.
+- A new page, **/radio**: press play, the room hears the radio call, then the text appears word by word,
+  followed by the instruction, the aircraft it matched, whether it was used, and what was actually said. You
+  can also speak into the microphone.
+
+**Why the GPU seemed missing.** The laptop was on battery. Windows then switches the NVIDIA card off and slows
+the processor. Speech does not need the GPU: plugged in, the processor recognises a clip in 2 to 4 seconds; on
+battery about 9. Plug the laptop in for the demo.
+
+**Did the headline number move?** No. **95.1% is unchanged.** Speech can only reshape predicted paths, and
+nothing about how it decides was changed.
+
+
+### 2026-10-30 ? Remove unwanted documentation and unused frontend scaffolding
+
+**Files removed:** `docs/DATA_AND_MODELS.md`, `docs/DEMO_SCRIPT.md` (requested by Archit);
+`client/README.md` (the unchanged React/Vite starter instructions);
+`client/src/assets/react.svg`, `client/public/vite.svg` (starter logos);
+`client/src/components/ui/badge.jsx`, `button.jsx`, `card.jsx`, `progress.jsx`,
+`scroll-area.jsx`, `tabs.jsx`, `tooltip.jsx` (all under the same UI directory; none imported);
+`ml_pipeline/ingestion/.gitkeep`, `ml_pipeline/training/.gitkeep`,
+`ml_pipeline/training/conflict_classifier/.gitkeep`, `ml_pipeline/training/trajectory/.gitkeep`,
+`ml_pipeline/utils/.gitkeep` (each directory already contains tracked source files).
+Generated `client/dist/` and Python bytecode caches outside the virtual environment were also cleared.
+
+**Files updated:** `client/index.html` removes the starter favicon reference;
+`docs/RUNNING.md` points to its existing replay, speech and database instructions;
+`ML_INTERVIEW_GUIDE.md` points to `docs/evaluation.md` for metrics instead of the deleted document.
+Earlier entries in this log retain the deleted filenames as historical records.
+
+**Before.** The project included two unwanted guides, starter framework documentation and logos,
+seven unused UI wrappers, and placeholder files in directories that already have source code.
+**Now.** Those files are removed and current documentation no longer links to the deleted guides.
+**Why.** Archit requested a project-wide cleanup. Frontend import searches found no consumers of
+the seven wrappers or React logo. The Vite logo was used only by the starter favicon tag.
+No duplicate experiment reports were found when comparing their JSON contents without root timestamps.
+The sample flights CSV, historical walkthrough, original Claude outputs, research papers, reports,
+credentials, environments, datasets, model artifacts and audit database are retained.
+Claude assessments were treated as dated context, not as verified current requirements.
+**Did the headline number move?** No model or alert logic changed. The previously recorded classifier
+figure is 95.1%; it was not remeasured during this file cleanup.
+
+**Validation:** `npm.cmd run build` passed (2,134 modules); all local frontend imports resolve;
+`git diff --check` passed. The build reported stale browser compatibility data and a large map bundle.
+Generated build files were removed again after validation.
+
+
+### 2026-10-30 ? Re-evaluate the saved models and preserve the earlier evaluation
+
+**Files changed:** `ml_pipeline/training/conflict_classifier/train_xgboost.py` adds F1 and
+all four confusion counts to rule/runtime scoring (the learned classifier already had them);
+`ml_pipeline/utils/reevaluate_models.py` now also scores the multi-path model's internal
+40-class route selector, with a full confusion matrix and per-class precision, recall and F1.
+`ml_pipeline/voice/evaluate_voice.py` supports selecting test corpora and records whether
+transcripts were cached or freshly generated. `scripts/update_evaluation.py` publishes the
+non-speech evaluation from explicit dated report paths. `docs/evaluation.md`,
+`docs/metrics.json`, and the linked trajectory/confusion figures were regenerated.
+
+**Before.** The evaluation document mixed older tables with later corrections. It did not
+show F1 and complete confusion counts for every binary comparison, or classification
+metrics for the internal route selector. Speech inference timing could be mistaken for
+timing measured during a cached-transcript re-score.
+
+**Now.** The pre-refresh document, metrics, ablations and all figures are preserved under
+`docs/evaluation-history/20261030_before_refresh/`; the initial September training and
+re-evaluation reports are retained. Current results come from
+`ml_pipeline/reports/reevaluation_20261030_155729.json`,
+`ml_pipeline/reports/multipath_3d_20261030_212632.json`, and
+`ml_pipeline/reports/offsets_ab_20261030_163306.json`. The tree benchmark is evaluated from
+its saved test predictions, not retrained. Current metrics include model SHA-256 fingerprints.
+The conflict classifier, route classifier and full alert chain have separate confusion
+matrices. Resolution-engine and display-filter results state the limits of their harnesses.
+
+**Speech.** The effective configuration selects our local Whisper-small ATC fine-tune,
+served through faster-whisper. No running backend was available to verify a live request.
+At Archit's request, speech comparison results are excluded from `docs/evaluation.md`
+and `docs/metrics.json`. Their separate reports are
+`ml_pipeline/reports/voice_eval_20261030_220553.json` (ATC corpora) and
+`ml_pipeline/reports/voice_eval_20261030_220323.json` (Indian general English).
+These runs re-score existing version-matched transcript caches; they do not constitute
+fresh inference or new latency measurements. The published ATC model and unmodified
+Whisper-small were compared against our custom model, without changing which is served.
+
+**Why.** Archit requested fresh measurements for all models, preservation of initial
+results, explicit classification metrics, and a separate speech comparison before any
+further custom-model development. No training, thresholds, labels or model decisions changed.
+
+**Did the headline number move?** No. The classifier again catches 270/284 eligible
+conflicts (95.07%, rounded to 95.1%); the full alert chain catches 271/284 (95.42%).
+Classifier precision 0.38585, recall 0.95380, F1 0.54943; confusion counts TN 3927,
+FP 460, FN 14, TP 289. The precision cost is stated beside the warning metric.
+
+**Validation.** All 24 existing unit tests passed. Binary confusion counts and F1 were
+also checked on a hand-computable example. Published confusion totals and formulas,
+route-matrix support, document links, and the preserved originals were checked.

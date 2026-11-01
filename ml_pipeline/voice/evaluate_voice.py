@@ -55,7 +55,7 @@ from ml_pipeline.utils.clearance import Clearance  # noqa: E402
 REPORTS = ROOT / "ml_pipeline/reports"
 MODELS = {
     # role -> model id. The published models, exactly as plan 4.1 lists them.
-    "ships_in_demo": "jlvdoorn/whisper-large-v3-atco2-asr-atcosim",
+    "published_atc_comparator": "jlvdoorn/whisper-large-v3-atco2-asr-atcosim",
     "held_out_measurement": "jlvdoorn/whisper-medium-atcosim",
     "untouched_baseline": "openai/whisper-medium",
 }
@@ -203,13 +203,28 @@ def agreement(refs: list[str], hyps: list[str]) -> dict:
     return {"clearance_agreement": round(100 * right / n, 2) if n else float("nan"), "clearances_in_reference": n}
 
 
-def evaluate_model(model_id: str, manifest: pd.DataFrame, gold: pd.DataFrame, device: str) -> dict:
-    from ml_pipeline.voice.transcribe import transcribe_rows
-    rows = manifest[(manifest.split == "test") & manifest.corpus.isin(["atco2", "atcosim", "uwb", "svarah"])]
+def evaluate_model(model_id: str, manifest: pd.DataFrame, gold: pd.DataFrame, device: str,
+                   selected_corpora: list[str] | None = None) -> dict:
+    from ml_pipeline.voice.transcribe import transcribe_rows, TRANSCRIPTS, _slug, ASR_VERSION
+    selected_corpora = selected_corpora or ["atco2", "atcosim", "uwb", "svarah"]
+    rows = manifest[(manifest.split == "test") & manifest.corpus.isin(selected_corpora)]
+    cache_path = TRANSCRIPTS / f"{_slug(model_id)}__int8_float16.parquet"
+    cached = pd.read_parquet(cache_path) if cache_path.exists() else pd.DataFrame()
+    cached_ids = set(cached.loc[cached.asr_version == ASR_VERSION, "uid"]) if "asr_version" in cached else set()
+    reused = int(rows.uid.isin(cached_ids).sum())
     got = transcribe_rows(model_id, rows, device=device).set_index("uid")
     out = {"model_id": model_id, "quantisation": got.quantisation.dropna().iloc[0],
-           "asr_version": got.asr_version.dropna().iloc[0], "corpora": {}}
-    corpora = ["atco2_clean", "atco2_contaminated", "atcosim_heldout_speakers", "uwb_heldout_recordings"]
+           "asr_version": got.asr_version.dropna().iloc[0],
+           "cached_clips_rescored": reused, "newly_transcribed_clips": int(len(rows) - reused),
+           "timing_note": "Real-time factors use cached original inference times; this is not a fresh latency benchmark.",
+           "corpora": {}}
+    corpora = []
+    if "atco2" in selected_corpora:
+        corpora += ["atco2_clean", "atco2_contaminated"]
+    if "atcosim" in selected_corpora:
+        corpora.append("atcosim_heldout_speakers")
+    if "uwb" in selected_corpora:
+        corpora.append("uwb_heldout_recordings")
     if (rows.corpus == "svarah").any():
         corpora.append("svarah_indian_english")   # real Indian voices; general English, not ATC
     for corpus in corpora:
@@ -255,6 +270,8 @@ def main():
     p.add_argument("--models", default="human,all", help="comma list of ids, 'human', 'all'")
     p.add_argument("--extra", default="", help="more model ids or local model dirs, comma separated")
     p.add_argument("--device", default="auto")
+    p.add_argument("--corpora", default="atco2,atcosim,uwb,svarah",
+                   help="Comma-separated test corpora; synthetic audio is never scored")
     args = p.parse_args()
     manifest = pd.read_parquet(CACHE / "manifest.parquet")
     gold = gold_atco2()
@@ -283,7 +300,8 @@ def main():
             print("  human transcripts:", human, flush=True)
             continue
         role = next((r for r, m in MODELS.items() if m == model), "additional")
-        report["models"][f"{role}:{model}"] = evaluate_model(model, manifest, gold, args.device)
+        report["models"][f"{role}:{model}"] = evaluate_model(
+            model, manifest, gold, args.device, args.corpora.split(","))
     REPORTS.mkdir(exist_ok=True)
     path = REPORTS / f"voice_eval_{datetime.now():%Y%m%d_%H%M%S}.json"
     path.write_text(json.dumps(report, indent=2, default=float))

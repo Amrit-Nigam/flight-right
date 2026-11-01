@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType } from "react-router-dom";
 import HomePage from "@/pages/HomePage.jsx";
 import LogsPage from "@/pages/LogsPage.jsx";
+import RadioDemoPage from "@/pages/RadioDemoPage.jsx";
 import { logAudit } from "@/lib/siteLogger";
 
 function NavigationAudit() {
@@ -25,6 +26,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/logs" element={<LogsPage />} />
+        <Route path="/radio" element={<RadioDemoPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
