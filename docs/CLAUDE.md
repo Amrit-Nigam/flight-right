@@ -6075,3 +6075,72 @@ FP 460, FN 14, TP 289. The precision cost is stated beside the warning metric.
 **Validation.** All 24 existing unit tests passed. Binary confusion counts and F1 were
 also checked on a hand-computable example. Published confusion totals and formulas,
 route-matrix support, document links, and the preserved originals were checked.
+
+
+### 2026-11-01 ? Trajectory fine-tuning experiments after a pushed checkpoint
+
+**Checkpoint first.** Archit authorized hyperparameter and fine-tuning experiments, starting
+with trajectory prediction, and required the current version to be pushed first. The complete
+current source/report state was committed as `a502c7e` and pushed to
+`checkpoint/pre-trajectory-tuning-20261101` before experiment code or model changes.
+Work continued separately on `experiment/trajectory-tuning-20261101`.
+
+**Files added:** `ml_pipeline/training/trajectory/tune_trajectory.py`;
+`ml_pipeline/tests/test_trajectory_tuning.py`; `scripts/report_trajectory_tuning.py`;
+`scripts/package_trajectory_candidate.py`; `docs/experiments/README.md`;
+`docs/experiments/trajectory_tuning_20261101.md`,
+`docs/experiments/trajectory_tuning_20261101_refinement.md`,
+`docs/experiments/trajectory_tuning_20261101_horizon_head.md` and their figures;
+three matching study directories under `ml_pipeline/reports/`. `docs/evaluation.md`
+links these isolated studies without replacing the served baseline tables.
+
+**Before.** The residual LSTM had no controlled fine-tuning search that balanced
+position error, altitude error, hit rates and traffic-regime regressions. Its source
+checkpoint, targets, normalization and SmoothL1 beta 0.05 were kept fixed for this study.
+
+**Experiments.** Ten configurations, sixteen training runs and 92 epochs on the RTX 4050:
+Adam/AdamW, learning rates, weight decay, frozen encoder, checkpoint averaging, then an
+isolated ten-minute-head ablation. Each grid and practical guardrails were recorded before
+its runs. Configuration/epoch selection used validation; seed 42 was the fixed representative,
+with seeds 43 and 44 confirming variability, never selected from test. Original data splits
+were untouched. The first two studies improved average metrics but were rejected because
+not every recorded validation/historical-test guard held across seeds.
+
+**What worked.** Training only the final ten-minute head's 387 parameters, with Adam at
+0.0001 and the encoder/shared block/shorter heads frozen, passed the recorded guards across
+all three seeds on validation, the historical test and the later-date audit. Seed 42's
+historical ten-minute mean error 6.4093 -> 6.3481 NM, RMSE 10.4673 -> 10.3976, P90
+17.1508 -> 16.9222, altitude MAE 1108.57 -> 1103.95 ft, within-1-NM 24.73 -> 25.95%,
+within-5-NM 61.31 -> 61.39%, joint horizontal/vertical hit 50.46 -> 50.59%.
+Shorter-horizon predictions remain unchanged. Along-track MAE worsens slightly, which
+is stated explicitly; passing practical tolerances is not a claim that every metric improves.
+
+**Later-date check.** The follow-up studies audit real archive days 10 and 20 September:
+213482 windows, 120679 ten-minute targets, 925 aircraft. No later-date window was used
+for training or validation selection. The head-only grid was declared before inspecting
+later-date scores. This is a shared exploratory audit cohort, not a new independent test
+for each follow-up. Aircraft-group bootstrap intervals and all per-regime metrics are saved;
+the small within-5-NM gain remains inconclusive in that diagnostic.
+
+**Candidate, not deployment.** A compatible checkpoint with its own measured metadata is
+saved locally at
+`ml_pipeline/data/processed/trajectory_experiments/20261101_horizon_head/trajectory_residual_candidate.pt`.
+The model card is
+`ml_pipeline/reports/trajectory_tuning_20261101_horizon_head/candidate_model_card.json`.
+All original checkpoints and each study's exact source/data fingerprints are retained.
+No served model file was overwritten. These results concern Model 1 (residual LSTM);
+the separate served Model 1b multi-path model has not been tuned in this round.
+
+**Research basis.** Official PyTorch documentation for AdamW, learning-rate scheduling,
+gradient clipping and AveragedModel, and Izmailov et al. (UAI 2018), motivate the optimizer
+and averaging ablations. Learning rates, trial grids, multi-metric objective and practical
+regression tolerances are our own experimental design, not aviation standards or settings
+prescribed by those sources. Working source links appear beside the experiment reasoning.
+
+**Validation.** All 28 unit checks pass. The production TrajectoryPredictor loads the
+packaged checkpoint, produces finite outputs, and preserves shorter-horizon outputs
+bit-for-bit in the integration sample; the complete historical audit also asserts their
+preservation. All original served artifact SHA-256 values are unchanged.
+
+**Did the headline move?** No. The recorded classifier warning metric stays 95.1%; it
+was not remeasured and cannot be improved by quoting an isolated LSTM trajectory result.

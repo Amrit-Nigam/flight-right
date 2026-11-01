@@ -137,3 +137,8 @@ This replay uses rule-generated assessments to isolate the display filter. It do
 - No model weights, target definitions, thresholds or alert decisions were changed by this refresh.
 - Per-class support, all trajectory regime breakdowns, probability diagnostics and model fingerprints are in `metrics.json`.
 - [Historical ablation study](ablation.md) contains its original experiment comparisons; it is a dated study, not a new multi-seed experiment from this refresh.
+
+
+## Trajectory experiments ? 1 November 2026
+
+See the [trajectory experiment summary](experiments/README.md) for isolated LSTM fine-tuning studies. A ten-minute-head candidate improves several error and hit-rate metrics while preserving shorter horizons. It has not replaced the served artifacts; all deployed-model tables above remain the baseline.

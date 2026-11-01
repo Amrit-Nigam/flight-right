@@ -1,0 +1,47 @@
+{
+  "method": "1,000 paired bootstrap resamples of whole aircraft, seed 20261101; ten-minute valid windows only",
+  "dataset": "later archive dates",
+  "aircraft_groups": 925,
+  "windows": 120679,
+  "seed": 42,
+  "purpose": "Post-selection diagnostic, never used to choose a configuration or seed",
+  "limitation": "Only the evaluated dates; aircraft resampling does not represent between-day or airport shift.",
+  "metrics": {
+    "mean_nm": {
+      "delta_ci95": [
+        -0.055994933702425545,
+        -0.03467493594188472
+      ]
+    },
+    "rmse_nm": {
+      "delta_ci95": [
+        -0.0570583185564721,
+        -0.024911363292110213
+      ]
+    },
+    "altitude_mae_ft": {
+      "delta_ci95": [
+        -8.762846079901285,
+        -4.003920895385275
+      ]
+    },
+    "within_1_nm": {
+      "delta_ci95": [
+        0.07431351667160682,
+        0.5072456986845777
+      ]
+    },
+    "within_5_nm": {
+      "delta_ci95": [
+        -0.026907286305750764,
+        0.2877608773498951
+      ]
+    },
+    "within_3d": {
+      "delta_ci95": [
+        0.01133779097302199,
+        0.27790674551618366
+      ]
+    }
+  }
+}

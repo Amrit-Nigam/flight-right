@@ -1,0 +1,2 @@
+# Exact historical training source must retain its recorded SHA-256 across checkouts.
+ml_pipeline/reports/trajectory_tuning_*/source_snapshot.txt -text

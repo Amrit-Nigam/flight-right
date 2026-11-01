@@ -1,0 +1,484 @@
+{
+  "config": {
+    "name": "adam_lr3e5",
+    "optimizer": "adam",
+    "lr": 3e-05,
+    "weight_decay": 0.0,
+    "heads_only": false
+  },
+  "seed": 43,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 0.23007456830825426,
+      "validation_loss": 0.23359913169086471,
+      "lr": 3e-05,
+      "objective": -0.008699906083974022,
+      "guardrail_failures": [],
+      "passes_guardrails": true,
+      "improves_objective": true
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.2274938572911483,
+      "validation_loss": 0.23333006923048555,
+      "lr": 3e-05,
+      "objective": -0.009106621565684613,
+      "guardrail_failures": [
+        "regime turn/sharp turn/5 min: error >5% or hit-rate drop >1 pp"
+      ],
+      "passes_guardrails": false,
+      "improves_objective": true
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.22635805911706167,
+      "validation_loss": 0.23326466282805194,
+      "lr": 3e-05,
+      "objective": -0.009670296928680539,
+      "guardrail_failures": [
+        "regime turn/sharp turn/5 min: error >5% or hit-rate drop >1 pp"
+      ],
+      "passes_guardrails": false,
+      "improves_objective": true
+    },
+    {
+      "epoch": 4,
+      "train_loss": 0.22579646743988094,
+      "validation_loss": 0.23306950035199073,
+      "lr": 3e-05,
+      "objective": -0.010090620594262882,
+      "guardrail_failures": [],
+      "passes_guardrails": true,
+      "improves_objective": true
+    },
+    {
+      "epoch": 5,
+      "train_loss": 0.22528309018565373,
+      "validation_loss": 0.23310885497075395,
+      "lr": 3e-05,
+      "objective": -0.010067820624224693,
+      "guardrail_failures": [],
+      "passes_guardrails": true,
+      "improves_objective": true
+    },
+    {
+      "epoch": 6,
+      "train_loss": 0.2248284063406869,
+      "validation_loss": 0.23308371429332397,
+      "lr": 1.5e-05,
+      "objective": -0.009630659371404606,
+      "guardrail_failures": [],
+      "passes_guardrails": true,
+      "improves_objective": true
+    }
+  ],
+  "best": {
+    "epoch": 4,
+    "train_loss": 0.22579646743988094,
+    "validation_loss": 0.23306950035199073,
+    "lr": 3e-05,
+    "objective": -0.010090620594262882,
+    "guardrail_failures": [],
+    "passes_guardrails": true,
+    "improves_objective": true
+  },
+  "validation": {
+    "label": "adam_lr3e5",
+    "per_horizon": [
+      {
+        "horizon": "1 min",
+        "n": 44656,
+        "mean_nm": 0.17421814561616028,
+        "rmse_nm": 0.5112804871937252,
+        "median_nm": 0.06203060176925128,
+        "p90_nm": 0.325650846470819,
+        "within_1_nm": 96.4797563597277,
+        "within_2_5_nm": 99.35059118595485,
+        "within_5_nm": 99.82533142242924,
+        "along_mae_nm": 0.11218338153494363,
+        "cross_mae_nm": 0.08856714925042519,
+        "altitude_mae_ft": 66.83852670221893,
+        "within_500_ft": 96.99256538874955,
+        "within_1000_ft": 99.56780723754926,
+        "within_3d": 99.45136151916876
+      },
+      {
+        "horizon": "3 min",
+        "n": 38484,
+        "mean_nm": 0.8154090517410506,
+        "rmse_nm": 2.007962487855245,
+        "median_nm": 0.15603532536755596,
+        "p90_nm": 2.2397649681337786,
+        "within_1_nm": 81.72487267435817,
+        "within_2_5_nm": 90.92609915809167,
+        "within_5_nm": 96.05810206839206,
+        "along_mae_nm": 0.37977591103977476,
+        "cross_mae_nm": 0.6084832856090326,
+        "altitude_mae_ft": 208.1689834226948,
+        "within_500_ft": 86.303398815092,
+        "within_1000_ft": 93.5791497765305,
+        "within_3d": 90.56491009250598
+      },
+      {
+        "horizon": "5 min",
+        "n": 33123,
+        "mean_nm": 1.7930774002738354,
+        "rmse_nm": 3.945084986401347,
+        "median_nm": 0.39487001019738016,
+        "p90_nm": 5.146101142020259,
+        "within_1_nm": 66.46439030281074,
+        "within_2_5_nm": 80.65996437520757,
+        "within_5_nm": 89.68994354376113,
+        "along_mae_nm": 0.7476324993428198,
+        "cross_mae_nm": 1.4332975943175306,
+        "altitude_mae_ft": 353.70006112328934,
+        "within_500_ft": 80.30975455121818,
+        "within_1000_ft": 87.92983727319385,
+        "within_3d": 80.87733599009752
+      },
+      {
+        "horizon": "10 min",
+        "n": 22691,
+        "mean_nm": 4.965701656122258,
+        "rmse_nm": 8.620621712784448,
+        "median_nm": 2.181917472188996,
+        "p90_nm": 13.030630979958485,
+        "within_1_nm": 32.70900356969724,
+        "within_2_5_nm": 53.245780265303424,
+        "within_5_nm": 70.00572914371337,
+        "along_mae_nm": 1.8043099749230622,
+        "cross_mae_nm": 4.212801197566989,
+        "altitude_mae_ft": 843.1458462133187,
+        "within_500_ft": 72.20483892292097,
+        "within_1000_ft": 77.43598783658719,
+        "within_3d": 59.63597902251995
+      }
+    ],
+    "per_bucket": [
+      {
+        "family": "turn",
+        "bucket": "straight",
+        "horizon": "1 min",
+        "n": 35179,
+        "within_5_nm": 99.81807328235594,
+        "mean_nm": 0.1283570741734397
+      },
+      {
+        "family": "turn",
+        "bucket": "straight",
+        "horizon": "3 min",
+        "n": 30792,
+        "within_5_nm": 97.32722785138998,
+        "mean_nm": 0.6109429694492245
+      },
+      {
+        "family": "turn",
+        "bucket": "straight",
+        "horizon": "5 min",
+        "n": 26586,
+        "within_5_nm": 91.51056947265478,
+        "mean_nm": 1.5114200043571147
+      },
+      {
+        "family": "turn",
+        "bucket": "straight",
+        "horizon": "10 min",
+        "n": 18769,
+        "within_5_nm": 71.88449038307849,
+        "mean_nm": 4.6286751225010425
+      },
+      {
+        "family": "turn",
+        "bucket": "gentle turn",
+        "horizon": "1 min",
+        "n": 4640,
+        "within_5_nm": 99.76293103448276,
+        "mean_nm": 0.24201367973701632
+      },
+      {
+        "family": "turn",
+        "bucket": "gentle turn",
+        "horizon": "3 min",
+        "n": 3732,
+        "within_5_nm": 94.69453376205787,
+        "mean_nm": 1.1362281292897431
+      },
+      {
+        "family": "turn",
+        "bucket": "gentle turn",
+        "horizon": "5 min",
+        "n": 3471,
+        "within_5_nm": 87.75569000288101,
+        "mean_nm": 2.0660649517072716
+      },
+      {
+        "family": "turn",
+        "bucket": "gentle turn",
+        "horizon": "10 min",
+        "n": 2299,
+        "within_5_nm": 70.9873858199217,
+        "mean_nm": 4.881155302107269
+      },
+      {
+        "family": "turn",
+        "bucket": "moderate turn",
+        "horizon": "1 min",
+        "n": 2372,
+        "within_5_nm": 99.91568296795953,
+        "mean_nm": 0.3579724931268339
+      },
+      {
+        "family": "turn",
+        "bucket": "moderate turn",
+        "horizon": "3 min",
+        "n": 2016,
+        "within_5_nm": 91.71626984126983,
+        "mean_nm": 1.6093840961233863
+      },
+      {
+        "family": "turn",
+        "bucket": "moderate turn",
+        "horizon": "5 min",
+        "n": 1708,
+        "within_5_nm": 81.26463700234193,
+        "mean_nm": 2.9397848097303565
+      },
+      {
+        "family": "turn",
+        "bucket": "moderate turn",
+        "horizon": "10 min",
+        "n": 1095,
+        "within_5_nm": 56.073059360730596,
+        "mean_nm": 6.48891923069165
+      },
+      {
+        "family": "turn",
+        "bucket": "sharp turn",
+        "horizon": "1 min",
+        "n": 2465,
+        "within_5_nm": 99.95943204868153,
+        "mean_nm": 0.5242830712418708
+      },
+      {
+        "family": "turn",
+        "bucket": "sharp turn",
+        "horizon": "3 min",
+        "n": 1944,
+        "within_5_nm": 83.07613168724279,
+        "mean_nm": 2.6147758825246923
+      },
+      {
+        "family": "turn",
+        "bucket": "sharp turn",
+        "horizon": "5 min",
+        "n": 1358,
+        "within_5_nm": 69.58762886597938,
+        "mean_nm": 5.167177165711794
+      },
+      {
+        "family": "turn",
+        "bucket": "sharp turn",
+        "horizon": "10 min",
+        "n": 528,
+        "within_5_nm": 27.84090909090909,
+        "mean_nm": 14.155284673666904
+      },
+      {
+        "family": "vertical",
+        "bucket": "level",
+        "horizon": "1 min",
+        "n": 32520,
+        "within_5_nm": 99.86162361623616,
+        "mean_nm": 0.12324215118949035
+      },
+      {
+        "family": "vertical",
+        "bucket": "level",
+        "horizon": "3 min",
+        "n": 28301,
+        "within_5_nm": 97.97180311649765,
+        "mean_nm": 0.49618269944776977
+      },
+      {
+        "family": "vertical",
+        "bucket": "level",
+        "horizon": "5 min",
+        "n": 24565,
+        "within_5_nm": 93.65764298799104,
+        "mean_nm": 1.1951397490040119
+      },
+      {
+        "family": "vertical",
+        "bucket": "level",
+        "horizon": "10 min",
+        "n": 17395,
+        "within_5_nm": 77.12561080770335,
+        "mean_nm": 3.934304091387913
+      },
+      {
+        "family": "vertical",
+        "bucket": "gentle climb/descent",
+        "horizon": "1 min",
+        "n": 8061,
+        "within_5_nm": 99.71467559856097,
+        "mean_nm": 0.2979646033921024
+      },
+      {
+        "family": "vertical",
+        "bucket": "gentle climb/descent",
+        "horizon": "3 min",
+        "n": 6660,
+        "within_5_nm": 91.32132132132132,
+        "mean_nm": 1.6104337463746523
+      },
+      {
+        "family": "vertical",
+        "bucket": "gentle climb/descent",
+        "horizon": "5 min",
+        "n": 5629,
+        "within_5_nm": 79.19701545567597,
+        "mean_nm": 3.340452780883073
+      },
+      {
+        "family": "vertical",
+        "bucket": "gentle climb/descent",
+        "horizon": "10 min",
+        "n": 3510,
+        "within_5_nm": 51.25356125356125,
+        "mean_nm": 7.712762064593446
+      },
+      {
+        "family": "vertical",
+        "bucket": "fast climb/descent",
+        "horizon": "1 min",
+        "n": 4075,
+        "within_5_nm": 99.75460122699387,
+        "mean_nm": 0.33623511313111376
+      },
+      {
+        "family": "vertical",
+        "bucket": "fast climb/descent",
+        "horizon": "3 min",
+        "n": 3523,
+        "within_5_nm": 89.63951177973318,
+        "mean_nm": 1.8768795399591476
+      },
+      {
+        "family": "vertical",
+        "bucket": "fast climb/descent",
+        "horizon": "5 min",
+        "n": 2929,
+        "within_5_nm": 76.57903721406623,
+        "mean_nm": 3.8341024552392917
+      },
+      {
+        "family": "vertical",
+        "bucket": "fast climb/descent",
+        "horizon": "10 min",
+        "n": 1786,
+        "within_5_nm": 37.51399776035834,
+        "mean_nm": 9.612386205293618
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "terminal",
+        "horizon": "1 min",
+        "n": 7575,
+        "within_5_nm": 99.88118811881188,
+        "mean_nm": 0.3347194865301927
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "terminal",
+        "horizon": "3 min",
+        "n": 6124,
+        "within_5_nm": 89.77792292619203,
+        "mean_nm": 1.8087477346333702
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "terminal",
+        "horizon": "5 min",
+        "n": 4880,
+        "within_5_nm": 76.12704918032787,
+        "mean_nm": 3.56777586535141
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "terminal",
+        "horizon": "10 min",
+        "n": 2593,
+        "within_5_nm": 49.132279213266486,
+        "mean_nm": 8.299257418195225
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "intermediate",
+        "horizon": "1 min",
+        "n": 5579,
+        "within_5_nm": 99.40849614626276,
+        "mean_nm": 0.23885855041940438
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "intermediate",
+        "horizon": "3 min",
+        "n": 4875,
+        "within_5_nm": 94.03076923076922,
+        "mean_nm": 1.0831612577012804
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "intermediate",
+        "horizon": "5 min",
+        "n": 4265,
+        "within_5_nm": 89.00351699882766,
+        "mean_nm": 2.1512736161456703
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "intermediate",
+        "horizon": "10 min",
+        "n": 2957,
+        "within_5_nm": 68.17720662833953,
+        "mean_nm": 4.910700598305873
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "en-route",
+        "horizon": "1 min",
+        "n": 31502,
+        "within_5_nm": 99.88572154148943,
+        "mean_nm": 0.12417603794613628
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "en-route",
+        "horizon": "3 min",
+        "n": 27485,
+        "within_5_nm": 97.81699108604694,
+        "mean_nm": 0.5465897649268362
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "en-route",
+        "horizon": "5 min",
+        "n": 23978,
+        "within_5_nm": 92.5723579948286,
+        "mean_nm": 1.3681781021558965
+      },
+      {
+        "family": "distance to VABB",
+        "bucket": "en-route",
+        "horizon": "10 min",
+        "n": 17141,
+        "within_5_nm": 73.47879353596639,
+        "mean_nm": 4.470907188874597
+      }
+    ]
+  },
+  "training_seconds": 28.903049299988197,
+  "artifact": "ml_pipeline\\data\\processed\\trajectory_experiments\\20261101_refinement\\adam_lr3e5_seed43.pt",
+  "artifact_sha256": "b9ac58237b652921822ea324f0d854413c02c970dd7d7e1b2db880c121476cc6"
+}

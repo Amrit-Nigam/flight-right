@@ -1,0 +1,14 @@
+{
+  "config": {
+    "name": "adam_lr1e4",
+    "optimizer": "adam",
+    "lr": 0.0001,
+    "weight_decay": 0.0,
+    "heads_only": false
+  },
+  "seed": 42,
+  "best_epoch": 6,
+  "passes_validation_guardrails": true,
+  "improves_validation_objective": true,
+  "selected_at_utc": "2026-11-01T07:58:00.767721+00:00"
+}
