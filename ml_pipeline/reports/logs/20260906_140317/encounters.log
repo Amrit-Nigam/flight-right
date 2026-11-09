@@ -1,0 +1,46 @@
+Raw state filtering
+  rows loaded from 35 parquet file(s):          680,949
+  airborne with no missing fields:                  646,267  ( 94.9%)
+  en-route (>= 10,000 ft, > 50 m/s):      539,568  ( 79.2%)
+
+Anchors with a complete real ten-minute future: 60,000 across 31 collection session(s)
+
+Scenarios kept: 40,000 of 40,000 attempted
+Rejected for being inside the alert volume at t = 0 (no warning to give): 398
+
+Scenarios: 40,000   real conflicts: 2,581 (6.45%)
+Observation span: 24 Aug 22:10 -> 05 Sep 09:19 IST across 31 session(s)
+Severity balance:
+  low         12,947
+  medium      10,395
+  none         9,249
+  high         7,322
+  critical        87
+Conflict rate by intent:
+  natural geometry        18,000 scenarios,  0.91% conflict
+  aimed at each other     22,000 scenarios, 10.99% conflict
+
+============================================================================================
+LEAKAGE CHECK -- can the label be recomputed from the features?
+============================================================================================
+  Applying the separation rule to the PREDICTED closest approach reproduces
+  the real-outcome label for 95.60% of rows.
+  (The old circular dataset scored 100.00%. Anything close to that means the
+   label is still a function of the features and the model can learn nothing.)
+  Rows where prediction and reality disagree: 1,760 of 40,000
+    real conflicts the straight-line rule MISSED:      450
+    straight-line alarms that never actually happened: 1,310
+  Those 1,760 rows are the entire learning problem: they are where our
+  own prediction is wrong, and nothing else in the pipeline models that.
+
+Warning time on real conflicts (seconds from now to the actual closest approach)
+  conflicts: 2,581
+  min    30 s   p10   210 s   median   360 s   p90   540 s   max   600 s
+  already at closest approach at t = 0: 0 (0.00%)   (the old file: 25.33%)
+    under 90 s, too late to act      56 ( 2.17%)
+    90-180 s, tier 1 alarm           72 ( 2.79%)
+    3-5 min, tier 2 advisory        751 (29.10%)
+    5-10 min, tier 2 advisory     1,702 (65.94%)
+  HEADLINE INPUT -- conflicts with at least 3 minutes of warning available: 2,453 (95.0%)
+
+Output: C:\Users\singh\OneDrive\Desktop\Archit\KJ Somaiya\LY Project\Flight_Right\ml_pipeline\data\synthetic\encounters_real_outcome_20260906_083724.parquet
