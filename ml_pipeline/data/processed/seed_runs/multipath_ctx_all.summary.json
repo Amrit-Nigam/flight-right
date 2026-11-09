@@ -1,0 +1,119 @@
+{
+  "seed": 42,
+  "offset_seed": 0,
+  "temperature": 1.7290173725770421,
+  "ece_arrivals_after": 0.01899391544845689,
+  "ece_all_after": 0.012068286407650673,
+  "constant_velocity_arrivals": 15.805679096818338,
+  "best_of_k": {
+    "table": {
+      "1": {
+        "arrivals": 38.624700650017104,
+        "all": 63.99635623191512
+      },
+      "3": {
+        "arrivals": 57.88573383510093,
+        "all": 78.99474868717179
+      },
+      "5": {
+        "arrivals": 63.56483065343825,
+        "all": 82.99753509806023
+      },
+      "10": {
+        "arrivals": 68.8333903523777,
+        "all": 86.50734112099452
+      }
+    },
+    "per_mode": {
+      "1": {
+        "arrivals": 43.24324324324324,
+        "all": 66.43982424177473
+      },
+      "3": {
+        "arrivals": 65.20697913102977,
+        "all": 82.08659307684064
+      },
+      "5": {
+        "arrivals": 71.67293876154636,
+        "all": 86.5126996034723
+      },
+      "10": {
+        "arrivals": 78.002052685597,
+        "all": 90.52084449683849
+      }
+    }
+  },
+  "top1_mean_nm": {
+    "constant_velocity": [
+      0.4924164946839603,
+      1.6880998484684555,
+      3.65365631441447,
+      10.304965389915518
+    ],
+    "table": [
+      0.5071531731222466,
+      1.5971217745892148,
+      2.9165151117455417,
+      6.056937994118273
+    ],
+    "per_mode": [
+      0.4516064312414743,
+      1.4661675280808337,
+      2.7154327411381396,
+      5.681439655500303
+    ]
+  },
+  "gates": {
+    "above_60": true,
+    "per_mode_beats_table": true,
+    "top1_not_below_table": true,
+    "beats_constant_velocity_every_horizon": true
+  },
+  "three_d": {
+    "table": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 3936.143484056818,
+        "top1_within_1000ft": 28.087581252138214,
+        "best5_within_1000ft": 43.92747177557304,
+        "top1_both": 16.216216216216218,
+        "best5_both": 21.176873075607254
+      },
+      "all": {
+        "top1_altitude_mean_ft": 2223.6874815499164,
+        "top1_within_1000ft": 57.019612045868605,
+        "best5_within_1000ft": 66.31122066230843,
+        "top1_both": 44.32000857357196,
+        "best5_both": 52.213053263315835
+      }
+    },
+    "per_mode": {
+      "arrivals": {
+        "top1_altitude_mean_ft": 1440.5618311274243,
+        "top1_within_1000ft": 52.24084844338008,
+        "best5_within_1000ft": 68.1491618200479,
+        "top1_both": 30.687649674991448,
+        "best5_both": 44.201163188504964
+      },
+      "all": {
+        "top1_altitude_mean_ft": 1115.6607354060022,
+        "top1_within_1000ft": 71.12849640981675,
+        "best5_within_1000ft": 77.88018433179722,
+        "top1_both": 53.62233415496731,
+        "best5_both": 66.01114564355375
+      }
+    }
+  },
+  "extra_features": [
+    "sel_alt_delta_ft",
+    "fms_alt_delta_ft",
+    "sel_heading_delta_deg",
+    "intent_age_s",
+    "headwind_kt",
+    "crosswind_kt",
+    "oat_c",
+    "mtow_kg",
+    "cruise_mach",
+    "traffic_count",
+    "nearest_nm"
+  ]
+}
