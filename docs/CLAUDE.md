@@ -6336,6 +6336,34 @@ membership is lost. Model hashes remain unchanged. Early catches are unchanged: 
 270/284 (95.1%), full chain 271/284 (95.42%). All changes remain local and uncommitted;
 no served artifact, live threshold, commit or push was changed.
 
+### 2 November 2026 - Show the selected aircraft's recent recorded track
+
+**Files.** Added `client/src/hooks/useFlightTrack.js` and
+`client/src/lib/flightTrack.js`; updated `client/src/pages/HomePage.jsx`,
+`client/src/components/FlightRadarMap.tsx` and `client/src/components/RadarCanvas.jsx`.
+
+**Before and now.** Selecting an aircraft showed its details and current position,
+but no trail of where it had flown. Selection now fetches the existing aircraft-history
+endpoint and draws a solid teal line through its reported positions in both geographic
+map and radar views. It refreshes with dashboard feed updates and disappears when the
+selection is cleared. The map explains when history is loading, missing or unavailable.
+The backend keeps 24 reports per aircraft, so this is labelled a recent recorded track,
+not a complete route from departure. The lighter dashed model prediction is still pending.
+
+**Why and basis.** Archit requested a flight-tracker-style observed trail as the minimum
+implementation. This is our own display design, not taken from a paper or article.
+Inspection showed an existing history endpoint but no selected-aircraft history rendering.
+The trail rejects invalid coordinates and future reports, avoids joining across gaps
+over two minutes or a backwards timestamp, and separates live and replay sources.
+Late history responses from an earlier selection cannot replace the current selection.
+The two-minute gap is a display choice; it does not affect any alert threshold.
+
+**Verification and headline.** Six direct JavaScript checks passed for normal tracks,
+duplicate positions, long gaps, replay rewinds, invalid/source-mismatched reports and
+cleared selection. The frontend production build passed. No browser visual check was
+performed. Recorded classifier early catches remain 95.1% (270/284), not remeasured;
+no prediction model or conflict decision changed. Changes remain local and uncommitted.
+
 ### 1 November 2026 - Restore the local checkpoint before the all-pairs five-path experiment
 
 **Request and before.** Archit requested the code and fine-tuned models saved just
@@ -6374,3 +6402,44 @@ bytes across checkouts so their recorded checksums remain valid. Ignored local m
 weights and restore checkpoint ZIPs remain on disk under the existing repository rules.
 The restored unit suite passed all 40 tests. No model behaviour or recorded headline
 metric changed: classifier early catches remain 95.1% (270/284).
+
+### 2 November 2026 - Display the highest-confidence predicted path
+
+**Files.** Added `server/app/services/trajectory_service.py` and
+`ml_pipeline/tests/test_trajectory_display.py`. Updated `server/app/api/routes.py`,
+`client/src/lib/api.js`, `client/src/hooks/useFlightTrack.js`,
+`client/src/components/FlightRadarMap.tsx` and `client/src/components/RadarCanvas.jsx`.
+
+**Before and now.** The selected flight showed only its recent recorded trail.
+It now also shows a thinner, partly transparent dashed teal line for the single
+highest-probability candidate from the existing multi-path model. The line starts
+at the aircraft's reported position and connects the model's one-, three-, five-
+and ten-minute positions. The map and radar show its model confidence percentage.
+This is the model's candidate probability, not a guarantee of the route flown.
+The existing model supplies destination features when available and applies active
+clearances before the displayed candidate is chosen. No straight line to the
+destination is invented. Missing models, insufficient history and prediction
+failures show an unavailable/waiting state instead of a guessed path.
+
+**Why and design.** Archit explicitly requested the dashed forecast with the most
+confidence. This is our own display integration, not taken from a paper or article.
+`GET /api/aircraft/trajectory` reuses the existing candidate-generation method,
+selects the greatest probability explicitly, and returns coordinates in map order
+(longitude then latitude). A bounded 16-entry cache avoids repeated inference for
+unchanged reports and clearances. History from another source or a replay's future
+is excluded. The frontend only displays predictions whose aircraft, source and
+position timestamp match the selection, and ignores late responses after changes.
+Observed-trail loading remains independent of prediction loading or failure.
+
+**Verification.** Nine unit/API tests pass, including explicit highest-probability
+selection, coordinate order, cache invalidation on reports/instructions, missing
+models/history, invalid candidate rejection, callsign lookup, source/time filtering
+and graceful failure. A real recorded AXB1693 track with the served multi-path
+artifact produced five finite map points and confidence 0.702; a second direct
+candidate call confirmed that this was the maximum probability. That offline check
+disabled network route lookups. The frontend production build passed. No browser
+visual inspection was performed.
+
+**Did the headline move?** No. Recorded classifier early catches remain 95.1%
+(270/284), not remeasured. No model weights, predicted candidate values, alert
+thresholds or conflict decisions changed. Changes remain local and uncommitted.
