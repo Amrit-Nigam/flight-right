@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import glob
+import json
 import os
 from pathlib import Path
 
@@ -42,9 +43,12 @@ RAW_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "raw"
 OUTPUT_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "processed"
 
 
-def load_valid_states() -> pd.DataFrame:
+def load_valid_states(paths=None) -> pd.DataFrame:
     """Read every raw parquet, retaining states usable by the trajectory model."""
-    paths = sorted(glob.glob(str(RAW_DIRECTORY / "*.parquet")))
+    if paths is None:
+        explicit = os.environ.get("FLIGHT_RIGHT_RAW_FILES")
+        paths = json.loads(explicit) if explicit is not None else glob.glob(str(RAW_DIRECTORY / "*.parquet"))
+    paths = sorted(paths)
     if not paths:
         raise FileNotFoundError(f"No Parquet files found in {RAW_DIRECTORY}")
     frame = pd.concat((pd.read_parquet(path) for path in paths), ignore_index=True)

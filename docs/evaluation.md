@@ -1,169 +1,132 @@
-# Flight Right — Evaluation
+# Flight Right: latest evaluation
 
-Refreshed 2026-10-30T16:35:09.245308+00:00. Saved artifacts were evaluated without retraining or changing thresholds.
+Classifier headline: **95.07% (270/284)** caught with at least three minutes of warning. Full served alert chain: **95.42% (271/284)**. Consolidated from preserved measurements; no retraining or fresh inference was performed.
 
-**Headline: 95.07% (270/284) of eligible conflicts caught with at least three minutes of warning.** The full alert chain catches 95.42% (271/284).
+## Model inventory and best supported configuration
 
-Speech evaluations are maintained separately and are intentionally excluded from this document and `metrics.json`.
+Best means the recorded validation-selected configuration that passed its stated checks, not the largest isolated test score. Served and candidate numbers are separated below. Different tasks, corpora and metrics cannot be ranked together.
 
-## Earlier evaluations and reproducibility
+| Model / evaluated component | Status / how achieved |
+| --- | --- |
+| [Residual LSTM (Model 1)](evaluations/trajectory_lstm.md) | Served baseline; selected ten-minute-head candidate remains undeployed |
+| [Constant velocity](evaluations/constant_velocity.md) | Deterministic trajectory baseline, not a learned model. |
+| [Tree trajectory reference](evaluations/tree_reference.md) | Benchmark only. Saved test predictions survive; fitted estimators are not retained. |
+| [Multi-path trajectory bundle (Model 1b)](evaluations/multipath.md) | Archive + destination served; continue_800 candidate undeployed |
+| [XGBoost conflict classifier (Model 2)](evaluations/conflict_classifier.md) | 27-input selected-altitude classifier served; raw threshold 0.07465646415948868 |
+| [Secondary XGBoost conflict filter](evaluations/conflict_filter.md) | refit_unweighted + raw threshold 0.07932812720537186 + veto floor 0.00928506813943386; undeployed |
+| [Resolution engine (Model 3)](evaluations/resolution.md) | Deterministic simulation and ranking engine; a learned resolution ranker is deferred and has no trained model or scores. |
+| [Full alert chain](evaluations/full_alert_chain.md) | Integration evaluation, not another trained model. Keep separate from classifier-only scores. |
+| [Path-confidence experiment](evaluations/path_confidence.md) | Rejected/rolled-back all-pairs shadow-policy experiment; no deployed model. |
+| [Alert feed](evaluations/alert_feed.md) | Deterministic notification suppression; measures interruptions, not conflict prediction accuracy. |
+| [Clearance and callsign extraction](evaluations/clearance_extractor.md) | Deterministic parser/matcher, human-transcript upper bound, clearance-chain and oracle demonstrations; not an ASR model. |
+| [openai/whisper-small](evaluations/asr_small.md) | Untouched speech baseline. |
+| [FlightRight Whisper-small ATC P1](evaluations/asr_small_atc_p1.md) | Own LoRA fine-tune on openai/whisper-small; configured default when its local export exists. Local-path separator variants denote the same model. |
+| [openai/whisper-medium](evaluations/asr_medium.md) | Untouched speech comparator. |
+| [jlvdoorn/whisper-medium-atcosim](evaluations/asr_medium_atcosim.md) | Published ATC comparator; ATCOSIM is training-contaminated. |
+| [jlvdoorn/whisper-large-v3-atco2-asr-atcosim](evaluations/asr_large_atc.md) | Published ATC comparator. ATCO2 recording overlap and ATCOSIM training contamination must stay attached to its scores. |
+| [ai4bharat/indic-parler-tts](evaluations/indic_parler_tts.md) | Synthetic voice generation for training/demo; no objective TTS quality benchmark found. Script extraction recovery is not TTS accuracy. |
+| [Silero VAD (faster-whisper)](evaluations/silero_vad.md) | Pretrained speech gate used in the live speech service. No labelled VAD evaluation or fine-tuning found. |
 
-- [Previous evaluation, preserved verbatim](evaluation-history/20261030_before_refresh/evaluation.md), with its original metrics, figures and ablations in the same directory.
-- [Initial training report](../ml_pipeline/reports/training_report_20260906_140317.md).
-- [Earlier saved-model evaluation](../ml_pipeline/reports/reevaluation_20260908_093417.json). All earlier dated reports remain available.
-- [Current machine-readable results](metrics.json), including full confusion matrices, per-class metrics and SHA-256 fingerprints of the model files.
+## Trajectory: historical test split
 
-- reevaluation: [ml_pipeline/reports/reevaluation_20261030_155729.json](../ml_pipeline/reports/reevaluation_20261030_155729.json)
-- multipath: [ml_pipeline/reports/multipath_3d_20261030_212632.json](../ml_pipeline/reports/multipath_3d_20261030_212632.json)
-- runtime: [ml_pipeline/reports/offsets_ab_20261030_163306.json](../ml_pipeline/reports/offsets_ab_20261030_163306.json)
+39,614 test windows; ten-minute targets available for 18,662. Rates are percentages. RMSE/mean are horizontal NM, altitude MAE is ft. Earlier horizons and every slice/seed remain in the corresponding model ledger.
 
-Reproduce the scoring, then publish the resulting dated report paths:
+| Configuration | Horizon | n | Mean NM | RMSE NM | Within 5 NM % | Altitude MAE ft |
+| --- | --- | --- | --- | --- | --- | --- |
+| Constant velocity | 1 min | 38110 | 0.49242 | 1.76901 | 98.42561 | 119.94 |
+| Constant velocity | 3 min | 32324 | 1.68810 | 3.68365 | 89.46294 | 471.34 |
+| Constant velocity | 5 min | 27587 | 3.65366 | 7.16213 | 77.32990 | 910.53 |
+| Constant velocity | 10 min | 18662 | 10.30497 | 16.86169 | 50.50370 | 2231.10 |
+| Served residual LSTM | 1 min | 38110 | 0.45025 | 1.73104 | 98.46497 | 98.63 |
+| Served residual LSTM | 3 min | 32324 | 1.37553 | 3.10388 | 91.95953 | 304.26 |
+| Served residual LSTM | 5 min | 27587 | 2.68787 | 5.37193 | 82.90499 | 509.58 |
+| Served residual LSTM | 10 min | 18662 | 6.40931 | 10.46734 | 61.31176 | 1108.57 |
+| Tree reference (saved predictions) | 1 min | 38110 | 0.43230 | 1.70491 | 98.46497 | 94.84 |
+| Tree reference (saved predictions) | 3 min | 32324 | 1.27093 | 2.96305 | 92.62777 | 294.72 |
+| Tree reference (saved predictions) | 5 min | 27587 | 2.39033 | 5.01676 | 85.08355 | 511.70 |
+| Tree reference (saved predictions) | 10 min | 18662 | 5.56803 | 9.51012 | 65.66284 | 1079.97 |
+| Undeployed last_head_adam_lr1e4, seed 42, epoch 4 | 1 min | 38110 | 0.45025 | 1.73104 | 98.46497 | 98.63 |
+| Undeployed last_head_adam_lr1e4, seed 42, epoch 4 | 3 min | 32324 | 1.37553 | 3.10388 | 91.95953 | 304.26 |
+| Undeployed last_head_adam_lr1e4, seed 42, epoch 4 | 5 min | 27587 | 2.68786 | 5.37192 | 82.90499 | 509.58 |
+| Undeployed last_head_adam_lr1e4, seed 42, epoch 4 | 10 min | 18662 | 6.34813 | 10.39758 | 61.38678 | 1103.95 |
+
+The LSTM candidate freezes the encoder, shared layers and one-/three-/five-minute heads; Adam learning rate 1e-4, SmoothL1 beta .05, validation-selected seed 42 epoch 4, confirmed at seeds 43/44. It is not a simultaneous improvement of every metric or regime. See all three LSTM studies and guards in its ledger.
+
+## Multi-path: ten-minute coverage
+
+Best-of-five is coverage of alternatives. A joint 3-D hit requires the same candidate within 5 NM and 1,000 ft. Arrivals is the existing <40 NM VABB bucket, not independent arrival labels.
+
+| Configuration | Group | n | Top-1 mean NM | Top-1 5 NM % | Best-5 5 NM % | Top-1 3-D % | Best-5 3-D % |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Served archive + destination | all | 18662 | 5.53280 | 68.06880 | 88.43104 | 55.89969 | 68.19205 |
+| Served archive + destination | arrivals | 2923 | 9.93943 | 47.21177 | 76.46254 | 34.45091 | 48.78549 |
+| Undeployed continue_800 seed 0 | all | 18662 | 5.49463 | 68.26707 | 88.64538 | 56.02829 | 68.31529 |
+| Undeployed continue_800 seed 0 | arrivals | 2923 | 9.89244 | 47.51967 | 76.90729 | 34.65618 | 49.02497 |
+
+continue_800 extends only the ten-minute per-mode regressors: 800 along-track / 800 cross-track / 468 altitude trees. Validation-frozen, seed 0; no independent multi-seed claim. Route classifier and temperature stay fixed. Route classification and its full 40-class confusion matrix/calibration are preserved in the multi-path ledger.
+
+## Conflict: 4,690 historical test pairs, 303 positives
+
+| Decision | Precision | Recall | F1 | TN | FP | FN | TP |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Served classifier | 0.38584780 | 0.95379538 | 0.54942966 | 3927 | 460 | 14 | 289 |
+| Served full chain | 0.37760417 | 0.95709571 | 0.54154995 | 3909 | 478 | 13 | 290 |
+| Undeployed filtered classifier | 0.39643347 | 0.95379538 | 0.56007752 | 3947 | 440 | 14 | 289 |
+| Undeployed filtered full chain | 0.38718291 | 0.95709571 | 0.55133080 | 3928 | 459 | 13 | 290 |
+
+The served classifier adds selected-altitude inputs with validation threshold matched to the prior false-alarm rate. The refined proposal uses a new unweighted 400-tree depth-3 XGBoost filter (learning rate .04, minimum child weight 20, L2 20, subsample .9, seed 42) after the threshold change; the independent straight-line safety net bypasses it. Classifier early catches remain 270/284; full-chain early catches remain 271/284. The proposal retains the same detected true pairs, cuts full-chain FP 478 to 459, and changes false tier-1 alerts 20 to 19 while preserving 28 real tier-1 alerts. Existing full-chain FN remain 13. This is repeated historical-benchmark exploration, not a guarantee on future traffic.
+
+## Speech: latest accepted result per checkpoint and corpus
+
+WER is percent; lower is better. Columns distinguish raw and spoken-numeral-normalized WER. Corpus contamination limits comparison. Latest here means the latest accepted record for that model/corpus, even when another model has a more recent report.
+
+| Checkpoint | Corpus | Measured | Clips | WER % | Spoken-numeral WER % | Basis / limitation |
+| --- | --- | --- | --- | --- | --- | --- |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | atco2_clean | 2026-10-30 | 762 | 25.88 | 25.87 | clip-held-out (same airports and days as its ATCO2 training clips) |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | atco2_contaminated | 2026-10-30 | 109 | 15.95 | 15.95 | NOT held out: these exact recordings are in its training data (Phase 2.5) |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | atcosim_heldout_speakers | 2026-10-30 | 1712 | 14.69 | 14.69 | NOT held out: trained on all ten ATCOSIM speakers |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | uwb_heldout_recordings | 2026-10-30 | 2814 | 46.94 | 46.94 | held out (UWB-ATCC not in its training corpus) |
+| openai/whisper-medium | atco2_clean | 2026-09-26 | 762 | 62.55 | 44.72 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-medium | atco2_contaminated | 2026-09-26 | 109 | 47.8 | 31.26 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-medium | atcosim_heldout_speakers | 2026-09-26 | 1712 | 61.87 | 24.03 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-medium | uwb_heldout_recordings | 2026-09-26 | 2814 | 78.23 | 58.43 | held out as far as is known (web-scale training data, undisclosed) |
+| jlvdoorn/whisper-medium-atcosim | atco2_clean | 2026-09-26 | 762 | 39.51 | 39.51 | held out (never trained on ATCO2) |
+| jlvdoorn/whisper-medium-atcosim | atco2_contaminated | 2026-09-26 | 109 | 26.45 | 26.51 | held out (never trained on ATCO2) |
+| jlvdoorn/whisper-medium-atcosim | atcosim_heldout_speakers | 2026-09-26 | 1712 | 0.14 | 0.14 | NOT held out: trained on ATCOSIM |
+| jlvdoorn/whisper-medium-atcosim | uwb_heldout_recordings | 2026-09-26 | 2814 | 53.04 | 53.05 | held out |
+| openai/whisper-small | atco2_clean | 2026-10-30 | 762 | 75.2 | 59.18 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | atco2_contaminated | 2026-10-30 | 109 | 53.19 | 37.18 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | atcosim_heldout_speakers | 2026-10-30 | 1712 | 65.95 | 27.54 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | svarah_indian_english | 2026-10-30 | 6656 | 9.3 | 8.47 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | uwb_heldout_recordings | 2026-10-30 | 2814 | 91.02 | 73.88 | held out as far as is known (web-scale training data, undisclosed) |
+| FlightRight Whisper-small ATC P1 | atco2_clean | 2026-10-30 | 762 | 28.29 | 28.29 | held out (no ATCO2 audio in training) |
+| FlightRight Whisper-small ATC P1 | atco2_contaminated | 2026-10-30 | 109 | 17.4 | 17.4 | held out (no ATCO2 audio in training) |
+| FlightRight Whisper-small ATC P1 | atcosim_heldout_speakers | 2026-10-30 | 1712 | 4.88 | 4.88 | held out by speaker (sm3, zf3, gm2 never trained on) |
+| FlightRight Whisper-small ATC P1 | svarah_indian_english | 2026-10-30 | 6656 | 33.17 | 28.9 | held out |
+| FlightRight Whisper-small ATC P1 | uwb_heldout_recordings | 2026-10-30 | 2814 | 15.11 | 15.11 | held out by recording |
+
+Own P1 model: LoRA rank 32 on Whisper-small, real ATCOSIM/UWB training, exported to CTranslate2 int8_float16; common English beam-5 decoder (`fw1-beam5-v1`). Full training checkpoint history is in its ledger. Svarah measures general Indian English, not ATC. Cached transcription re-scoring does not constitute fresh latency benchmarking. No completed P2/accent model with test scores was found.
+
+## Other evaluated components
+
+Resolution: 45 classifier-triggered tier-1 encounters (27 real / 18 false), 1,170 simulated manoeuvres; 1 unsafe and 923 ineffective rejected, 0 secondary-conflict rejections; 46 instructions across 21 encounters, 24 without options. 35 instructions on real conflicts, 11 on false alarms. The harness lacks surrounding traffic; zero secondary rejections does not validate runtime domino checks. Classification F1 is inapplicable.
+
+Extractor with human transcripts on ATCO2 clean: 77.42% clearance accuracy (31 eligible), 93.9% callsign accuracy with proxy aircraft lists (328 eligible). These are upper-bound parser results, not ASR scores. The rejected number rule is excluded from latest accepted results. Latest November 2 chain check is an oracle-text replay demonstration, not measured microphone/ASR accuracy.
+
+Alert feed: replay interruptions 680 to 179 (73.7%) and 909 to 235 (74.1%), zero pairs lost in both. This measures display suppression. Path-confidence all-pairs policy was rolled back; its trials, replay and source remain in its ledger. Indic Parler TTS and Silero VAD have no recorded objective model-quality evaluation; no numbers are invented for them.
+
+## Provenance and maintenance
+
+Original served-model refresh: 2026-10-30. Candidate studies: 2026-11-01. Latest chain demonstration: 2026-11-02. Consolidation: 2026-11-09. Model fingerprints are checked against recorded sources; consolidation does not make old measurements newly measured results.
+
+[Source inventory and cleanup audit](evaluations/source_inventory.json) contains every discovered evaluation source, model mapping, checksum, preservation commit and deletion status. Each model ledger includes full original evidence. Current served models, selected candidate packages, original data and canonical evaluation inputs are retained. Retired trial weights and regenerable intermediates may be removed after recording their provenance and results in the model ledger.
 
 ```powershell
-venv\Scripts\python.exe ml_pipeline/utils/reevaluate_models.py
-venv\Scripts\python.exe ml_pipeline/utils/multipath_3d_eval.py
-venv\Scripts\python.exe ml_pipeline/utils/offsets_ab_test.py
-venv\Scripts\python.exe scripts/update_evaluation.py --reevaluation PATH --multipath PATH --runtime PATH
+venv\Scripts\python.exe scripts/consolidate_evaluations.py --verify
+# Add a newly generated evaluation (choose all affected model keys from the inventory):
+venv\Scripts\python.exe scripts/consolidate_evaluations.py --ingest PATH --models MODEL_KEY
+# Restore archived inputs needed by an older report script (does not overwrite):
+venv\Scripts\python.exe scripts/consolidate_evaluations.py --restore ORIGINAL_PATH
 ```
 
-## What each component is evaluated on
-
-| Component | Evaluation | Interpretation |
-|---|---|---|
-| Model 1: residual LSTM | Horizontal mean, RMSE, median, 90th percentile; altitude MAE; within-distance rates, per horizon and regime | Predicts a single future position |
-| Tree reference | Same trajectory metrics from saved test predictions | Comparison benchmark; not served |
-| Model 1b: multi-path | Top-1 and best-of-5 coverage, horizontal and vertical, calibration; cluster confusion matrix and precision/recall/F1 | Five candidates cover alternatives; best-of-5 is not single-guess accuracy |
-| Model 2: conflict classifier | Precision, recall, F1, F2, confusion matrix, PR-AUC, calibration, warning time | Conflict is the positive class |
-| Full alert chain | Same binary metrics, warning rate and alarm tiers, including multi-path geometry | Evaluates the served decision logic on encounter pairs |
-| Model 3: deterministic resolution engine | Candidates simulated, rejected, offered; real/false-alarm coverage | No learned class labels; classification F1 is not applicable |
-| Alert feed | Interruptions before/after and pairs retained | Display suppression, not another predictive model |
-
-The trajectory test set contains 39,614 windows, with a mask selecting available future targets. The conflict test set contains 4,690 pairs. Both splits follow collection time. Encounter labels use the recorded futures of real tracks, with one track relocated to create encounters; these are not observed real-world near misses. The warning metric is a subset of conflict recall, restricted to conflicts with at least 180 seconds until their recorded closest approach.
-
-## Model 1 and the tree reference
-
-Lower errors are better; higher within-distance rates are better. NM means nautical miles. MAE means mean absolute error.
-
-| Model | Horizon | n | Mean NM | RMSE NM | Median NM | P90 NM | Within 1 NM | Within 5 NM | Altitude MAE ft |
-|---|---|---|---|---|---|---|---|---|---|
-| Constant velocity | 1 min | 38110 | 0.492 | 1.769 | 0.080 | 1.111 | 89.08% | 98.43% | 119.9 |
-| Constant velocity | 3 min | 32324 | 1.688 | 3.684 | 0.270 | 5.239 | 67.90% | 89.46% | 471.3 |
-| Constant velocity | 5 min | 27587 | 3.654 | 7.162 | 0.832 | 11.152 | 52.02% | 77.33% | 910.5 |
-| Constant velocity | 10 min | 18662 | 10.305 | 16.862 | 4.865 | 29.180 | 28.99% | 50.50% | 2231.1 |
-| Residual LSTM | 1 min | 38110 | 0.450 | 1.731 | 0.073 | 0.967 | 90.28% | 98.46% | 98.6 |
-| Residual LSTM | 3 min | 32324 | 1.376 | 3.104 | 0.235 | 4.182 | 71.71% | 91.96% | 304.3 |
-| Residual LSTM | 5 min | 27587 | 2.688 | 5.372 | 0.672 | 7.779 | 56.11% | 82.90% | 509.6 |
-| Residual LSTM | 10 min | 18662 | 6.409 | 10.467 | 3.234 | 17.152 | 24.73% | 61.31% | 1108.6 |
-| Tree reference | 1 min | 38110 | 0.432 | 1.705 | 0.065 | 0.908 | 90.75% | 98.46% | 94.8 |
-| Tree reference | 3 min | 32324 | 1.271 | 2.963 | 0.197 | 3.912 | 73.35% | 92.63% | 294.7 |
-| Tree reference | 5 min | 27587 | 2.390 | 5.017 | 0.504 | 7.069 | 60.06% | 85.08% | 511.7 |
-| Tree reference | 10 min | 18662 | 5.568 | 9.510 | 2.332 | 15.276 | 33.07% | 65.66% | 1080.0 |
-
-![Trajectory comparison](figures/traj_within5nm.png)
-
-The LSTM beats constant velocity at every horizon on the within-5-NM gate: **True**. The tree row re-scores saved predictions rather than refitting a new benchmark. Detailed turn, vertical-motion and airport-distance breakdowns are in `metrics.json`.
-
-## Model 1b: multi-path trajectories
-
-A 3-D hit requires the **same candidate** to be within both 5 NM horizontally and 1,000 ft vertically at ten minutes. Arrivals are the existing near-airport evaluation bucket; all-traffic includes those arrivals.
-
-| Method | Group | n | Top-1 within 5 NM | Best-of-5 within 5 NM | Top-1 3-D hit | Best-of-5 3-D hit |
-|---|---|---|---|---|---|---|
-| Constant velocity | arrivals | 2923 | 15.81% | 15.81% | 14.68% | 14.68% |
-| Constant velocity | all | 18662 | 50.50% | 50.50% | 41.86% | 41.86% |
-| Previous table offsets | arrivals | 2923 | 41.33% | 64.25% | 16.66% | 20.25% |
-| Previous table offsets | all | 18662 | 65.27% | 84.09% | 35.83% | 42.62% |
-| Served per-mode offsets + destination | arrivals | 2923 | 47.21% | 76.46% | 34.45% | 48.79% |
-| Served per-mode offsets + destination | all | 18662 | 68.07% | 88.43% | 55.90% | 68.19% |
-
-### Route-pattern classification
-
-This internal classifier selects among 40 learned route clusters, using 18,662 test windows with ten-minute targets. The target cluster is assigned from the actual future horizontal residual by the saved KMeans model. These scores describe cluster selection, not conflict detection or final trajectory accuracy.
-
-| Average | Precision | Recall | F1 |
-|---|---|---|---|
-| macro avg | 0.5155 | 0.4147 | 0.4413 |
-| weighted avg | 0.6170 | 0.6355 | 0.6100 |
-
-Top-1 cluster accuracy / micro precision, recall and F1: **0.6355**. Macro averages give every cluster equal weight; weighted averages use the true cluster frequencies. All cluster labels, including those absent from test, are retained and zero-division metrics are zero.
-
-![Route-cluster confusion matrix](figures/confusion_route_clusters.png)
-
-[Full 40 × 40 counts as CSV](figures/confusion_route_clusters.csv); per-class scores are in `metrics.json`. Rows are actual classes and columns are predicted classes. The heatmap divides each row by its support so frequent clusters do not hide rare-cluster errors; the CSV retains the unnormalized integer counts. Classes absent from the test split have zero rows.
-
-Temperature: 1.0646. Cluster calibration error (lower is better), before → after: arrivals 0.022 → 0.017; all traffic 0.015 → 0.011. This measures cluster-probability calibration, not the probability of a conflict.
-
-## Model 2 and the full alert chain
-
-Precision is the share of alerts that are real conflicts. Recall is the share of real conflicts caught. F1 balances both; F2 puts more weight on recall. All scores below use the saved operating threshold, not a threshold selected on this test set.
-
-| Decision | Precision | Recall | F1 | F2 | TN | FP | FN | TP | Caught ≥3 min |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Conflict classifier | 0.3858 | 0.9538 | 0.5494 | 0.7369 | 3927 | 460 | 14 | 289 | 270/284 |
-| Rule 8 NM / 1,500 ft | 0.4356 | 0.8812 | 0.5830 | 0.7315 | 4041 | 346 | 36 | 267 | 248/284 |
-| Rule 5 NM / 1,000 ft | 0.6203 | 0.8251 | 0.7082 | 0.7740 | 4234 | 153 | 53 | 250 | 232/284 |
-| Full served alert chain | 0.3776 | 0.9571 | 0.5415 | 0.7323 | 3909 | 478 | 13 | 290 | 271/284 |
-
-TN = correctly quiet; FP = false alarm; FN = missed conflict; TP = caught conflict.
-
-Saved raw threshold: **0.07465646**. PR-AUC (average precision): **0.8064**. Brier score, raw → calibrated: 0.0304 → 0.0234; calibration error: 0.0318 → 0.0086. Calibration preserves the alert set: True.
-
-![Classifier confusion matrix](figures/confusion_classifier.png)
-
-![Full alert-chain confusion matrix](figures/confusion_runtime.png)
-
-Full-chain tier 1: 28 real / 20 false; tier 2: 262 real / 458 false. False alarms per 1,000 pairs: 101.92.
-
-The full-chain test checks the actual escalation decision against its measured implementation on every pair. It assumes unchanged geometry for three updates to satisfy persistence. It is an encounter-level offline evaluation, not a timing or end-to-end live-surveillance test. The geometry-only runtime block retained in the JSON is diagnostic and omits multi-path geometry.
-
-## Model 3: resolution engine
-
-Evaluated 45 classifier-triggered tier-1 candidate encounters (27 real, 18 false). Simulated 1170 manoeuvres; blocked 1 unsafe candidates, rejected 923 ineffective and 0 secondary-conflict candidates. Offered 46 instructions across 21 encounters; 24 received none. Instructions on real conflicts: 35; on false alarms: 11.
-
-This harness reconstructs the pair's instantaneous geometry; it does not supply all surrounding traffic or the complete multi-path alert stream. A zero secondary-conflict rejection count therefore does not establish runtime domino-check effectiveness. These are simulation outcomes, not proof that a manoeuvre is safe in actual operations. Precision, recall and confusion matrices are not defined for the engine's ranked manoeuvre outputs.
-
-## Alert-feed display suppression
-
-| Recorded session | Frames | Notifications before | After | Reduction | Pairs lost |
-|---|---|---|---|---|---|
-| 05 Sep, 00:30 IST | 536 | 680 | 179 | 73.7% | 0 |
-| 03 Sep, 20:45 IST | 540 | 909 | 235 | 74.1% | 0 |
-
-This replay uses rule-generated assessments to isolate the display filter. It does not measure the full learned alert chain, controller workload, or reduction in real-world errors. A pair retained in the active list can produce fewer repeated notifications.
-
-## Limits and interpretation
-
-- These are repeated measurements on the existing test split, not new independent test data. Improvements developed against this split need a fresh held-out evaluation before a generalization claim.
-- No model weights, target definitions, thresholds or alert decisions were changed by this refresh.
-- Per-class support, all trajectory regime breakdowns, probability diagnostics and model fingerprints are in `metrics.json`.
-- [Historical ablation study](ablation.md) contains its original experiment comparisons; it is a dated study, not a new multi-seed experiment from this refresh.
-
-
-## Trajectory experiments ? 1 November 2026
-
-See the [trajectory experiment summary](experiments/README.md) for isolated LSTM fine-tuning studies. A ten-minute-head candidate improves several error and hit-rate metrics while preserving shorter horizons. It has not replaced the served artifacts; all deployed-model tables above remain the baseline.
-
-
-## Multi-path experiments ? 1 November 2026
-
-[Local multi-path tuning results](experiments/multipath_tuning_20261101.md) compare three offset-regressor configurations, including rejected trials, trajectory distributions, classification/calibration, full alert-chain confusion counts, later-date audit and inference cost. The separately packaged candidate has not replaced the served model; the deployed-model tables above remain the baseline. All new work is uncommitted and has not been pushed.
-
-## Conflict false-alert experiments - 1 November 2026
-
-[Local conflict experiment results](experiments/conflict_false_alerts_20261101.md) report
-threshold selection and six learned-filter trials, including multi-path summary inputs.
-The threshold proposal retains the same 290 full-chain true-positive test pairs and
-271/284 early catches while reducing false alerts 478 to 463. Precision improves
-37.76% to 38.51%; F1 .54155 to .54924; recall remains 95.71%. Standalone classifier
-TP remains 289, FP drops 460 to 444. Both validation-selected learned filters fail
-true-positive preservation on test and are rejected. Full confusion matrices and
-per-trial precision/recall/F1 are retained in the linked report and raw JSON.
-Served weights and thresholds are unchanged; the initial evaluation archive remains intact.
-
-[Further conflict refinement](experiments/conflict_refinement_20261101.md) tests 28
-additional configurations. Its validation-selected conservative filter lowers full-chain
-test false alerts to **459**, retaining the same 290 true-positive pairs, 271/284 early
-catches and 28 real tier-1 alarms. False tier-1 alarms fall to 19. Precision is 38.72%,
-recall 95.71%, F1 .55133; confusion matrix [[3928,459],[13,290]]. Classifier/filter TP
-remains 289 and FP falls to 440. Actual escalation agrees on all validation/test pairs.
-This is a local exploratory proposal, not a change to the served baseline above.
+When ingesting new work, update the latest-result selection in `refresh()` for newly selected trajectory/conflict configurations. Speech latest results update automatically per checkpoint/corpus. Never promote a candidate by maximizing its historical test score.

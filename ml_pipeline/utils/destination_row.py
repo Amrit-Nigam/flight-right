@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -44,6 +43,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import register_reference, resolve_artifact, reuse_identical_output
 sys.path.insert(0, str(ROOT / "ml_pipeline/utils"))
 sys.path.insert(0, str(ROOT / "ml_pipeline/training/trajectory"))
 sys.path.insert(0, str(ROOT / "ml_pipeline/training/conflict_classifier"))
@@ -77,8 +77,8 @@ def build() -> None:
     combined = {k: np.concatenate([train[k], archive[k][pick]]) for k in keys}
     np.savez_compressed(COMBINED / "trajectory_train.npz", **combined)
     for split in ("val", "test"):
-        shutil.copy2(PROCESSED / f"trajectory_{split}.npz", COMBINED / f"trajectory_{split}.npz")
-        shutil.copy2(PROCESSED / f"context_{split}.npz", COMBINED / f"context_{split}.npz")
+        register_reference(COMBINED / f"trajectory_{split}.npz", PROCESSED / f"trajectory_{split}.npz")
+        register_reference(COMBINED / f"context_{split}.npz", PROCESSED / f"context_{split}.npz")
     print(f"combined train: {len(train['X']):,} existing + {len(pick):,} archive = {len(combined['X']):,} windows")
 
     callsigns = sorted({str(c).strip() for c in combined["callsign"] if str(c).strip()})
@@ -104,13 +104,15 @@ def build() -> None:
 def train() -> None:
     for name, groups in ROWS.items():
         out = RUNS / f"multipath_archive_{name}_seed42.pkl"
-        if not (out.exists() and out.with_suffix(".summary.json").exists()):
+        if not (resolve_artifact(out).exists() and out.with_suffix(".summary.json").exists()):
             env = {**os.environ, "FLIGHT_RIGHT_DATA_ROOT": str(archive_row.COMBINED_ROOT),
                    "FLIGHT_RIGHT_MULTIPATH_SEED": "42", "FLIGHT_RIGHT_OFFSET_SEED": "0",
                    "FLIGHT_RIGHT_MULTIPATH_OUT": str(out), "FLIGHT_RIGHT_MULTIPATH_EXTRA": groups}
             with (RUNS / f"multipath_archive_{name}_seed42.log").open("w") as log:
                 subprocess.run([sys.executable, str(ROOT / "ml_pipeline/training/trajectory/multipath.py")],
                                env=env, check=True, stdout=log, stderr=subprocess.STDOUT)
+        if out.exists():
+            reuse_identical_output(out)
         s = json.loads(out.with_suffix(".summary.json").read_text())
         print(f"{name:<12} arrivals b5 {s['best_of_k']['per_mode']['5']['arrivals']:.1f} top1 "
               f"{s['best_of_k']['per_mode']['1']['arrivals']:.1f} | height err all "
@@ -147,7 +149,7 @@ def alerts() -> None:
         n = len(frame)
         calls = a_callsigns(frame, current[:n]) + [None] * n          # B relocated: destination unknown
         for tag in ROWS:
-            table = ap.table(split, RUNS / f"multipath_archive_{tag}_seed42.pkl", f"dest_{tag}", callsigns=calls)
+            table = ap.table(split, resolve_artifact(RUNS / f"multipath_archive_{tag}_seed42.pkl"), f"dest_{tag}", callsigns=calls)
             results[f"{split}/{tag}"] = ap.summary(table)
         print(split, {tag: results[f"{split}/{tag}"] for tag in ROWS}, flush=True)
     (RUNS / "destination_alerts.json").write_text(json.dumps(results, indent=2))

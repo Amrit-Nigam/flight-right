@@ -470,7 +470,7 @@ python ml_pipeline/utils/verify_pipeline.py      # 111 checks, loads every saved
 python -m pytest ml_pipeline/tests/test_units.py # 24 unit tests
 python ml_pipeline/utils/reevaluate_models.py    # re-scores every model from its saved file
 python ml_pipeline/utils/offsets_ab_test.py      # the running system on 4,690 labelled pairs
-python ml_pipeline/utils/ablation.py             # regenerates docs/ablation.md
+python scripts/consolidate_evaluations.py --verify  # verifies consolidated model histories
 ```
 
 - **The known traps are tested on every run.** The conflict label must not be computable from
@@ -534,7 +534,7 @@ ml_pipeline/
   tests/                          unit tests, smoke test on fake data
   reports/                        dated JSON of every measurement
 scripts/                         PostgreSQL manager, archive and adsb.lol downloaders
-docs/                            documentation, figures, metrics.json
+docs/                            documentation, figures, consolidated model evaluations
 ```
 
 ---
@@ -564,7 +564,7 @@ docs/                            documentation, figures, metrics.json
 |---|---|
 | [docs/RUNNING.md](docs/RUNNING.md) | Running everything; settings; the speech pipeline; troubleshooting |
 | [docs/evaluation.md](docs/evaluation.md) | Every metric beside its baseline, with charts, and the rejected experiments |
-| [docs/ablation.md](docs/ablation.md) | Generated table: what each addition bought |
+| [Model evaluation histories](docs/evaluations/source_inventory.json) | One ledger per model; experiments, metrics and source checksums |
 | [docs/claims.md](docs/claims.md) | What may and may not be claimed, each number with its source |
 | [docs/ISSUES.md](docs/ISSUES.md) | Known issues found by testing the running system |
 | [docs/DECISIONS_FOR_ARCHIT.md](docs/DECISIONS_FOR_ARCHIT.md) | What is waiting on a decision |

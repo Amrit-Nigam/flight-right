@@ -20,7 +20,7 @@ Everything lives under ml_pipeline/data/processed/archive_row/ (gitignored).
 from __future__ import annotations
 
 import os
-import shutil
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -29,6 +29,8 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import register_reference, reuse_identical_output
 ARCHIVE = ROOT / "ml_pipeline/data/archive"
 PROCESSED = ROOT / "ml_pipeline/data/processed"
 WORK = PROCESSED / "archive_row"
@@ -54,13 +56,9 @@ def choose_days() -> list[Path]:
 
 
 def preprocess(days: list[Path]) -> dict[str, np.ndarray]:
-    raw = ARCHIVE_ROOT / "ml_pipeline/data/raw"
-    if raw.exists():
-        shutil.rmtree(raw)
-    raw.mkdir(parents=True)
-    for path in days:
-        shutil.copy2(path, raw / path.name)
-    env = {**os.environ, "FLIGHT_RIGHT_DATA_ROOT": str(ARCHIVE_ROOT)}
+    # Read the original archive files directly; no staged raw-data copies.
+    env = {**os.environ, "FLIGHT_RIGHT_DATA_ROOT": str(ARCHIVE_ROOT),
+           "FLIGHT_RIGHT_RAW_FILES": json.dumps([str(p.resolve()) for p in days])}
     subprocess.run([sys.executable, str(ROOT / "ml_pipeline/training/trajectory/preprocess_sequences.py")],
                    env=env, check=True)
     parts = [np.load(ARCHIVE_ROOT / f"ml_pipeline/data/processed/trajectory_{s}.npz") for s in ("train", "val", "test")]
@@ -81,7 +79,7 @@ def combine(archive: dict[str, np.ndarray]) -> None:
               f"(of {len(archive['X']):,} available); 10-min valid {archive['mask'][pick, 3].mean():.1%} archive "
               f"vs {train['mask'][:, 3].mean():.1%} existing")
     for split in ("val", "test"):
-        shutil.copy2(PROCESSED / f"trajectory_{split}.npz", target / f"trajectory_{split}.npz")
+        register_reference(target / f"trajectory_{split}.npz", PROCESSED / f"trajectory_{split}.npz")
 
 
 def train(seed: int) -> Path:
@@ -91,7 +89,7 @@ def train(seed: int) -> Path:
            "FLIGHT_RIGHT_MULTIPATH_SEED": str(seed), "FLIGHT_RIGHT_OFFSET_SEED": "0" if seed == 42 else str(seed),
            "FLIGHT_RIGHT_MULTIPATH_OUT": str(out)}
     subprocess.run([sys.executable, str(ROOT / "ml_pipeline/training/trajectory/multipath.py")], env=env, check=True)
-    return out
+    return reuse_identical_output(out)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ import numpy as np
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact, FUTURE_BASELINE, save_shared_array
 sys.path.insert(0, str(ROOT / "ml_pipeline/training/trajectory"))
 import framing
 import train_trajectory as tt
@@ -35,13 +37,13 @@ def main():
     DOC = ROOT / f"docs/experiments/trajectory_tuning_{args.run_id}.md"
     report = json.loads((REPORTS / "summary.json").read_text())
     torch.set_num_threads(4)
-    checkpoint = torch.load(WORK / "baseline_trajectory_residual.pt", weights_only=False, map_location="cpu")
+    checkpoint = torch.load(resolve_artifact(WORK / "baseline_trajectory_residual.pt"), weights_only=False, map_location="cpu")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = tt.ResidualTrajectoryModel().to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     future = report.get("future_holdout")
     if future:
-        with np.load(WORK / "future_holdout.npz", allow_pickle=True) as data:
+        with np.load(resolve_artifact(WORK / "future_holdout.npz"), allow_pickle=True) as data:
             X, y, mask = data["X"], data["y"], data["mask"]
     else:
         X, y, mask = tt.load_split("test")
@@ -49,9 +51,12 @@ def main():
     residual_stats = {k: np.asarray(v, dtype=np.float64) for k, v in checkpoint["residual_normalization"].items()}
     tensors = tt.prepare(X, y, mask, feature_stats, residual_stats)
     baseline_pred = tt.predict_absolute(model, tensors[0], tensors[1], X, tensors[4], residual_stats, device)
-    np.save(WORK / ("original_future_predictions.npy" if future else "original_lstm_test_predictions.npy"), baseline_pred)
+    if future:
+        save_shared_array(FUTURE_BASELINE, baseline_pred)
+    else:
+        np.save(WORK / "original_lstm_test_predictions.npy", baseline_pred)
     candidate = np.load(WORK / ("finalist_seed42_future_predictions.npy" if future else "finalist_seed42_test_predictions.npy"))
-    data_path = WORK / "future_holdout.npz" if future else tt.DATA_DIRECTORY / "trajectory_test.npz"
+    data_path = resolve_artifact(WORK / "future_holdout.npz") if future else tt.DATA_DIRECTORY / "trajectory_test.npz"
     with np.load(data_path, allow_pickle=True) as test_data:
         aircraft = test_data["icao24"].astype(str)
     eligible = mask[:, 3]

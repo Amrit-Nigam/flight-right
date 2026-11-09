@@ -119,3 +119,12 @@ touches `ml_pipeline/data` or `saved_models`.
 - **The numbers move with every new session.** Never compare a model's score to a
   table from a previous run; compare it to the constant-velocity baseline or the
   rule-based detector measured in the SAME run, which every script prints beside it.
+
+
+## Shared artifacts
+
+Each identical model or dataset has one physical copy. `ml_pipeline/artifact_registry.json` maps historical experiment paths to canonical paths and pins their SHA-256 checksums. Scripts use `ml_pipeline.artifact_paths.resolve_artifact(path)` before loading an old input. A changed or missing canonical file raises an error: restore the recorded version or start a new study directory rather than silently using different weights/data.
+
+Served models remain in `server/app/ml/saved_models/`; raw archives remain in `ml_pipeline/data/archive/`; original validation/test splits remain in `ml_pipeline/data/processed/`. The common September 10/20 later-date cohort and baseline predictions live in `ml_pipeline/data/processed/shared/`. Different trained models and different datasets are never merged just because their names or shapes resemble one another.
+
+`register_reference(alias, canonical)` records inputs without making a copy. `reuse_identical_output(path)` removes a generated export only when a checksum-verified canonical copy already exists; distinct outputs are retained. New studies must use new output directories. When retraining/replacing a canonical artifact, preserve any version still pinned by older studies and update the relevant references explicitly. Model weights/data and the shared directory remain gitignored; the registry alone is not a backup. Archived JSON reports required by legacy report scripts can be restored using `scripts/consolidate_evaluations.py --restore ORIGINAL_PATH`.

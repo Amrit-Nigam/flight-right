@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
 REPORTS = ROOT / "ml_pipeline/reports/multipath_tuning_20261101"
 WORK = ROOT / "ml_pipeline/data/processed/multipath_experiments/20261101"
 DOC = ROOT / "docs/experiments/multipath_tuning_20261101.md"
@@ -43,7 +45,7 @@ def main():
               "inference_cost_guard": timing is not None and timing["passes_cost_guard"],
               "served_files_unchanged": r["served_artifacts_unchanged"]}
     accepted = all(checks.values())
-    path = ROOT / winner["artifact"]
+    path = resolve_artifact(ROOT / winner["artifact"])
     card = {"candidate": winner["config"], "seed": winner["seed"], "accepted_as_isolated_candidate": accepted,
             "checks": checks, "artifact": winner["artifact"], "source_sha256": r["protocol"]["source_sha256"],
             "validation": winner["validation"], "test": test, "future": future,
@@ -51,9 +53,12 @@ def main():
             "status": "local uncommitted candidate, not deployed or pushed"}
     if accepted:
         bundle = pickle.loads(path.read_bytes())
-        bundle["tuning_model_card"] = {k: v for k, v in card.items() if k not in ("future",)}
         packaged = WORK / "trajectory_multipath_candidate.pkl"
-        packaged.write_bytes(pickle.dumps(bundle, protocol=pickle.HIGHEST_PROTOCOL))
+        # A historical raw export may resolve to this already packaged, pinned model.
+        # Preserve its bytes and provenance instead of overwriting its embedded card.
+        if path.resolve() != packaged.resolve():
+            bundle["tuning_model_card"] = {k: v for k, v in card.items() if k not in ("future",)}
+            packaged.write_bytes(pickle.dumps(bundle, protocol=pickle.HIGHEST_PROTOCOL))
         card["packaged_artifact"] = str(packaged.relative_to(ROOT))
         card["packaged_sha256"] = hashlib.sha256(packaged.read_bytes()).hexdigest()
     (REPORTS / "candidate_model_card.json").write_text(json.dumps(card, indent=2))

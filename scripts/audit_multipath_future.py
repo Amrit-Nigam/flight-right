@@ -14,8 +14,9 @@ import numpy as np
 from threadpoolctl import threadpool_limits
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "ml_pipeline/training/trajectory"))
 sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
+sys.path.insert(0, str(ROOT / "ml_pipeline/training/trajectory"))
 import tune_multipath as tuning
 from ml_pipeline.utils import route_features
 
@@ -24,7 +25,7 @@ def main():
     reports, work = tuning.REPORTS, tuning.WORK
     study = json.loads((reports / "summary.json").read_text())
     assert (reports / "selection_frozen_before_test.json").exists()
-    path = ROOT / "ml_pipeline/data/processed/trajectory_experiments/20261101_horizon_head/future_holdout.npz"
+    path = resolve_artifact(ROOT / "ml_pipeline/data/processed/trajectory_experiments/20261101_horizon_head/future_holdout.npz")
     with np.load(path, allow_pickle=True) as data:
         X, y, mask, callsigns = data["X"], data["y"], data["mask"], data["callsign"]
     # Existing local route records only. Memoization avoids rereading the same JSON
@@ -36,7 +37,7 @@ def main():
                                              route_features.track_from_window(X), fetch=False)
     finally:
         route_features.route = original_route
-    baseline = pickle.loads((work / "baseline_multipath.pkl").read_bytes())
+    baseline = pickle.loads(resolve_artifact(work / "baseline_multipath.pkl").read_bytes())
     chunks = []
     for start in range(0, len(X), 8192):
         stop = start + 8192
@@ -47,7 +48,7 @@ def main():
     metrics = tuning.score(base[1], X, y, mask, base[0])
     audits = []
     for finalist in study["finalists_validation"]:
-        candidate = pickle.loads((ROOT / finalist["artifact"]).read_bytes())
+        candidate = pickle.loads(resolve_artifact(ROOT / finalist["artifact"]).read_bytes())
         predictions = []
         for start in range(0, len(X), 8192):
             stop = start + 8192

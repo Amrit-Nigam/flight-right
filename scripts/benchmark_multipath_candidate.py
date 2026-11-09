@@ -12,6 +12,7 @@ from threadpoolctl import threadpool_limits
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
 from server.app.ml.inference import MultiPathPredictor
 
 
@@ -20,7 +21,7 @@ def main():
     study = json.loads((report_dir / "summary.json").read_text())
     policy = json.loads((report_dir / "benchmark_policy.json").read_text())
     work = ROOT / "ml_pipeline/data/processed/multipath_experiments/20261101"
-    source_path, candidate_path = work / "baseline_multipath.pkl", ROOT / study["winner"]["artifact"]
+    source_path, candidate_path = resolve_artifact(work / "baseline_multipath.pkl"), resolve_artifact(ROOT / study["winner"]["artifact"])
     source, candidate = MultiPathPredictor(source_path, "per_mode"), MultiPathPredictor(candidate_path, "per_mode")
     data = ROOT / "ml_pipeline/data/processed"
     with np.load(data / "trajectory_val.npz") as d:

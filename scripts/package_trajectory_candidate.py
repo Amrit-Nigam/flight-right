@@ -1,11 +1,14 @@
 """Package the predeclared seed-42 finalist with its own metrics; never deploy it."""
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
 RUN = "20261101_horizon_head"
 REPORTS = ROOT / f"ml_pipeline/reports/trajectory_tuning_{RUN}"
 WORK = ROOT / f"ml_pipeline/data/processed/trajectory_experiments/{RUN}"
@@ -23,7 +26,7 @@ def main():
     selected = summary["finalist_test"][0]
     assert selected["seed"] == 42, "Do not select a seed based on test performance"
     artifact = torch.load(ROOT / selected["artifact"], map_location="cpu", weights_only=False)
-    baseline = torch.load(WORK / "baseline_trajectory_residual.pt", map_location="cpu", weights_only=False)
+    baseline = torch.load(resolve_artifact(WORK / "baseline_trajectory_residual.pt"), map_location="cpu", weights_only=False)
     for key, weights in baseline["model_state_dict"].items():
         if not key.startswith("heads.3."):
             assert torch.equal(weights, artifact["model_state_dict"][key]), key

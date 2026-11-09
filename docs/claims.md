@@ -1,3 +1,5 @@
+> **Historical claims document:** For current supported measurements and served/candidate status, use [evaluation.md](evaluation.md). Former metrics/ablation/report inputs are preserved in [the per-model ledgers and source inventory](evaluations/source_inventory.json); old paths below describe the original evidence.
+
 # What Flight Right can and cannot claim (plan Phase 8.3)
 
 Every number below names the file it comes from, so it can be checked rather than trusted.

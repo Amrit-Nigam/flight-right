@@ -8,6 +8,8 @@ import numpy as np
 from threadpoolctl import threadpool_limits
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
 sys.path.insert(0, str(ROOT / "ml_pipeline/training/trajectory"))
 import framing
 import multipath as mp
@@ -18,7 +20,7 @@ def main():
     reports = ROOT / "ml_pipeline/reports/multipath_tuning_20261101"
     assert (reports / "future_audit.json").exists(), "Finish the fixed-candidate audit first"
     work = ROOT / "ml_pipeline/data/processed/multipath_experiments/20261101"
-    with np.load(ROOT / "ml_pipeline/data/processed/trajectory_experiments/20261101_horizon_head/future_holdout.npz", allow_pickle=True) as d:
+    with np.load(resolve_artifact(ROOT / "ml_pipeline/data/processed/trajectory_experiments/20261101_horizon_head/future_holdout.npz"), allow_pickle=True) as d:
         X, y, mask, aircraft = d["X"], d["y"], d["mask"], d["icao24"].astype(str)
     with np.load(work / "baseline_future_predictions.npz") as d:
         original, probabilities = d["positions"], d["probabilities"]

@@ -29,6 +29,7 @@ import multipath as mp
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact, register_reference
 sys.path.insert(0, str(ROOT / "ml_pipeline/utils"))
 sys.path.insert(0, str(ROOT / "ml_pipeline/training/conflict_classifier"))
 REPORTS = ROOT / "ml_pipeline/reports/multipath_tuning_20261101"
@@ -54,12 +55,12 @@ def write(path, value):
 
 
 def load(split):
-    with np.load(DATA / f"trajectory_{split}.npz", allow_pickle=True) as data:
+    with np.load(resolve_artifact(DATA / f"trajectory_{split}.npz"), allow_pickle=True) as data:
         return {k: data[k] for k in data.files}
 
 
 def extras(split, names):
-    with np.load(DATA / f"context_{split}.npz", allow_pickle=True) as data:
+    with np.load(resolve_artifact(DATA / f"context_{split}.npz"), allow_pickle=True) as data:
         return np.column_stack([data[k] for k in names]).astype(np.float64)
 
 
@@ -199,6 +200,7 @@ def train(config, seed, source, train_input, train_target, early_input, early_ta
 
 
 def alert_audit(path, split, tag):
+    path = resolve_artifact(path)
     import alert_prominence as ap
     from destination_row import a_callsigns
     from offsets_ab_test import score as binary_score
@@ -281,8 +283,7 @@ def main():
         raise RuntimeError("Completed study exists; do not overwrite it")
     hashes = {p.name: sha(p) for p in SAVED.iterdir() if p.suffix in (".pkl", ".pt", ".json")}
     source = pickle.loads((SAVED / "trajectory_multipath.pkl").read_bytes())
-    source_path = WORK / "baseline_multipath.pkl"
-    shutil.copy2(SAVED / "trajectory_multipath.pkl", source_path)
+    source_path = register_reference(WORK / "baseline_multipath.pkl", SAVED / "trajectory_multipath.pkl")
     shutil.copy2(Path(__file__), REPORTS / "source_snapshot.txt")
     train_data, val = load("train"), load("val")
     early, later = split_validation(val["timestamps"])
@@ -361,7 +362,7 @@ def main():
     base_test_alert = alert_audit(source_path, "test", "baseline")
     audits = []
     for info in finalists:
-        bundle = pickle.loads((ROOT / info["artifact"]).read_bytes())
+        bundle = pickle.loads(resolve_artifact(ROOT / info["artifact"]).read_bytes())
         pred = prediction(bundle, test["X"], test_extra, base_test_pred)
         metrics = score(pred[1], test["X"], test["y"], test["mask"], pred[0])
         alerts = alert_audit(ROOT / info["artifact"], "test", f"candidate{info['seed']}")

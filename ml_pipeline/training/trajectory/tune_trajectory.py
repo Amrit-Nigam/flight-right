@@ -27,6 +27,8 @@ import framing
 import train_trajectory as tt
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT))
+from ml_pipeline.artifact_paths import register_reference, resolve_artifact, FUTURE_COHORT, FUTURE_BASELINE, save_shared_array
 REPORTS = ROOT / "ml_pipeline/reports/trajectory_tuning_20261101"
 WORK = ROOT / "ml_pipeline/data/processed/trajectory_experiments/20261101"
 SAVED = ROOT / "server/app/ml/saved_models"
@@ -239,7 +241,7 @@ def main():
         protocol["future_holdout_files"] = ["archive_20260910.parquet", "archive_20260920.parquet"]
         protocol["future_holdout_policy"] = "Reuse the later-date cohort only after freezing configuration/epochs/seeds. This is an exploratory shared audit cohort across follow-up studies, not a new independent test for each trial set; it must not drive parameter or seed selection."
     write(REPORTS / "protocol.json", protocol)
-    shutil.copy2(SAVED / "trajectory_residual.pt", WORK / "baseline_trajectory_residual.pt")
+    register_reference(WORK / "baseline_trajectory_residual.pt", SAVED / "trajectory_residual.pt")
     shutil.copy2(Path(__file__), WORK / "tune_trajectory_source.py")
     checkpoint = torch.load(SAVED / "trajectory_residual.pt", map_location="cpu", weights_only=False)
     feature_stats = {k: np.asarray(v, dtype=np.float64) for k, v in checkpoint["feature_normalization"].items()}
@@ -286,22 +288,24 @@ def main():
     future_audit = None
     if args.trial_set != "initial":
         import preprocess_sequences as pre
-        raw = WORK / "future_holdout_raw"
-        raw.mkdir(exist_ok=True)
-        for name in protocol["future_holdout_files"]:
-            shutil.copy2(ROOT / "ml_pipeline/data/archive" / name, raw / name)
-        pre.RAW_DIRECTORY = raw
-        states = pre.load_valid_states()
-        future_x, future_y, future_mask, timestamps, aircraft, callsigns = pre.build_samples(states)
+        if FUTURE_COHORT.exists():
+            with np.load(FUTURE_COHORT, allow_pickle=True) as cohort:
+                future_x, future_y, future_mask, timestamps, aircraft, callsigns = (cohort[k] for k in ("X", "y", "mask", "timestamps", "icao24", "callsign"))
+        else:
+            paths = [ROOT / "ml_pipeline/data/archive" / name for name in protocol["future_holdout_files"]]
+            states = pre.load_valid_states(paths=paths)
+            future_x, future_y, future_mask, timestamps, aircraft, callsigns = pre.build_samples(states)
+            FUTURE_COHORT.parent.mkdir(parents=True, exist_ok=True)
+            np.savez_compressed(FUTURE_COHORT, X=future_x, y=future_y, mask=future_mask, timestamps=timestamps, icao24=aircraft, callsign=callsigns)
         with np.load(tt.DATA_DIRECTORY / "trajectory_test.npz") as old_test:
             assert timestamps.min() > old_test["timestamps"].max() + 600
-        np.savez_compressed(WORK / "future_holdout.npz", X=future_x, y=future_y, mask=future_mask,
-                            timestamps=timestamps, icao24=aircraft, callsign=callsigns)
+        register_reference(WORK / "future_holdout.npz", FUTURE_COHORT)
         future = (future_x, future_y, future_mask)
         future_tensors = tt.prepare(*future, feature_stats, residual_stats)
         baseline_model = make_model(checkpoint, device)
         original_future = predict(baseline_model, future_tensors, future_x, residual_stats, device)
-        np.save(WORK / "original_future_predictions.npy", original_future)
+        save_shared_array(FUTURE_BASELINE, original_future)
+        register_reference(WORK / "original_future_predictions.npy", FUTURE_BASELINE)
         baseline_future = score_predictions(original_future, *future, "original LSTM future dates")
         audits = []
         for result in [winner] + confirmations:

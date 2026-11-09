@@ -81,6 +81,8 @@ EXTRA_GROUPS = [g.strip() for g in os.environ.get("FLIGHT_RIGHT_MULTIPATH_EXTRA"
 PICKLE_FORMAT_VERSION = 2
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
 # FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
 # it can never touch real data). Unset, everything lives under the project root.
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
@@ -98,7 +100,7 @@ SINGLE_ANSWER_MODEL_PATH = DATA_ROOT / "server" / "app" / "ml" / "saved_models" 
 
 
 def load_split(name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    path = DATA_DIRECTORY / f"trajectory_{name}.npz"
+    path = resolve_artifact(DATA_DIRECTORY / f"trajectory_{name}.npz")
     if not path.exists():
         raise FileNotFoundError(f"Missing {path}. Run preprocess_sequences.py first.")
     with np.load(path) as data:
@@ -214,7 +216,7 @@ def load_extra(split: str) -> tuple[np.ndarray | None, list[str]]:
     """Context features for a split, in row order, or (None, []) when none are requested."""
     if not EXTRA_GROUPS:
         return None, []
-    data = np.load(DATA_DIRECTORY / f"context_{split}.npz", allow_pickle=True)
+    data = np.load(resolve_artifact(DATA_DIRECTORY / f"context_{split}.npz"), allow_pickle=True)
     groups = data["groups"].item()
     names = [name for group in EXTRA_GROUPS for name in groups[group]]
     return np.column_stack([data[name].astype(np.float64) for name in names]), names
