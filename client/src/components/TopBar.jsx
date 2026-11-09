@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Sun, Moon, Mic, Square, ScrollText } from "lucide-react";
+import { Bell, Sun, Moon, Radio, ScrollText } from "lucide-react";
 import { logAudit } from "@/lib/siteLogger";
-import { hearAudio } from "@/lib/api";
-import { startRecording } from "@/lib/micRecorder";
 
 // Everything in this bar comes from the backend (27 Sep 2026). It used to show an invented
 // "ATIS M · RWY 27R / 27L" (Mumbai has 09/27 and 14/32, and no ATIS feed is readable), a made-up
@@ -29,8 +27,6 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
                                  feed = {}, airport = null, health = null, notifications = [] }) {
   const [cpaSeconds, setCpaSeconds] = useState(conflict?.countdown ?? 0);
   const [bellOpen, setBellOpen] = useState(false);
-  const [recording, setRecording] = useState(null);
-  const [busy, setBusy] = useState(false);
   const timerRef = useRef(null);
   const clock = useDataClock(feed.dataTimeUtc);
 
@@ -51,36 +47,6 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
   const wind = metar
     ? (metar.windVariable ? `VRB/${metar.windKt} kt` : metar.windDirDeg != null ? `${String(metar.windDirDeg).padStart(3, "0")}°/${metar.windKt} kt${metar.gustKt ? ` G${metar.gustKt}` : ""}` : null)
     : null;
-
-  const toggleMic = async () => {
-    if (busy) return;
-    if (!recording) {
-      try {
-        const handle = await startRecording();
-        setRecording(handle);
-        logAudit("topbar:mic", "Controller started a microphone transmission", {});
-      } catch (error) {
-        window.dispatchEvent(new CustomEvent("show-toast", { detail: `Microphone unavailable: ${error.message}` }));
-      }
-      return;
-    }
-    setBusy(true);
-    try {
-      const wav = await recording.stop();
-      setRecording(null);
-      const r = await hearAudio(wav);
-      const c = r.clearance;
-      const outcome = c?.applied ? `applied to ${c.clearance?.callsign}` : (c?.problems?.[0] || r.reason || "not applied");
-      logAudit("topbar:mic", "Microphone transmission run through the speech chain", { transcript: r.transcript, outcome });
-      window.dispatchEvent(new CustomEvent("show-toast", { detail: `Heard: “${r.transcript}” — ${outcome}` }));
-      window.dispatchEvent(new CustomEvent("speech-heard"));
-    } catch (error) {
-      window.dispatchEvent(new CustomEvent("show-toast", { detail: `Speech chain failed: ${error.message}` }));
-    } finally {
-      setRecording(null);
-      setBusy(false);
-    }
-  };
 
   return (
     <header
@@ -170,16 +136,15 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
 
         <div className="w-[1px] h-8 shrink-0" style={{ background: "var(--border-default)" }} />
 
-        {/* Microphone: records the controller and runs the real speech chain */}
+        {/* Passive monitoring of the existing pilot/ATCO radio channel. */}
         <button
-          onClick={toggleMic}
-          disabled={busy}
+          onClick={() => document.getElementById("live-radio-monitor")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           className="p-1.5 rounded transition-colors hover:bg-white/5 active:scale-95 disabled:opacity-40"
-          style={{ color: recording ? "var(--red)" : "var(--text-muted)" }}
-          title={recording ? "Stop and run the speech chain (max 30 s)" : busy ? "Transcribing…" : "Speak a clearance: records the microphone and runs it through the speech chain. Nothing is transmitted."}
-          aria-label="Speak a clearance"
+          style={{ color: "var(--text-muted)" }}
+          title="Open the live pilot/ATCO radio monitor"
+          aria-label="Open live radio monitor"
         >
-          {recording ? <Square className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+          <Radio className="w-4 h-4" />
         </button>
 
         <div className="hidden xl:block text-right shrink-0" title="The identity every audit row is recorded under (no login in this prototype)">

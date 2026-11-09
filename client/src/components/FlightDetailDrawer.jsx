@@ -34,6 +34,7 @@ export default function FlightDetailDrawer({ flight, onClose, theme = "light" })
     if (!flight || !value) return;
     try {
       const r = await submitClearance({ callsign: flight.callsign, action, value: Number(value) });
+      window.dispatchEvent(new Event("speech-heard"));
       setResult({ ok: true, text: r.applied ? `Applied: ${r.effect}` : `Recorded, not applied: ${(r.problems || []).join("; ")}` });
       logAudit("flights:drawer", "Typed clearance submitted", { callsign: flight.callsign, action, value });
     } catch (error) {

@@ -179,7 +179,10 @@ class ConflictService:
                 "ok": True,
                 "pairsConsidered": len(pairs),
                 "pairsAssessed": len(assessments),
+                "assessedAt": time.time(),
                 "clearancesInForce": {key: [c.to_dict() for c in value] for key, value in in_force.items()},
+                "clearanceEffects": {key: entry.get("clearance", []) for key, entry in candidates.items()
+                                     if entry.get("clearance")},
                 "pairsSkippedShortHistory": skipped,
                 "eligibleAircraft": sum(1 for w in histories.values() if w and self.eligible(w[-1])),
                 "durationMs": round(self.last_duration_ms, 1),

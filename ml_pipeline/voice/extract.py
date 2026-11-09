@@ -149,7 +149,7 @@ def _actions(words: list[str]) -> list[tuple[int, str, float | None, str | None]
         elif w == "heading":
             value, _ = read_number(words, i + 1)
             if value is not None:
-                found.append((i, "TURN", value % 360 if value != 360 else 360.0, None))
+                found.append((i, "TURN", value, None))
         elif w == "direct":
             j = i + 1
             while j < len(words) and words[j] in {"to", "for"}:

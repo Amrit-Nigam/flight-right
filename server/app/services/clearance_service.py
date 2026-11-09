@@ -18,6 +18,7 @@ before `submit()` is called, so this stays the one place that decides what is ap
 from __future__ import annotations
 
 import sys
+import math
 import threading
 import time
 from typing import Any
@@ -45,18 +46,29 @@ class ClearanceService:
         try:
             value = float(payload["value"]) if payload.get("value") not in (None, "") else None
             confidence = float(payload.get("confidence", 1.0))
+            valid_seconds = float(payload.get("valid_seconds", CLEARANCE_VALID_SECONDS))
         except (TypeError, ValueError):
-            value, confidence = None, -1.0
+            value, confidence, valid_seconds = None, -1.0, 0.0
+        invalid_numeric = not (math.isfinite(confidence) and math.isfinite(valid_seconds)
+                               and (value is None or math.isfinite(value)))
+        if invalid_numeric:
+            value = value if value is None or math.isfinite(value) else None
+            confidence = confidence if math.isfinite(confidence) else -1.0
+            valid_seconds = valid_seconds if math.isfinite(valid_seconds) else 0.0
         clearance = Clearance(
             icao24=str(match["icao24"]) if match else "",
             callsign=str(match["callsign"]).strip() if match else None,
             action=action, value=value, fix=payload.get("fix"), confidence=confidence,
             source=source, issued_at=time.time(),
-            valid_seconds=float(payload.get("valid_seconds", CLEARANCE_VALID_SECONDS)),
+            valid_seconds=valid_seconds,
             transcription_id=payload.get("transcription_id"),
             notes={"callsign_heard": wanted[:16], "requested_by": payload.get("user", DEFAULT_USER)})
 
         problems = clearance.problems()
+        if invalid_numeric:
+            problems.append("numeric clearance values must be finite")
+        if not math.isfinite(valid_seconds) or not 0 < valid_seconds <= 3600:
+            problems.append("valid_seconds must be finite and between 0 and 3600")
         if not match:
             problems.insert(0, f"no aircraft {wanted!r} is visible right now")
         if confidence < CLEARANCE_MIN_CONFIDENCE and not problems:

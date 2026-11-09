@@ -18,6 +18,7 @@ import NLPCommsPanel from "@/components/NLPCommsPanel";
 import { BlurFade } from "@/components/ui/blur-fade";
 
 import { useLiveData } from "@/hooks/useLiveData";
+import { useFlightTrack } from "@/hooks/useFlightTrack";
 import { useBackendInfo } from "@/hooks/useBackendInfo";
 import {
   conflictFromAlerts, metricsFromState, resolveOptionsFromAlert,
@@ -65,6 +66,8 @@ export default function HomePage() {
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState("OPT_1");
   const [selectedFlight, setSelectedFlight] = useState(null);
+  const selectedAircraft = flights.find((f) => f.callsign === selectedFlight) || null;
+  const selectedTrack = useFlightTrack(selectedAircraft, feed.source, feed.updatedAt);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("ALL");
@@ -295,6 +298,7 @@ export default function HomePage() {
                   flights={flights}
                   conflict={conflict}
                   selectedFlight={selectedFlight}
+                  selectedTrack={selectedTrack}
                   onSelectFlight={handleSelectFlight}
                   theme={theme}
                   airport={airport}
@@ -305,6 +309,7 @@ export default function HomePage() {
             </div>
             <div style={{ position: "absolute", inset: 0, display: mapView === "radar" ? "block" : "none" }}>
               <RadarCanvas flights={flights} selectedFlight={selectedFlight} theme={theme}
+                           selectedTrack={selectedTrack}
                            conflict={conflict} airport={airport} feed={feed} />
             </div>
             {weatherOn && (

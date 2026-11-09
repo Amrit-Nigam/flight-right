@@ -39,12 +39,12 @@ function ahead(f, seconds) {
   return { lat: f.lat + (d * Math.cos(h)) / 60, lng: f.lng + (d * Math.sin(h)) / (60 * Math.cos((f.lat * Math.PI) / 180)) };
 }
 
-export default function RadarCanvas({ flights = [], selectedFlight, theme, conflict = null, airport = null, feed = {} }) {
+export default function RadarCanvas({ flights = [], selectedFlight, selectedTrack = null, theme, conflict = null, airport = null, feed = {} }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const angleRef = useRef(0);
   const dataRef = useRef({ flights, conflict, airport, feed, selectedFlight });
-  dataRef.current = { flights, conflict, airport, feed, selectedFlight };
+  dataRef.current = { flights, conflict, airport, feed, selectedFlight, selectedTrack };
 
   const isLight = theme === "light";
   const range = scopeRange(flights, conflict);
@@ -129,6 +129,38 @@ export default function RadarCanvas({ flights = [], selectedFlight, theme, confl
       }
       ctx.fillStyle = textPrimary; ctx.font = "bold 10px 'Geist Variable', system-ui, sans-serif";
       ctx.fillText("VABB", cx + 8, cy + 14);
+
+      // The same observed trail as the geographic map, clipped to the scope.
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.clip();
+      ctx.strokeStyle = isLight ? "#0f766e" : "#00e5cc";
+      ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.lineCap = "round";
+      for (const segment of dataRef.current.selectedTrack?.segments || []) {
+        ctx.beginPath();
+        segment.forEach(([lng, lat], i) => {
+          const [x, y] = px(lat, lng);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      const prediction = dataRef.current.selectedTrack?.prediction;
+      if (prediction?.status === "ready") {
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2); ctx.clip();
+        ctx.strokeStyle = isLight ? "#0f766e" : "#00e5cc";
+        ctx.lineWidth = 2; ctx.globalAlpha = 0.55; ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        prediction.coordinates.forEach(([lng, lat], i) => {
+          const [x, y] = px(lat, lng);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke(); ctx.restore();
+        ctx.fillStyle = isLight ? "#0f766e" : "#00e5cc";
+        ctx.font = "11px 'Geist Variable', system-ui, sans-serif";
+        ctx.fillText(`DASHED: ${Math.round(prediction.probability * 100)}% model confidence · 10 min`, 16, 80);
+      }
 
       // Confirmed alarm: each aircraft's straight-line position at the predicted CPA time.
       const pair = c ? [c.flight1, c.flight2].map((cs) => fl.find((f) => f.callsign === cs)).filter((f) => f && f.lat != null) : [];

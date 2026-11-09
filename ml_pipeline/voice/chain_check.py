@@ -122,7 +122,7 @@ def main() -> None:
         if i == first:
             clearance_service.clear()
             heard.update(speech_service.hear(None, "chain_check:oracle-text", aircraft.snapshot()["flights"],
-                                             transcript=heard_text))
+                                             transcript=heard_text, role="atco"))
 
     with_speech = run(on_frame=speak)
     clearance_service.clear()

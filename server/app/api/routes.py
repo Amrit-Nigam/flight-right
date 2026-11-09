@@ -9,8 +9,12 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
+import math
+from typing import Literal
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
+from starlette.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 
 from ..services.aircraft_service import aircraft_service
@@ -21,6 +25,7 @@ from ..services.speech_service import decode_wav, speech_service
 from ..services.intent_service import intent_service
 from ..services.aircraft_info import aircraft_info
 from ..services.airport_service import airport_service
+from ..services.trajectory_service import trajectory_service
 from ..config import SPEECH_DEMO_DIR
 
 log = logging.getLogger("flightright.api")
@@ -72,6 +77,28 @@ def refresh_aircraft():
 def aircraft_history(icao24: str = Query(..., description="ICAO24 address or callsign")):
     states = aircraft_service.history(icao24)
     return {"ok": True, "icao24": icao24, "count": len(states), "states": states}
+
+
+@router.get("/aircraft/trajectory")
+def aircraft_trajectory(icao24: str = Query(..., description="ICAO24 address or callsign")):
+    snapshot = aircraft_service.snapshot()
+    current = next((f for f in snapshot["flights"] if icao24.lower() in
+                    (str(f.get("icao24", "")).lower(), str(f.get("callsign", "")).lower())), None)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Aircraft is no longer tracked")
+    key = current.get("icao24") or current["callsign"]
+    # Never predict from another source or a previous replay cycle's future reports.
+    states = [s for s in aircraft_service.history(key)
+              if s.get("source") == current.get("source")
+              and (s.get("timePosition") or 0) <= (current.get("timePosition") or 0)]
+    try:
+        prediction = trajectory_service.predict(conflict_service.engine, states,
+                                                clearance_service.in_force().get(key, []))
+    except Exception:
+        log.exception("Selected-aircraft trajectory unavailable for %s", key)
+        prediction = {"status": "unavailable", "reason": "Prediction temporarily unavailable"}
+    return {"ok": True, "icao24": key, "source": snapshot["source"],
+            "timePosition": current.get("timePosition"), **prediction}
 
 
 # ---------------------------------------------------------------------- conflicts
@@ -215,23 +242,33 @@ def speech_clip_audio(clip_id: str):
 
 
 @router.post("/speech/hear")
-async def speech_hear(request: Request, clip: str | None = None, cached: bool = True):
-    """Run the whole speech chain on one transmission and apply what it heard.
+async def speech_hear(request: Request, clip: str | None = None, cached: bool = True,
+                      role: Literal["auto", "pilot", "atco", "unknown"] = "auto", live: bool = False,
+                      heard_at: float | None = None):
+    """Transcribe one radio transmission and conditionally use its extracted intent.
 
     Either ``?clip=<id>`` (a demo clip) or a raw audio body (Content-Type audio/*, any format
     soundfile reads). With a demo clip and ``cached=true`` the transcript pre-computed for the
     installed model is used (plan 7.3: zero inference at demo time); otherwise the model runs.
     The result shows every step: transcript, extraction, callsign match, and what the
     clearance door did with it.
+    Live capture uses ``live=true`` and a capture timestamp. Mixed channels default to
+    ``role=auto``; role hints alone cannot issue a clearance. Pilot speech is a request,
+    report or readback. Live radio never adjusts aircraft sourced from replay.
     """
-    flights = aircraft_service.snapshot()["flights"]
+    snapshot = aircraft_service.snapshot()
+    flights = snapshot["flights"]
+    if heard_at is not None and (not math.isfinite(heard_at) or not 0 <= time.time() - heard_at <= 60):
+        raise HTTPException(status_code=422, detail="radio transmission timestamp must be within the last 60 seconds")
+    allow_apply = not live or snapshot.get("source") == "live"
     if clip:
         entry = next((c for c in _demo_clips() if c.get("id") == clip), None)
         if entry is None or not _CLIP_ID.match(clip):
             raise HTTPException(status_code=404, detail="no such clip")
         transcript = (entry.get("transcripts") or {}).get(speech_service.status()["modelId"] or "") if cached else None
         audio = None if transcript is not None else decode_wav((SPEECH_DEMO_DIR / f"{clip}.wav").read_bytes())
-        return speech_service.hear(audio, f"demo:{clip}", flights, transcript=transcript)
+        return await run_in_threadpool(speech_service.hear, audio, f"demo:{clip}", flights,
+                                       transcript=transcript, role=role, allow_apply=allow_apply)
     body = await request.body()
     if not body or len(body) > 10_000_000:
         raise HTTPException(status_code=422, detail="send a clip id or up to 10 MB of audio")
@@ -239,9 +276,37 @@ async def speech_hear(request: Request, clip: str | None = None, cached: bool = 
         audio = decode_wav(body)
     except Exception as failure:                                            # noqa: BLE001
         raise HTTPException(status_code=422, detail=f"could not read audio: {type(failure).__name__}")
-    if len(audio) > 30 * 16_000:
-        raise HTTPException(status_code=422, detail="one transmission at a time: 30 s at most")
-    return speech_service.hear(audio, "upload", flights)
+    if not 0 < len(audio) <= 30 * 16_000:
+        raise HTTPException(status_code=422, detail="one nonempty transmission at a time: 30 s at most")
+    try:
+        return await run_in_threadpool(speech_service.hear, audio, "live-radio" if live else "upload", flights,
+                                       role=role, heard_at=heard_at, allow_apply=allow_apply)
+    except ValueError as failure:
+        raise HTTPException(status_code=422, detail=str(failure)) from failure
+    except Exception as failure:
+        log.exception("Speech recognition failed")
+        raise HTTPException(status_code=503, detail="speech recognition unavailable; check speech status or use text input") from failure
+
+
+@router.post("/speech/review")
+def speech_review(payload: dict = Body(...)):
+    """Correct a captured transmission; the system does not originate radio messages."""
+    try:
+        snapshot = aircraft_service.snapshot()
+        return speech_service.review(int(payload["transcriptionId"]), str(payload.get("text") or ""),
+                                     str(payload.get("role") or ""), snapshot["flights"],
+                                     allow_apply=snapshot.get("source") == "live")
+    except (KeyError, TypeError, ValueError) as failure:
+        raise HTTPException(status_code=422, detail=str(failure)) from failure
+
+
+@router.get("/speech/conversation")
+def speech_conversation():
+    assessment = conflict_service.snapshot()
+    return {**speech_service.conversation(), "prediction": {
+        "assessedAt": assessment.get("assessedAt"), "pairsAssessed": assessment.get("pairsAssessed", 0),
+        "effects": assessment.get("clearanceEffects", {})},
+        "surveillanceSource": aircraft_service.snapshot().get("source")}
 
 
 @router.get("/speech/transcriptions")

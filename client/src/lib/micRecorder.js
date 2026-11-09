@@ -7,7 +7,7 @@
 const TARGET_RATE = 16000;
 const MAX_SECONDS = 30;
 
-function encodeWav(samples, rate) {
+export function encodeWav(samples, rate) {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
   const text = (offset, s) => { for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i)); };
@@ -41,21 +41,35 @@ function resample(chunks, fromRate) {
 
 /** Start recording; resolves to { stop(): Promise<Blob>, cancel() }. */
 export async function startRecording() {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("Microphone capture requires localhost or HTTPS and browser microphone support.");
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true } });
-  const context = new AudioContext();
-  const source = context.createMediaStreamSource(stream);
-  const node = context.createScriptProcessor(4096, 1, 1);
+  let context, source, node;
+  try {
+    context = new AudioContext();
+    await context.resume();
+    source = context.createMediaStreamSource(stream);
+    node = context.createScriptProcessor(4096, 1, 1);
+  } catch (error) {
+    stream.getTracks().forEach((t) => t.stop());
+    if (context) await context.close();
+    throw error;
+  }
   const chunks = [];
   let seconds = 0;
   node.onaudioprocess = (event) => {
     if (seconds >= MAX_SECONDS) return;
     const data = event.inputBuffer.getChannelData(0);
-    chunks.push(new Float32Array(data));
-    seconds += data.length / context.sampleRate;
+    const remaining = Math.max(0, Math.floor((MAX_SECONDS - seconds) * context.sampleRate));
+    const kept = data.subarray(0, remaining);
+    chunks.push(new Float32Array(kept));
+    seconds += kept.length / context.sampleRate;
   };
   source.connect(node);
   node.connect(context.destination);
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     node.disconnect(); source.disconnect();
     stream.getTracks().forEach((t) => t.stop());
     context.close();

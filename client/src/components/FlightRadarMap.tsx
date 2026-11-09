@@ -391,6 +391,7 @@ export default function FlightRadarMap({
   flights: propFlights,
   conflict,
   selectedFlight,
+  selectedTrack = { segments: [], status: "empty" },
   onSelectFlight,
   theme,
   airport = null,
@@ -400,6 +401,9 @@ export default function FlightRadarMap({
   flights?: PropFlight[];
   conflict?: any;
   selectedFlight: string | null;
+  selectedTrack?: { segments: [number, number][][]; status: string;
+    prediction?: { status: string; probability: number; coordinates: [number, number][] } | null;
+    predictionStatus?: string };
   onSelectFlight?: (callsign: string, meta?: { surface?: string }) => void;
   theme: string;
   airport?: any;
@@ -552,6 +556,17 @@ export default function FlightRadarMap({
         <FlightRadarGeoLayers isLight={isLight} hasActiveConflict={hasActiveConflict}
                               runways={airport?.runways || []} inUseEnd={airport?.inUse?.end || null}
                               cpa={CONFLICT_PLAN.cpa} ringNm={constants?.separationLateralNm ?? 5} />
+
+        {selectedFlight && selectedTrack.prediction?.status === "ready" && (
+          <MapRoute key={`prediction-${selectedFlight}`} id="frm-selected-prediction"
+                    coordinates={selectedTrack.prediction.coordinates} color={tealAccent}
+                    width={2} opacity={0.55} dashArray={[4, 3]} interactive={false} />
+        )}
+        {selectedFlight && selectedTrack.segments.map((coordinates, index) => (
+          <MapRoute key={`${selectedFlight}-${index}`} id={`frm-history-${index}`}
+                    coordinates={coordinates} color={tealAccent} width={3}
+                    opacity={0.95} interactive={false} />
+        ))}
 
         {hasActiveConflict
           ? (() => {
@@ -745,6 +760,26 @@ export default function FlightRadarMap({
           &nbsp;|&nbsp; RING: 50 NM FROM VABB &nbsp;|&nbsp; BOX: OPENSKY QUERY AREA
           {airport?.inUse ? <>&nbsp;|&nbsp; RWY IN USE {airport.inUse.end}</> : null}
         </div>
+
+        {selectedFlight && (
+          <div role="status" style={{ display: "flex", alignItems: "center", gap: 8,
+            padding: "7px 11px", background: "var(--bg-panel)", color: "var(--text-primary)",
+            border: "1px solid var(--border-default)", fontSize: 11, alignSelf: "flex-start" }}>
+            <span style={{ width: 25, borderTop: `3px solid ${tealAccent}` }} />
+            {selectedFlight} · {selectedTrack.status === "loading" ? "Loading recent track…"
+              : selectedTrack.status === "error" ? "Track unavailable"
+              : selectedTrack.status === "empty" ? "Waiting for position history"
+              : "Recent recorded track"}
+            <span style={{ width: 25, borderTop: `2px dashed ${tealAccent}`, opacity: 0.55 }} />
+            <span title="Highest-probability model candidate, with active clearances applied. Probability is not a guarantee the aircraft will follow this path.">
+              {selectedTrack.prediction?.status === "ready"
+                ? `Predicted · ${Math.round(selectedTrack.prediction.probability * 100)}% model confidence · 10 min`
+                : selectedTrack.predictionStatus === "loading" ? "Loading prediction…"
+                : selectedTrack.predictionStatus === "warming" ? "Prediction needs more reports"
+                : "Prediction unavailable"}
+            </span>
+          </div>
+        )}
 
         <div style={{ display: "flex", pointerEvents: "all" }}>
           {FILTER_OPTS.map((opt) => (
