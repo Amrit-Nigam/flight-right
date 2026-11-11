@@ -2780,6 +2780,989 @@
       "checkpoint_blob": "071891455f9d760e48e8c3f3f45ead623c7c4664",
       "cleanup": false,
       "status": "retained_or_replaced"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/.gitignore",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "6e67dcc1dd923a3934d957edd877293a3bb1ac21a5e638ada467d2b58116f35a",
+      "bytes": 105,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289113+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/__pycache__/finalize.cpython-313.pyc",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "047bbc18727a68a771b9b4505b883424f65d45ffa1ce32c407c98ec60d32daea",
+      "bytes": 18503,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289144+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/activation_runtime_check.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "6e73545b35855599db85d8382ccd8f1c69f2df9abc2a01b220b2ab0098c9cf3a",
+      "bytes": 860,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289152+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/baseline_cache_control.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "484ed464c2a384dd637fa4ff2c5cf3ae053bd759361766fe8113929adac8e3c9",
+      "bytes": 700,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289158+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/baseline_cache_control.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "49c799b9cfea34165472883b4e6cb657eef8ff07f7dfe06b0db6ac3c05db92e0",
+      "bytes": 660,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289163+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/baseline_cache_control_predictions.parquet",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "93f0d682cb0346302edd4c2c6852336eacb7245b54b3dabfed44cb2e345d4957",
+      "bytes": 18809,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289167+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/batch_initial_source.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "a707fe6274944b22dcb511b7d68ab060751d52a5b87144e8a5375d7192d5d47f",
+      "bytes": 4108,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289172+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/batch_parity.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "721ba515fb072a6ff1c39e1f3c36d4a7cd0996f9eea847c05e0aa5683ea94791",
+      "bytes": 17683,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289177+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/batch_parity.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "394bdef224cccd96302c1a7eb32277982811bcc9a5fd55f2f1aa8fad61ffd93a",
+      "bytes": 27876,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289182+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/batch_parity_corrected.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "c441110778bbf87049f9439dc37158d7f7b3da2270ac75484bb1b89940d8f12a",
+      "bytes": 2400,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289186+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/batch_parity_corrected.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "9179dae143bc2a9a6da9a23376751144e05420ef57637058e3ff84d229005cab",
+      "bytes": 766,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289190+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/check_baseline_cache.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "c3a7394bf58ff037edee120b2b33bb7df65d35747d6b4c084cad0bb58850fbac",
+      "bytes": 2459,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289195+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/check_batch_parity.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f631143726b12dcd25df2dea197a398046dfb6f80ed40729b5b14a572ecc4b5b",
+      "bytes": 4125,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289200+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/check_parallel_parity.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "a86cdca966ecb5ba832b9fc1085a6b23a2bc0123f3b8cda75647e7499dda0b05",
+      "bytes": 3024,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289204+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/continue_lr1e4_export.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "5a4054854deb9f05450c3cea2072d8b69497bebb65e75f8ae919a60aa38187a7",
+      "bytes": 4768,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289209+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/data_audit.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "4acc443afcad8916800bf58b4f646d13f36708d5f2247ff71ed4ded2c9356354",
+      "bytes": 251,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289213+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/data_inventory.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "01badaf10b84010f34f2873a8d9cf5d8240089377f8c120e7736c07090841b84",
+      "bytes": 982,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289218+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/environment.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "5f68b12b3d5ea043e9c6cb075228e8f9d92abced02eda2e4a6f786c69bbe3af1",
+      "bytes": 474,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289223+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/evaluate_practice_voices.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "4bc1059cf3bbca448148bcffe5d1c44091a0d04c4c3fb3096064c510ca894951",
+      "bytes": 2873,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289227+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/finalize.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "6df8e7a0cba1977dbcf74a9e09c460e411748bad4719858ccf2b27ce2122cda3",
+      "bytes": 6690,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289232+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/finalize.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "be6d41e18388f52eedd0906d78dabbddb7388e143448900945fb28ccbac2fb22",
+      "bytes": 14968,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289237+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/indian_mix_lr5e5_export.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "1103255ab46b524c3612c79af54631d78e2c8f7f64e682323e6c4734aa61f5c0",
+      "bytes": 2449,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289241+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/indian_mix_lr5e5_train.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "9e01016cf1c59662b2f666789cbbe0f0f47176b0a4e271827d7ad8aa417e1427",
+      "bytes": 45757,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289246+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/MODEL_CARD.md",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "d0c3a97fab5efcc3e367e74714dd0994ba887cef7833870124e48f878b8064d1",
+      "bytes": 3348,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289251+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/parallel_parity.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "3230196fd07a809bc9e1f070ccbede1c40df6e90874866c027902a48ee8a8170",
+      "bytes": 797,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289256+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/parallel_parity.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "b2cdc09b4486b04e422d8b773f4d26d45d1fa7b3d82db37fb30339fb8bf2a3ba",
+      "bytes": 614,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289260+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/practice_baseline_predictions.parquet",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "4c299ecb31fb56a2999f5968e1e4e5b963fe20bf2ee52d988505997b0d072d01",
+      "bytes": 19089,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289265+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/practice_diagnostic.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "528adf77307b7df3dbc5265fdd754f43539e412d31f6dc284008dfb453d08d78",
+      "bytes": 907,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289270+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/practice_diagnostic.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "e7c8aa92f7d7497846e74ef451ef3d60553cfef86e3c1184369275c0aa470cfb",
+      "bytes": 1302,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289275+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/practice_selected_predictions.parquet",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "66bfb70575c10f1b1d8e39b51c79271f21b4e6acda2956e45fb8e461405cdbd4",
+      "bytes": 18765,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289280+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/precompute_validation.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "c9212cd8b836366f23958514e51b2bb453b48ec5f0805d6210db798830cda2d7",
+      "bytes": 8592,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289285+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/precompute_validation.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "60766ddff729986f102ab1d55b4fd53ade672b6e4bf1b7db27c48bec69d28a9e",
+      "bytes": 1619,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289289+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/precomputed_validation.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "beb1b6a679fe15dff75f427f3ed83373d4b69ab860ded6788901f1edc4f2c3a5",
+      "bytes": 136,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289294+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/preserved_training_sources.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "11909d32fab78437e3b2ba0450f27c30b01a7fb16fe5d31d7a135d1973c558c1",
+      "bytes": 1164,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289299+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/protocol.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f8ca9745204d4b5609f5ada66c5ba522460f773c7f944a6bc486966702ee0614",
+      "bytes": 2680,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289304+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/results.md",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "b045e8879f9a22cade0d86a60b9a4ed42d1cf0a829743a46d82c3a5ff2507a2c",
+      "bytes": 1761,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289310+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/runtime_check.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "8a78f4e47815eea044a90e35926778cb0f1455e9168ca3f119824a799d2e6394",
+      "bytes": 324,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289315+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/selected_artifact.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "e9b3efaf7967e9a0fd52823963fcbdc9daf55b97dd8f4b2ab96ab11e2c69f557",
+      "bytes": 1314,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289321+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/selection.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "0c2a90b66322081d9f7f5758aa47b655767516c5b14f7c8cc4f7b3cebd682d86",
+      "bytes": 740,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289326+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/ml_pipeline/tests/test_voice_training.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "4a3758d5f8dc0f2b996889462c77ff87e05dd156d697b776f44ac5788aa02883",
+      "bytes": 4421,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289331+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/ml_pipeline/voice/blend_whisper.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "c293025fbfd4bc673d745be33cb37eddfc4e7f11b1e7372148fa616cd4a4dc04",
+      "bytes": 3710,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289336+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/ml_pipeline/voice/export_whisper.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "9c24b13fbd55bb67f0ae7b953ee8c69ce79b37183c3ed32c99a46f0b33a7bcc6",
+      "bytes": 2672,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289341+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/ml_pipeline/voice/train_whisper.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "62df9d14c7b8077961d45e30cc22683ee5c28d3c53d537b5a6d2dbbfe81c725d",
+      "bytes": 17710,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289346+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/ml_pipeline/voice/transcribe.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "26a48b4a6425968325671d5089c0d2f45bbea4873d2e3c7fe41e4f18e889967e",
+      "bytes": 8325,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289351+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/scripts/audit_voice_data.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "7627985e57a0087dc00c3943803cb85b2da54dcc2941c6a1857e399cee08a481",
+      "bytes": 1994,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289355+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/scripts/experiment_voice_tuning.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "d502dbf38252bed4428edaf280d626a26a7c41e8fa04ea669f68bc5b0134bcf2",
+      "bytes": 12996,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289361+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_at_training/scripts/report_voice_uncertainty.py",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "02a05cd12833d7caa73273752243d61ee0c6129d95b56455aee3e44d25cd8af2",
+      "bytes": 3365,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289366+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/source_snapshot.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "43c2c84000a07d3b3293a6aa223b7f2387ac49551ac0ca565a2e314d486c9bf1",
+      "bytes": 1209,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289371+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/study.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "e6197a41e2584a7c049a393c03eeb818a9d4347a9ad0f5df963f01c95e9c153b",
+      "bytes": 2128,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289377+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/study_extended.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "90ba8a44b98a07b7d8a19d10dcda42bb904504585d29a5e445a0831b823f3947",
+      "bytes": 60188,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289382+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/target_audit.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "fe83318dec2d44b72936cc674b7cb9bd069e23bf0d01a5c633b06bf368cacd8a",
+      "bytes": 130,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289387+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/test.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "4f7439558004daa7b4bc7592175d823ca9bbc711aa7e8f9a24db5811e1e26cd9",
+      "bytes": 9356,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289393+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/uncertainty.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "aeedfaf7bb1c57d591b3e944f7c5fc2010f828ab5f883844a6d54bdbef40c880",
+      "bytes": 1429,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289398+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/uncertainty.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "fbf849ab3f871d0c222ecdf54186874dc4a576142c485e71a8f9aeaf25805069",
+      "bytes": 2864,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289403+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/uniform_soup3_export.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "6ead55cdfccd91b2f53167e89a3bbd5b2080bca2c63a0538b69c99ed2ab88f95",
+      "bytes": 2064,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289409+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/unit_tests.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f0ef74d4730a236b8af51cfa837efcef4d9cef6bd785dd3ea3fd088dd80539cf",
+      "bytes": 8322,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289414+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_tuning_20261110/validation.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f0d672d1e48e1e50d1f42f1548534361c85dfb7e305b27b80d8c694d76296e0b",
+      "bytes": 277,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289420+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_continue_20261110.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f0f46bd86c7ed128cd2bd33656f43bd91091444c4251bf642eab7a439d183f57",
+      "bytes": 64060,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289425+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_train_continue_lr1e4.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "08d1d446120967e5697f24b39660f598b40701c281966b8b22af00d2c3bb07e3",
+      "bytes": 2059,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289431+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_train_indian_mix_lr5e5.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f3f110621627e110879bdc30810dd3a1c3d14f8e588fd67c48b57b34e568c6c4",
+      "bytes": 2448,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289436+00:00"
+    },
+    {
+      "path": "docs/experiments/voice_tuning_20261110.md",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "a04f26b42065ca32cda7ebbfb36d13077d013b8b1a2ab05a11216ae01d18692c",
+      "bytes": 10210,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289442+00:00"
+    },
+    {
+      "path": "docs/evaluations/asr_small_atc_20261110.md",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "2887213d3f1d7f33f6c410297e2aa1e9df93ced6d2e079bd98b7a32664a6610a",
+      "bytes": 1370,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289447+00:00"
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "d0c3a97fab5efcc3e367e74714dd0994ba887cef7833870124e48f878b8064d1",
+      "bytes": 3348,
+      "cleanup": false,
+      "status": "historical_model_readme_replaced_by_pointer",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_eval_20261111_activation.json",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "66b7563fb10a1c553abd274179a5e820e38941f9359366b8b68441ec4e6ce52b",
+      "bytes": 13706,
+      "cleanup": true,
+      "status": "consolidated_original_removed",
+      "preservation": "Checksum-verified inline ledger evidence; local and uncommitted, not claimed in the old pushed checkpoint",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register",
+      "cleanup_reason": "User requested one existing speech evaluation/history and deletion of the separate new reports",
+      "regeneration": "Restore exact bytes with consolidate_evaluations.py --restore ORIGINAL_PATH",
+      "removed_utc": "2026-11-10T18:57:28.289454+00:00"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_activation_20261111_checks.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f2e9d330670427d130cddea3910fce412e53ab1c238296402edf4d089dca4117",
+      "bytes": 17588,
+      "cleanup": false,
+      "status": "inline_only",
+      "preservation": "Exact test output generated directly into the existing ledger; no standalone report created",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register"
+    },
+    {
+      "path": "ml_pipeline/reports/voice_reporting_rules_20261111_checks.log",
+      "models": [
+        "asr_small_atc_p1"
+      ],
+      "sha256": "18386956fe8f51f973fef9a900a2a0c133b923cb3e449df771a665cc8b221acc",
+      "bytes": 1054,
+      "cleanup": false,
+      "status": "inline_only",
+      "preservation": "Exact focused test output recorded directly in existing ledger",
+      "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register"
     }
   ],
   "retained_context": [
@@ -2790,6 +3773,42 @@
   ],
   "context_note": "Mixed project/design documents retained; their historical claims do not override docs/evaluation.md. Model weights, data splits, predictions, tests, training sources and archived experiment code are retained.",
   "current_artifact_checks": [
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/config.json",
+      "recorded_sha256": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8",
+      "current_sha256": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8",
+      "matches_recorded": true
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin",
+      "recorded_sha256": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1",
+      "current_sha256": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1",
+      "matches_recorded": true
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/preprocessor_config.json",
+      "recorded_sha256": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef",
+      "current_sha256": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef",
+      "matches_recorded": true
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md",
+      "recorded_sha256": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b",
+      "current_sha256": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b",
+      "matches_recorded": true
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/tokenizer.json",
+      "recorded_sha256": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+      "current_sha256": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+      "matches_recorded": true
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/vocabulary.json",
+      "recorded_sha256": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55",
+      "current_sha256": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55",
+      "matches_recorded": true
+    },
     {
       "path": "server/app/ml/saved_models/trajectory_residual.pt",
       "recorded_sha256": "cd5e1c14d789a3010a8806b41265deef6806d0e9166cb1e1cc7f2212ab4c7442",
@@ -2822,11 +3841,11 @@
     }
   ],
   "verification": {
-    "unique_evidence_files": 223,
+    "unique_evidence_files": 289,
     "binary_metric_identities_checked": 2295,
     "ledger_count": 18,
     "sha256_round_trip": "passed",
-    "verified_utc": "2026-11-09T18:51:01.875061+00:00"
+    "verified_utc": "2026-11-11T14:30:55.044955+00:00"
   },
   "cleanup_verified_utc": "2026-11-09T14:45:06.306202+00:00",
   "retained_model_artifacts": [
@@ -3486,5 +4505,14 @@
     "final_verification_utc": "2026-11-09T18:28:54.182074+00:00",
     "retirement_provenance_verified": true,
     "diagnostic_archive_rechecked": true
-  }
+  },
+  "user_authorized_cleanups": [
+    {
+      "iteration": "voice_continuation_20261110",
+      "removed_files": 63,
+      "removed_bytes": 481455,
+      "authorization": "11 November user request; exact inline ledger preservation verified before deletion",
+      "weights_and_original_datasets_removed": false
+    }
+  ]
 }

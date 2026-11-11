@@ -92,12 +92,20 @@ CORS_ORIGINS = [o.strip() for o in os.environ.get(
 #
 # ASR_MODEL_ID is the ONE place the speech model will be named (plan 4.3). Empty means no
 # speech model is installed: transcription endpoints report that, rather than failing.
-# Default: our own fine-tune (whisper-small + LoRA, ml_pipeline/voice/train_whisper.py), chosen
-# 27 Sep 2026 after the four-model comparison (reports/voice_eval_20260927_015420.json): on held-out
-# ATCO2 it gets the whole clearance right 64.5% of the time against 35.5% for
-# jlvdoorn/whisper-large-v3-atco2-asr-atcosim, 15.1% word error on unseen Czech radio against 46.9%,
-# and runs ~3.5x faster. Used when its directory exists on this machine; otherwise empty.
-OWN_ASR_MODEL = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "FlightRight/voice/models/flightright-whisper-small-atc-p1"
+# Default: validation-selected uniform_soup3, activated at Archit's request on 11 Nov.
+# Exact experiments, mixed test results and deployment fingerprints:
+# docs/evaluations/asr_small_atc_p1.md. Retain P1 as the fallback on machines without
+# the new local weights; an explicit environment override still takes precedence.
+PREVIOUS_ASR_MODEL = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "FlightRight/voice/models/flightright-whisper-small-atc-p1"
+LATEST_ASR_MODEL = PROJECT_ROOT / "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16"
+
+
+def _default_speech_model(latest: Path, previous: Path) -> Path:
+    required = ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json")
+    return latest if all((latest / name).is_file() for name in required) else previous
+
+
+OWN_ASR_MODEL = _default_speech_model(LATEST_ASR_MODEL, PREVIOUS_ASR_MODEL)
 ASR_MODEL_ID = os.environ.get("FLIGHT_RIGHT_ASR_MODEL_ID",
                               str(OWN_ASR_MODEL) if OWN_ASR_MODEL.exists() else "").strip()
 ASR_QUANTISATION = os.environ.get("FLIGHT_RIGHT_ASR_QUANTISATION", "int8_float16").strip()

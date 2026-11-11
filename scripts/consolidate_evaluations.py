@@ -34,7 +34,7 @@ MODELS = {
     "alert_feed": ("Alert feed", "Deterministic notification suppression; measures interruptions, not conflict prediction accuracy."),
     "clearance_extractor": ("Clearance and callsign extraction", "Deterministic parser/matcher, human-transcript upper bound, clearance-chain and oracle demonstrations; not an ASR model."),
     "asr_small": ("openai/whisper-small", "Untouched speech baseline."),
-    "asr_small_atc_p1": ("FlightRight Whisper-small ATC P1", "Own LoRA fine-tune on openai/whisper-small; configured default when its local export exists. Local-path separator variants denote the same model."),
+    "asr_small_atc_p1": ("FlightRight Whisper-small ATC", "Own Whisper-small/LoRA model family, including original P1 and the validation-selected uniform_soup3 continuation. Latest served configuration and all earlier variants share this ledger."),
     "asr_medium": ("openai/whisper-medium", "Untouched speech comparator."),
     "asr_medium_atcosim": ("jlvdoorn/whisper-medium-atcosim", "Published ATC comparator; ATCOSIM is training-contaminated."),
     "asr_large_atc": ("jlvdoorn/whisper-large-v3-atco2-asr-atcosim", "Published ATC comparator. ATCO2 recording overlap and ATCOSIM training contamination must stay attached to its scores."),
@@ -54,9 +54,32 @@ def sha(data):
 
 
 def asr_key(model_id):
-    if "flightright-whisper-small-atc-p1" in model_id:
+    name = model_id.replace("\\", "/").rstrip("/").split("/")[-1]
+    name = name.removeprefix("local__").removesuffix("__int8_float16")
+    if name in ("flightright-whisper-small-atc-p1", "uniform_soup3", "continue_lr1e4", "indian_mix_lr5e5"):
         return "asr_small_atc_p1"
     return {v[0]: k for k, v in MODELS.items() if k in ASR}.get(model_id)
+
+
+def speech_checkpoint(model_id):
+    if asr_key(model_id) == "asr_small_atc_p1":
+        name = model_id.replace("\\", "/").rstrip("/").split("/")[-1]
+        return name.removeprefix("local__").removesuffix("__int8_float16")
+    return model_id
+
+
+def read_evidence(path):
+    """Read a live source or its checksum-verified ledger copy without restoring files."""
+    target = Path(path)
+    target = target if target.is_absolute() else ROOT / target
+    target = target.resolve()
+    assert target.is_relative_to(ROOT.resolve()), target
+    if target.is_file():
+        return target.read_bytes()
+    record = records_all()[target.relative_to(ROOT.resolve()).as_posix()]
+    data = raw(record)
+    assert sha(data) == record["sha256"] and len(data) == record["bytes"]
+    return data
 
 
 def classify(path):
@@ -117,7 +140,29 @@ def read_ledger(key):
     p = OUT / f"{key}.md"
     if not p.exists():
         return {"model": key, "records": []}
-    return json.loads(p.read_text(encoding="utf-8").split(MARK, 1)[1].split("\n```", 1)[0])
+    merged = {"model": key, "records": []}
+    records = {}
+    for block in p.read_text(encoding="utf-8").split(MARK)[1:]:
+        capsule = json.loads(block.split("\n```", 1)[0])
+        assert capsule["model"] == key
+        for name, value in capsule.items():
+            if name == "model":
+                continue
+            if name == "records":
+                for record in value:
+                    path = record["path"]
+                    assert path not in records or records[path] == record, path
+                    records[path] = record
+            elif isinstance(value, list):
+                target = merged.setdefault(name, [])
+                for entry in value:
+                    if entry not in target:
+                        target.append(entry)
+            else:
+                assert name not in merged or merged[name] == value, name
+                merged[name] = value
+    merged["records"] = list(records.values())
+    return merged
 
 
 def records_all():
@@ -225,9 +270,9 @@ def narrative(key, records):
                 if (key in ASR and asr_key(v["model_id"]) != key) or (key == "clearance_extractor" and "human transcript" not in v["model_id"]):
                     continue
                 for corpus, metrics in v["corpora"].items():
-                    rows.append([Path(path).stem.removeprefix("voice_eval_"), corpus, metrics.get("clips", ""), metrics.get("wer", "n/a"), metrics.get("wer_numerals_spoken", "n/a"), metrics.get("clearance_accuracy", "n/a"), metrics.get("callsign_accuracy_with_list", "n/a"), metrics.get("held_out", "human transcript; extractor upper bound")])
-        lines += ["## Recorded speech/extraction iterations", "", "WER and accuracies are percentages. Different corpora and raw/numeral-normalized WER must not be ranked together. `NaN` means unavailable, never zero. Rejected number-rule results remain history only.", "", table(["Report", "Corpus", "Clips", "WER %", "Spoken-numeral WER %", "Clearance %", "Callsign with list %", "Evaluation basis"], rows), ""]
-    if key == "asr_small_atc_p1":
+                    rows.append([Path(path).stem.removeprefix("voice_eval_"), speech_checkpoint(v["model_id"]), corpus, metrics.get("clips", ""), metrics.get("wer", "n/a"), metrics.get("wer_numerals_spoken", "n/a"), metrics.get("clearance_accuracy", "n/a"), metrics.get("callsign_accuracy_with_list", "n/a"), metrics.get("held_out", "human transcript; extractor upper bound")])
+        lines += ["## Recorded speech/extraction iterations", "", "WER and accuracies are percentages. Different corpora and raw/numeral-normalized WER must not be ranked together. `NaN` means unavailable, never zero. Rejected number-rule results remain history only.", "", table(["Report", "Checkpoint", "Corpus", "Clips", "WER %", "Spoken-numeral WER %", "Clearance %", "Callsign with list %", "Evaluation basis"], rows), ""]
+    if key == "asr_small_atc_p1" and "ml_pipeline/reports/voice_train_p1_main.json" in records:
         d = load(records, "ml_pipeline/reports/voice_train_p1_main.json")
         lines += ["## LoRA training checkpoints", "", "r=32, 12,976,128 trainable parameters; 7,330 ATCOSIM and 10,172 UWB clips, learning rate 0.0005, batch 8 with accumulation 2; validation uses 200 clips per corpus. Training-validation scores below differ from the exported CTranslate2 test decoder.", "", table(["Step", "ATCOSIM val WER %", "UWB val WER %", "Mean val WER %"], [[x["step"], x["wer"]["atcosim"], x["wer"]["uwb"], x["wer"]["mean"]] for x in d["evals"]]), ""]
     for path, r in sorted(records.items()):
@@ -258,10 +303,54 @@ def maintenance_narrative(payload):
 
 
 def write_ledger(key, payload):
+    destination = OUT / f"{key}.md"
+    if destination.exists():
+        previous = read_ledger(key)
+        old_records = {r["path"]: r for r in previous["records"]}
+        new_records = {r["path"]: r for r in payload["records"]}
+        for path, record in old_records.items():
+            assert new_records.get(path) == record, f"Historical evidence changed: {path}"
+        delta = {"model": key, "records": [r for p, r in new_records.items() if p not in old_records]}
+        for name, value in previous.items():
+            if name in ("model", "records"):
+                continue
+            assert name in payload, f"Historical metadata removed: {name}"
+            if isinstance(value, list):
+                assert all(entry in payload[name] for entry in value), name
+            else:
+                assert payload[name] == value, name
+        for name, value in payload.items():
+            if name in ("model", "records"):
+                continue
+            if isinstance(value, list):
+                added = [entry for entry in value if entry not in previous.get(name, [])]
+                if added:
+                    delta[name] = added
+            elif name not in previous:
+                delta[name] = value
+        if not delta["records"] and len(delta) == 2:
+            return
+        sections = [f"## Evaluation update {datetime.now().astimezone().date()}", "",
+                    "This dated addition supplements the unchanged earlier history. Latest deployment statements below supersede earlier deployment status only.", ""]
+        sections += [x["narrative_markdown"] for x in delta.get("speech_iterations", [])]
+        sections += [x["narrative_markdown"] for x in delta.get("verification_runs", [])]
+        sections += [maintenance_narrative(delta)]
+        # The speech iteration already contains its complete human-readable study.
+        if not delta.get("speech_iterations"):
+            sections += [narrative(key, {r["path"]: r for r in delta["records"]})]
+        sections += ["## Source register", "", table(["Original path", "SHA-256", "Bytes"],
+                     [[r["path"], r["sha256"], r["bytes"]] for r in delta["records"]]), "",
+                     MARK + json.dumps(delta, indent=2, ensure_ascii=True) + "\n```\n"]
+        with destination.open("ab") as stream:
+            stream.write(("\n\n" + "\n".join(sections)).encode("utf-8"))
+        return
     title, desc = MODELS[key]
     content = [f"# {title}: evaluation and testing", "", desc, "", "[Latest comparison](../evaluation.md) · [Every original source and cleanup status](source_inventory.json)", "", "This is the single maintained history for this model/component. Records preserve the original bytes, including every numeric field, trial, seed, protocol, selection and caveat. Shared reports are included in each relevant ledger. No fresh inference is implied by consolidation.", "", narrative(key, {r["path"]: r for r in payload["records"]}), "## Source register", "", table(["Original path", "SHA-256", "Bytes"], [[r["path"], r["sha256"], r["bytes"]] for r in payload["records"]]), "", "## Lossless evidence", "", "Machine-readable JSON envelope. `content` is exact UTF-8 text or base64 bytes; numeric payloads remain unchanged, including historical JSON NaN. Use the maintenance script to verify or restore a source.", "", MARK + json.dumps(payload, indent=2, ensure_ascii=True) + "\n```\n"]
     OUT.mkdir(parents=True, exist_ok=True)
     content.insert(content.index("## Source register"), maintenance_narrative(payload))
+    iterations = payload.get("speech_iterations", [])
+    if iterations:
+        content.insert(6, "\n\n".join(entry["narrative_markdown"] for entry in iterations))
     (OUT / f"{key}.md").write_text("\n".join(content), encoding="utf-8", newline="\n")
 
 
@@ -344,6 +433,16 @@ def verify():
             walk(json.loads(raw(r)))
     metrics = load(records, "docs/metrics.json")
     artifact_checks = []
+    for key in MODELS:
+        iterations = read_ledger(key).get("speech_iterations", [])
+        if not iterations:
+            continue
+        for name, info in iterations[-1].get("deployment", {}).get("artifacts", {}).items():
+            path = ROOT / info["path"]
+            actual = sha(path.read_bytes()) if path.is_file() else None
+            assert actual == info["sha256"], f"Changed deployed speech artifact: {path}"
+            artifact_checks.append({"path": info["path"], "recorded_sha256": info["sha256"],
+                                    "current_sha256": actual, "matches_recorded": True})
     for path, expected in metrics["artifact_sha256"].items():
         p = ROOT / path.replace("\\", "/")
         actual = sha(p.read_bytes()) if p.exists() else None
@@ -367,7 +466,10 @@ def refresh():
     head = load(records, "ml_pipeline/reports/trajectory_tuning_20261101_horizon_head/summary.json")
     mp = load(records, "ml_pipeline/reports/multipath_tuning_20261101/summary.json")
     cf = load(records, "ml_pipeline/reports/conflict_refinement_20261101/candidate_model_card.json")
-    lines = ["# Flight Right: latest evaluation", "", "Classifier headline: **95.07% (270/284)** caught with at least three minutes of warning. Full served alert chain: **95.42% (271/284)**. Consolidated from preserved measurements; no retraining or fresh inference was performed.", "", "## Model inventory and best supported configuration", "", "Best means the recorded validation-selected configuration that passed its stated checks, not the largest isolated test score. Served and candidate numbers are separated below. Different tasks, corpora and metrics cannot be ranked together.", ""]
+    speech_iterations = read_ledger("asr_small_atc_p1").get("speech_iterations", [])
+    measurement_note = ("Trajectory/conflict figures retain their recorded measurement dates. Speech was tested November 10 and configured as the default November 11. No new benchmark was run for this summary refresh." if speech_iterations else "Consolidated from preserved measurements; no retraining or fresh inference was performed.")
+    speech_summary = ("Current speech default: uniform_soup3, an equal weight average of original P1 and two independent 300-update continuations. Selected on 1,632 real validation clips before test; one checkpoint supplies every reported score for our model. Complete instructions on ATCO2 clean: 21/31 (67.74%). Generated-voice diagnostic: 16.60% WER on 416 held-out generated calls; this does not measure real Indian controllers. Effects are small and uncertain, with a UWB regression documented in the model history. The actual GPU speech service loaded the model and reproduced two validation transcripts; no persistent backend was restarted. All previous checkpoints, baseline scores, rejected trials and uncertainty estimates remain in the speech ledger." if speech_iterations else "Own P1 model: LoRA rank 32 on Whisper-small, exported to CTranslate2 int8_float16; common English beam-5 decoder (`fw1-beam5-v1`). Full checkpoint history is in its ledger.")
+    lines = ["# Flight Right: latest evaluation", "", "Classifier headline: **95.07% (270/284)** caught with at least three minutes of warning. Full served alert chain: **95.42% (271/284)**. " + measurement_note, "", "## Model inventory and best supported configuration", "", "Best means the recorded validation-selected configuration that passed its stated checks, not the largest isolated test score. Served and candidate numbers are separated below. Different tasks, corpora and metrics cannot be ranked together.", ""]
     inventory = []
     notes = {
         "trajectory_lstm": "Served baseline; selected ten-minute-head candidate remains undeployed",
@@ -375,16 +477,18 @@ def refresh():
         "conflict_classifier": "27-input selected-altitude classifier served; raw threshold 0.07465646415948868",
         "conflict_filter": "refit_unweighted + raw threshold 0.07932812720537186 + veto floor 0.00928506813943386; undeployed",
     }
+    if speech_iterations:
+        notes["asr_small_atc_p1"] = "uniform_soup3 configured default; equal average of P1 and two independent continuations, selected using real validation recordings before test"
     for k, (title, desc) in MODELS.items():
         inventory.append([f"[{title}](evaluations/{k}.md)", notes.get(k, desc)])
     lines += [table(["Model / evaluated component", "Status / how achieved"], inventory), "", "## Trajectory: historical test split", "", "39,614 test windows; ten-minute targets available for 18,662. Rates are percentages. RMSE/mean are horizontal NM, altitude MAE is ft. Earlier horizons and every slice/seed remain in the corresponding model ledger.", ""]
     traj_rows = []
-    for label, rows in [("Constant velocity", m["model1"]["baseline_per_horizon"]), ("Served residual LSTM", m["model1"]["per_horizon"]), ("Tree reference (saved predictions)", m["tree_reference"]["per_horizon"]), ("Undeployed last_head_adam_lr1e4, seed 42, epoch 4", head["finalist_test"][0]["metrics"]["per_horizon"])]:
+    for label, rows in [("Constant velocity", m["model1"]["baseline_per_horizon"]), ("Tree reference (saved predictions)", m["tree_reference"]["per_horizon"]), ("Undeployed last_head_adam_lr1e4, seed 42, epoch 4", head["finalist_test"][0]["metrics"]["per_horizon"])]:
         for r in rows:
             traj_rows.append([label, r["horizon"], r["n"], f'{r["mean_nm"]:.5f}', f'{r["rmse_nm"]:.5f}', f'{r["within_5_nm"]:.5f}', f'{r["altitude_mae_ft"]:.2f}'])
     lines += [table(["Configuration", "Horizon", "n", "Mean NM", "RMSE NM", "Within 5 NM %", "Altitude MAE ft"], traj_rows), "", "The LSTM candidate freezes the encoder, shared layers and one-/three-/five-minute heads; Adam learning rate 1e-4, SmoothL1 beta .05, validation-selected seed 42 epoch 4, confirmed at seeds 43/44. It is not a simultaneous improvement of every metric or regime. See all three LSTM studies and guards in its ledger.", "", "## Multi-path: ten-minute coverage", "", "Best-of-five is coverage of alternatives. A joint 3-D hit requires the same candidate within 5 NM and 1,000 ft. Arrivals is the existing <40 NM VABB bucket, not independent arrival labels.", ""]
     rows = []
-    for label, d in [("Served archive + destination", mp["baseline_test"]), ("Undeployed continue_800 seed 0", mp["test_audits"][0]["metrics"])]:
+    for label, d in [("Undeployed continue_800 seed 0", mp["test_audits"][0]["metrics"])]:
         for group, r in d["groups"].items():
             rows.append([label, group, r["n"], f'{r["top1_mean_nm"]:.5f}', f'{r["top1_within_5nm"]:.5f}', f'{r["best5_within_5nm"]:.5f}', f'{r["top1_both"]:.5f}', f'{r["best5_both"]:.5f}'])
     cluster = m["model1b"]["route_classification"]
@@ -392,7 +496,7 @@ def refresh():
     def binary(label, r):
         return [label, f'{r["precision"]:.8f}', f'{r["recall"]:.8f}', f'{r["f1"]:.8f}', r.get("tn", r.get("true_negative")), r.get("fp", r.get("false_positive")), r.get("fn", r.get("false_negative")), r.get("tp", r.get("true_positive"))]
     rows = [binary("Served classifier", m["model2"]["test"]), binary("Served full chain", m["full_alert_chain"]), binary("Undeployed filtered classifier", cf["historical_test"]["classifier"]), binary("Undeployed filtered full chain", cf["historical_test"]["system"])]
-    lines += [table(["Decision", "Precision", "Recall", "F1", "TN", "FP", "FN", "TP"], rows), "", "The served classifier adds selected-altitude inputs with validation threshold matched to the prior false-alarm rate. The refined proposal uses a new unweighted 400-tree depth-3 XGBoost filter (learning rate .04, minimum child weight 20, L2 20, subsample .9, seed 42) after the threshold change; the independent straight-line safety net bypasses it. Classifier early catches remain 270/284; full-chain early catches remain 271/284. The proposal retains the same detected true pairs, cuts full-chain FP 478 to 459, and changes false tier-1 alerts 20 to 19 while preserving 28 real tier-1 alerts. Existing full-chain FN remain 13. This is repeated historical-benchmark exploration, not a guarantee on future traffic.", "", "## Speech: latest accepted result per checkpoint and corpus", "", "WER is percent; lower is better. Columns distinguish raw and spoken-numeral-normalized WER. Corpus contamination limits comparison. Latest here means the latest accepted record for that model/corpus, even when another model has a more recent report.", ""]
+    lines += [table(["Decision", "Precision", "Recall", "F1", "TN", "FP", "FN", "TP"], rows), "", "The served classifier adds selected-altitude inputs with validation threshold matched to the prior false-alarm rate. The refined proposal uses a new unweighted 400-tree depth-3 XGBoost filter (learning rate .04, minimum child weight 20, L2 20, subsample .9, seed 42) after the threshold change; the independent straight-line safety net bypasses it. Classifier early catches remain 270/284; full-chain early catches remain 271/284. The proposal retains the same detected true pairs, with 459 full-chain false positives, 19 false tier-1 alerts and 28 real tier-1 alerts. Existing full-chain FN remain 13. This is repeated historical-benchmark exploration, not a guarantee on future traffic.", "", "## Speech: latest accepted result per checkpoint and corpus", "", "WER is percent; lower is better. Columns distinguish raw and spoken-numeral-normalized WER. Corpus contamination limits comparison. Latest here means the latest accepted record for that model/corpus, even when another model has a more recent report. Superseded checkpoints of our model appear only in its history; scores are not cherry-picked per corpus.", ""]
     latest = {}
     for path, r in sorted(records.items()):
         if not Path(path).name.startswith("voice_eval") or "rejected" in path:
@@ -402,12 +506,22 @@ def refresh():
             key = asr_key(v["model_id"])
             if key:
                 for corpus, metrics in v["corpora"].items():
-                    latest[key, corpus] = (d["measured_at_utc"], metrics)
+                    latest[key, speech_checkpoint(v["model_id"]), corpus] = (d["measured_at_utc"], metrics, v)
     rows = []
-    for (key, corpus), (date, r) in sorted(latest.items()):
-        rows.append([MODELS[key][0], corpus, date[:10], r.get("clips"), r.get("wer", "n/a"), r.get("wer_numerals_spoken", "n/a"), r.get("held_out", "see ledger")])
-    lines += [table(["Checkpoint", "Corpus", "Measured", "Clips", "WER %", "Spoken-numeral WER %", "Basis / limitation"], rows), "", "Own P1 model: LoRA rank 32 on Whisper-small, real ATCOSIM/UWB training, exported to CTranslate2 int8_float16; common English beam-5 decoder (`fw1-beam5-v1`). Full training checkpoint history is in its ledger. Svarah measures general Indian English, not ATC. Cached transcription re-scoring does not constitute fresh latency benchmarking. No completed P2/accent model with test scores was found.", "", "## Other evaluated components", "", "Resolution: 45 classifier-triggered tier-1 encounters (27 real / 18 false), 1,170 simulated manoeuvres; 1 unsafe and 923 ineffective rejected, 0 secondary-conflict rejections; 46 instructions across 21 encounters, 24 without options. 35 instructions on real conflicts, 11 on false alarms. The harness lacks surrounding traffic; zero secondary rejections does not validate runtime domino checks. Classification F1 is inapplicable.", "", "Extractor with human transcripts on ATCO2 clean: 77.42% clearance accuracy (31 eligible), 93.9% callsign accuracy with proxy aircraft lists (328 eligible). These are upper-bound parser results, not ASR scores. The rejected number rule is excluded from latest accepted results. Latest November 2 chain check is an oracle-text replay demonstration, not measured microphone/ASR accuracy.", "", "Alert feed: replay interruptions 680 to 179 (73.7%) and 909 to 235 (74.1%), zero pairs lost in both. This measures display suppression. Path-confidence all-pairs policy was rolled back; its trials, replay and source remain in its ledger. Indic Parler TTS and Silero VAD have no recorded objective model-quality evaluation; no numbers are invented for them.", "", "## Provenance and maintenance", "", "Original served-model refresh: 2026-10-30. Candidate studies: 2026-11-01. Latest chain demonstration: 2026-11-02. Consolidation: 2026-11-09. Model fingerprints are checked against recorded sources; consolidation does not make old measurements newly measured results.", "", "[Source inventory and cleanup audit](evaluations/source_inventory.json) contains every discovered evaluation source, model mapping, checksum, preservation commit and deletion status. Each model ledger includes full original evidence. Current served models, selected candidate packages, original data and canonical evaluation inputs are retained. Retired trial weights and regenerable intermediates may be removed after recording their provenance and results in the model ledger.", "", "```powershell", "venv\\Scripts\\python.exe scripts/consolidate_evaluations.py --verify", "# Add a newly generated evaluation (choose all affected model keys from the inventory):", "venv\\Scripts\\python.exe scripts/consolidate_evaluations.py --ingest PATH --models MODEL_KEY", "# Restore archived inputs needed by an older report script (does not overwrite):", "venv\\Scripts\\python.exe scripts/consolidate_evaluations.py --restore ORIGINAL_PATH", "```", "", "When ingesting new work, update the latest-result selection in `refresh()` for newly selected trajectory/conflict configurations. Speech latest results update automatically per checkpoint/corpus. Never promote a candidate by maximizing its historical test score.", ""]
-    (ROOT / "docs/evaluation.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
+    for (key, checkpoint, corpus), (date, r, model) in sorted(latest.items()):
+        if key == "asr_small_atc_p1" and speech_iterations:
+            selected = speech_checkpoint(speech_iterations[-1]["deployment"]["runtime_model"])
+            if checkpoint != selected:
+                continue
+        cached = " (cached re-score)" if model.get("newly_transcribed_clips") == 0 else ""
+        status = "served default" if speech_iterations and checkpoint == "uniform_soup3" else ("previous/reference" if speech_iterations and checkpoint == "flightright-whisper-small-atc-p1" else "reference")
+        rows.append([checkpoint, status, corpus, date[:10] + cached, r.get("clips"), r.get("wer", "n/a"), r.get("wer_numerals_spoken", "n/a"), r.get("held_out", "see ledger")])
+    lines += [table(["Checkpoint", "Status", "Corpus", "Measured / re-scored", "Clips", "WER %", "Spoken-numeral WER %", "Basis / limitation"], rows), "", speech_summary + " Svarah measures general Indian English, not ATC. Cached transcription re-scoring does not constitute fresh latency benchmarking.", "", "## Other evaluated components", "", "Resolution: 45 classifier-triggered tier-1 encounters (27 real / 18 false), 1,170 simulated manoeuvres; 1 unsafe and 923 ineffective rejected, 0 secondary-conflict rejections; 46 instructions across 21 encounters, 24 without options. 35 instructions on real conflicts, 11 on false alarms. The harness lacks surrounding traffic; zero secondary rejections does not validate runtime domino checks. Classification F1 is inapplicable.", "", "Extractor with human transcripts on ATCO2 clean: 77.42% clearance accuracy (31 eligible), 93.9% callsign accuracy with proxy aircraft lists (328 eligible). These are upper-bound parser results, not ASR scores. The rejected number rule is excluded from latest accepted results. Latest November 2 chain check is an oracle-text replay demonstration, not measured microphone/ASR accuracy.", "", "Alert feed: replay interruptions 680 to 179 (73.7%) and 909 to 235 (74.1%), zero pairs lost in both. This measures display suppression. Path-confidence all-pairs policy was rolled back; its trials, replay and source remain in its ledger. Indic Parler TTS and Silero VAD have no recorded objective model-quality evaluation; no numbers are invented for them.", "", "## Provenance and maintenance", "", "Original non-speech served-model refresh: 2026-10-30. Trajectory/conflict candidate studies: 2026-11-01. Latest chain demonstration: 2026-11-02. Initial consolidation: 2026-11-09. Speech tuning/test: 2026-11-10; latest speech model activated 2026-11-11." if speech_iterations else "Original served-model refresh: 2026-10-30. Candidate studies: 2026-11-01. Latest chain demonstration: 2026-11-02. Consolidation: 2026-11-09.", "", "[Source inventory and cleanup audit](evaluations/source_inventory.json) contains evidence ownership, checksums, preservation and cleanup status. Each model ledger includes original evidence. Model fingerprints are checked; consolidation does not make old measurements newly measured results.", "", "```powershell", "venv\\Scripts\\python.exe scripts/consolidate_evaluations.py --verify", "# Add a newly generated evaluation (choose all affected model keys from the inventory):", "venv\\Scripts\\python.exe scripts/consolidate_evaluations.py --ingest PATH --models MODEL_KEY", "# Restore archived inputs needed by an older report script (does not overwrite):", "venv\\Scripts\\python.exe scripts/consolidate_evaluations.py --restore ORIGINAL_PATH", "```", "", "When ingesting new work, update the latest-result selection in `refresh()` for newly selected configurations. The summary shows the validation-selected speech checkpoint across all corpora; previous checkpoints remain in its model ledger. Never promote a candidate by maximizing its historical test score.", ""]
+    destination = ROOT / "docs/evaluation.md"
+    desired = "\n".join(lines)
+    # The comparison is a current summary; complete experiment history stays in ledgers.
+    if not destination.exists() or destination.read_bytes() != desired.encode("utf-8"):
+        destination.write_text(desired, encoding="utf-8", newline="\n")
 
 
 def cleanup():

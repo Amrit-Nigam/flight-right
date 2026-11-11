@@ -24,6 +24,8 @@ def main():
     ap.add_argument("--adapter", required=True)
     ap.add_argument("--name", required=True)
     ap.add_argument("--base", default=None, help="defaults to the base recorded in the adapter config")
+    ap.add_argument("--output-root", type=Path, default=CACHE / "models")
+    ap.add_argument("--ct2-root", type=Path, default=None)
     args = ap.parse_args()
     from peft import PeftConfig, PeftModel
     from transformers import WhisperForConditionalGeneration, WhisperProcessor
@@ -31,7 +33,9 @@ def main():
     model = WhisperForConditionalGeneration.from_pretrained(base)
     model = PeftModel.from_pretrained(model, args.adapter).merge_and_unload()
     model.generation_config.forced_decoder_ids = None
-    out = CACHE / "models" / args.name
+    out = args.output_root / args.name
+    if out.exists():
+        raise SystemExit(f"Refusing to overwrite existing export: {out}")
     model.save_pretrained(out)
     processor = WhisperProcessor.from_pretrained(base)
     processor.save_pretrained(out)
@@ -41,9 +45,11 @@ def main():
     (out / "flightright_provenance.json").write_text(json.dumps(
         {"base_model": base, "adapter": str(Path(args.adapter).resolve()),
          "train_state": str(Path(args.adapter).resolve().parent / "state.json")}, indent=2))
-    from ml_pipeline.voice.transcribe import ct2_path
+    from ml_pipeline.voice import transcribe
+    if args.ct2_root is not None:
+        transcribe.CT2_DIR = args.ct2_root
     print("merged:", out)
-    print("ctranslate2:", ct2_path(str(out), "int8_float16"))
+    print("ctranslate2:", transcribe.ct2_path(str(out), "int8_float16"))
 
 
 if __name__ == "__main__":

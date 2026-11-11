@@ -1,6 +1,6 @@
 # Flight Right: latest evaluation
 
-Classifier headline: **95.07% (270/284)** caught with at least three minutes of warning. Full served alert chain: **95.42% (271/284)**. Consolidated from preserved measurements; no retraining or fresh inference was performed.
+Classifier headline: **95.07% (270/284)** caught with at least three minutes of warning. Full served alert chain: **95.42% (271/284)**. Trajectory/conflict figures retain their recorded measurement dates. Speech was tested November 10 and configured as the default November 11. No new benchmark was run for this summary refresh.
 
 ## Model inventory and best supported configuration
 
@@ -20,7 +20,7 @@ Best means the recorded validation-selected configuration that passed its stated
 | [Alert feed](evaluations/alert_feed.md) | Deterministic notification suppression; measures interruptions, not conflict prediction accuracy. |
 | [Clearance and callsign extraction](evaluations/clearance_extractor.md) | Deterministic parser/matcher, human-transcript upper bound, clearance-chain and oracle demonstrations; not an ASR model. |
 | [openai/whisper-small](evaluations/asr_small.md) | Untouched speech baseline. |
-| [FlightRight Whisper-small ATC P1](evaluations/asr_small_atc_p1.md) | Own LoRA fine-tune on openai/whisper-small; configured default when its local export exists. Local-path separator variants denote the same model. |
+| [FlightRight Whisper-small ATC](evaluations/asr_small_atc_p1.md) | uniform_soup3 configured default; equal average of P1 and two independent continuations, selected using real validation recordings before test |
 | [openai/whisper-medium](evaluations/asr_medium.md) | Untouched speech comparator. |
 | [jlvdoorn/whisper-medium-atcosim](evaluations/asr_medium_atcosim.md) | Published ATC comparator; ATCOSIM is training-contaminated. |
 | [jlvdoorn/whisper-large-v3-atco2-asr-atcosim](evaluations/asr_large_atc.md) | Published ATC comparator. ATCO2 recording overlap and ATCOSIM training contamination must stay attached to its scores. |
@@ -37,10 +37,6 @@ Best means the recorded validation-selected configuration that passed its stated
 | Constant velocity | 3 min | 32324 | 1.68810 | 3.68365 | 89.46294 | 471.34 |
 | Constant velocity | 5 min | 27587 | 3.65366 | 7.16213 | 77.32990 | 910.53 |
 | Constant velocity | 10 min | 18662 | 10.30497 | 16.86169 | 50.50370 | 2231.10 |
-| Served residual LSTM | 1 min | 38110 | 0.45025 | 1.73104 | 98.46497 | 98.63 |
-| Served residual LSTM | 3 min | 32324 | 1.37553 | 3.10388 | 91.95953 | 304.26 |
-| Served residual LSTM | 5 min | 27587 | 2.68787 | 5.37193 | 82.90499 | 509.58 |
-| Served residual LSTM | 10 min | 18662 | 6.40931 | 10.46734 | 61.31176 | 1108.57 |
 | Tree reference (saved predictions) | 1 min | 38110 | 0.43230 | 1.70491 | 98.46497 | 94.84 |
 | Tree reference (saved predictions) | 3 min | 32324 | 1.27093 | 2.96305 | 92.62777 | 294.72 |
 | Tree reference (saved predictions) | 5 min | 27587 | 2.39033 | 5.01676 | 85.08355 | 511.70 |
@@ -58,8 +54,6 @@ Best-of-five is coverage of alternatives. A joint 3-D hit requires the same cand
 
 | Configuration | Group | n | Top-1 mean NM | Top-1 5 NM % | Best-5 5 NM % | Top-1 3-D % | Best-5 3-D % |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Served archive + destination | all | 18662 | 5.53280 | 68.06880 | 88.43104 | 55.89969 | 68.19205 |
-| Served archive + destination | arrivals | 2923 | 9.93943 | 47.21177 | 76.46254 | 34.45091 | 48.78549 |
 | Undeployed continue_800 seed 0 | all | 18662 | 5.49463 | 68.26707 | 88.64538 | 56.02829 | 68.31529 |
 | Undeployed continue_800 seed 0 | arrivals | 2923 | 9.89244 | 47.51967 | 76.90729 | 34.65618 | 49.02497 |
 
@@ -74,38 +68,38 @@ continue_800 extends only the ten-minute per-mode regressors: 800 along-track / 
 | Undeployed filtered classifier | 0.39643347 | 0.95379538 | 0.56007752 | 3947 | 440 | 14 | 289 |
 | Undeployed filtered full chain | 0.38718291 | 0.95709571 | 0.55133080 | 3928 | 459 | 13 | 290 |
 
-The served classifier adds selected-altitude inputs with validation threshold matched to the prior false-alarm rate. The refined proposal uses a new unweighted 400-tree depth-3 XGBoost filter (learning rate .04, minimum child weight 20, L2 20, subsample .9, seed 42) after the threshold change; the independent straight-line safety net bypasses it. Classifier early catches remain 270/284; full-chain early catches remain 271/284. The proposal retains the same detected true pairs, cuts full-chain FP 478 to 459, and changes false tier-1 alerts 20 to 19 while preserving 28 real tier-1 alerts. Existing full-chain FN remain 13. This is repeated historical-benchmark exploration, not a guarantee on future traffic.
+The served classifier adds selected-altitude inputs with validation threshold matched to the prior false-alarm rate. The refined proposal uses a new unweighted 400-tree depth-3 XGBoost filter (learning rate .04, minimum child weight 20, L2 20, subsample .9, seed 42) after the threshold change; the independent straight-line safety net bypasses it. Classifier early catches remain 270/284; full-chain early catches remain 271/284. The proposal retains the same detected true pairs, with 459 full-chain false positives, 19 false tier-1 alerts and 28 real tier-1 alerts. Existing full-chain FN remain 13. This is repeated historical-benchmark exploration, not a guarantee on future traffic.
 
 ## Speech: latest accepted result per checkpoint and corpus
 
-WER is percent; lower is better. Columns distinguish raw and spoken-numeral-normalized WER. Corpus contamination limits comparison. Latest here means the latest accepted record for that model/corpus, even when another model has a more recent report.
+WER is percent; lower is better. Columns distinguish raw and spoken-numeral-normalized WER. Corpus contamination limits comparison. Latest here means the latest accepted record for that model/corpus, even when another model has a more recent report. Superseded checkpoints of our model appear only in its history; scores are not cherry-picked per corpus.
 
-| Checkpoint | Corpus | Measured | Clips | WER % | Spoken-numeral WER % | Basis / limitation |
-| --- | --- | --- | --- | --- | --- | --- |
-| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | atco2_clean | 2026-10-30 | 762 | 25.88 | 25.87 | clip-held-out (same airports and days as its ATCO2 training clips) |
-| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | atco2_contaminated | 2026-10-30 | 109 | 15.95 | 15.95 | NOT held out: these exact recordings are in its training data (Phase 2.5) |
-| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | atcosim_heldout_speakers | 2026-10-30 | 1712 | 14.69 | 14.69 | NOT held out: trained on all ten ATCOSIM speakers |
-| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | uwb_heldout_recordings | 2026-10-30 | 2814 | 46.94 | 46.94 | held out (UWB-ATCC not in its training corpus) |
-| openai/whisper-medium | atco2_clean | 2026-09-26 | 762 | 62.55 | 44.72 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-medium | atco2_contaminated | 2026-09-26 | 109 | 47.8 | 31.26 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-medium | atcosim_heldout_speakers | 2026-09-26 | 1712 | 61.87 | 24.03 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-medium | uwb_heldout_recordings | 2026-09-26 | 2814 | 78.23 | 58.43 | held out as far as is known (web-scale training data, undisclosed) |
-| jlvdoorn/whisper-medium-atcosim | atco2_clean | 2026-09-26 | 762 | 39.51 | 39.51 | held out (never trained on ATCO2) |
-| jlvdoorn/whisper-medium-atcosim | atco2_contaminated | 2026-09-26 | 109 | 26.45 | 26.51 | held out (never trained on ATCO2) |
-| jlvdoorn/whisper-medium-atcosim | atcosim_heldout_speakers | 2026-09-26 | 1712 | 0.14 | 0.14 | NOT held out: trained on ATCOSIM |
-| jlvdoorn/whisper-medium-atcosim | uwb_heldout_recordings | 2026-09-26 | 2814 | 53.04 | 53.05 | held out |
-| openai/whisper-small | atco2_clean | 2026-10-30 | 762 | 75.2 | 59.18 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-small | atco2_contaminated | 2026-10-30 | 109 | 53.19 | 37.18 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-small | atcosim_heldout_speakers | 2026-10-30 | 1712 | 65.95 | 27.54 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-small | svarah_indian_english | 2026-10-30 | 6656 | 9.3 | 8.47 | held out as far as is known (web-scale training data, undisclosed) |
-| openai/whisper-small | uwb_heldout_recordings | 2026-10-30 | 2814 | 91.02 | 73.88 | held out as far as is known (web-scale training data, undisclosed) |
-| FlightRight Whisper-small ATC P1 | atco2_clean | 2026-10-30 | 762 | 28.29 | 28.29 | held out (no ATCO2 audio in training) |
-| FlightRight Whisper-small ATC P1 | atco2_contaminated | 2026-10-30 | 109 | 17.4 | 17.4 | held out (no ATCO2 audio in training) |
-| FlightRight Whisper-small ATC P1 | atcosim_heldout_speakers | 2026-10-30 | 1712 | 4.88 | 4.88 | held out by speaker (sm3, zf3, gm2 never trained on) |
-| FlightRight Whisper-small ATC P1 | svarah_indian_english | 2026-10-30 | 6656 | 33.17 | 28.9 | held out |
-| FlightRight Whisper-small ATC P1 | uwb_heldout_recordings | 2026-10-30 | 2814 | 15.11 | 15.11 | held out by recording |
+| Checkpoint | Status | Corpus | Measured / re-scored | Clips | WER % | Spoken-numeral WER % | Basis / limitation |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | reference | atco2_clean | 2026-10-30 (cached re-score) | 762 | 25.88 | 25.87 | clip-held-out (same airports and days as its ATCO2 training clips) |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | reference | atco2_contaminated | 2026-10-30 (cached re-score) | 109 | 15.95 | 15.95 | NOT held out: these exact recordings are in its training data (Phase 2.5) |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | reference | atcosim_heldout_speakers | 2026-10-30 (cached re-score) | 1712 | 14.69 | 14.69 | NOT held out: trained on all ten ATCOSIM speakers |
+| jlvdoorn/whisper-large-v3-atco2-asr-atcosim | reference | uwb_heldout_recordings | 2026-10-30 (cached re-score) | 2814 | 46.94 | 46.94 | held out (UWB-ATCC not in its training corpus) |
+| openai/whisper-medium | reference | atco2_clean | 2026-09-26 | 762 | 62.55 | 44.72 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-medium | reference | atco2_contaminated | 2026-09-26 | 109 | 47.8 | 31.26 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-medium | reference | atcosim_heldout_speakers | 2026-09-26 | 1712 | 61.87 | 24.03 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-medium | reference | uwb_heldout_recordings | 2026-09-26 | 2814 | 78.23 | 58.43 | held out as far as is known (web-scale training data, undisclosed) |
+| jlvdoorn/whisper-medium-atcosim | reference | atco2_clean | 2026-09-26 | 762 | 39.51 | 39.51 | held out (never trained on ATCO2) |
+| jlvdoorn/whisper-medium-atcosim | reference | atco2_contaminated | 2026-09-26 | 109 | 26.45 | 26.51 | held out (never trained on ATCO2) |
+| jlvdoorn/whisper-medium-atcosim | reference | atcosim_heldout_speakers | 2026-09-26 | 1712 | 0.14 | 0.14 | NOT held out: trained on ATCOSIM |
+| jlvdoorn/whisper-medium-atcosim | reference | uwb_heldout_recordings | 2026-09-26 | 2814 | 53.04 | 53.05 | held out |
+| openai/whisper-small | reference | atco2_clean | 2026-10-30 (cached re-score) | 762 | 75.2 | 59.18 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | reference | atco2_contaminated | 2026-10-30 (cached re-score) | 109 | 53.19 | 37.18 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | reference | atcosim_heldout_speakers | 2026-10-30 (cached re-score) | 1712 | 65.95 | 27.54 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | reference | svarah_indian_english | 2026-10-30 (cached re-score) | 6656 | 9.3 | 8.47 | held out as far as is known (web-scale training data, undisclosed) |
+| openai/whisper-small | reference | uwb_heldout_recordings | 2026-10-30 (cached re-score) | 2814 | 91.02 | 73.88 | held out as far as is known (web-scale training data, undisclosed) |
+| uniform_soup3 | served default | atco2_clean | 2026-11-10 | 762 | 27.95 | 27.95 | held out (no ATCO2 audio in training) |
+| uniform_soup3 | served default | atco2_contaminated | 2026-11-10 | 109 | 17.34 | 17.34 | held out (no ATCO2 audio in training) |
+| uniform_soup3 | served default | atcosim_heldout_speakers | 2026-11-10 | 1712 | 4.8 | 4.8 | held out by speaker (sm3, zf3, gm2 never trained on) |
+| uniform_soup3 | served default | svarah_indian_english | 2026-11-10 | 6656 | 31.46 | 27.22 | held out |
+| uniform_soup3 | served default | uwb_heldout_recordings | 2026-11-10 | 2814 | 15.33 | 15.33 | held out by recording |
 
-Own P1 model: LoRA rank 32 on Whisper-small, real ATCOSIM/UWB training, exported to CTranslate2 int8_float16; common English beam-5 decoder (`fw1-beam5-v1`). Full training checkpoint history is in its ledger. Svarah measures general Indian English, not ATC. Cached transcription re-scoring does not constitute fresh latency benchmarking. No completed P2/accent model with test scores was found.
+Current speech default: uniform_soup3, an equal weight average of original P1 and two independent 300-update continuations. Selected on 1,632 real validation clips before test; one checkpoint supplies every reported score for our model. Complete instructions on ATCO2 clean: 21/31 (67.74%). Generated-voice diagnostic: 16.60% WER on 416 held-out generated calls; this does not measure real Indian controllers. Effects are small and uncertain, with a UWB regression documented in the model history. The actual GPU speech service loaded the model and reproduced two validation transcripts; no persistent backend was restarted. All previous checkpoints, baseline scores, rejected trials and uncertainty estimates remain in the speech ledger. Svarah measures general Indian English, not ATC. Cached transcription re-scoring does not constitute fresh latency benchmarking.
 
 ## Other evaluated components
 
@@ -117,9 +111,9 @@ Alert feed: replay interruptions 680 to 179 (73.7%) and 909 to 235 (74.1%), zero
 
 ## Provenance and maintenance
 
-Original served-model refresh: 2026-10-30. Candidate studies: 2026-11-01. Latest chain demonstration: 2026-11-02. Consolidation: 2026-11-09. Model fingerprints are checked against recorded sources; consolidation does not make old measurements newly measured results.
+Original non-speech served-model refresh: 2026-10-30. Trajectory/conflict candidate studies: 2026-11-01. Latest chain demonstration: 2026-11-02. Initial consolidation: 2026-11-09. Speech tuning/test: 2026-11-10; latest speech model activated 2026-11-11.
 
-[Source inventory and cleanup audit](evaluations/source_inventory.json) contains every discovered evaluation source, model mapping, checksum, preservation commit and deletion status. Each model ledger includes full original evidence. Current served models, selected candidate packages, original data and canonical evaluation inputs are retained. Retired trial weights and regenerable intermediates may be removed after recording their provenance and results in the model ledger.
+[Source inventory and cleanup audit](evaluations/source_inventory.json) contains evidence ownership, checksums, preservation and cleanup status. Each model ledger includes original evidence. Model fingerprints are checked; consolidation does not make old measurements newly measured results.
 
 ```powershell
 venv\Scripts\python.exe scripts/consolidate_evaluations.py --verify
@@ -129,4 +123,4 @@ venv\Scripts\python.exe scripts/consolidate_evaluations.py --ingest PATH --model
 venv\Scripts\python.exe scripts/consolidate_evaluations.py --restore ORIGINAL_PATH
 ```
 
-When ingesting new work, update the latest-result selection in `refresh()` for newly selected trajectory/conflict configurations. Speech latest results update automatically per checkpoint/corpus. Never promote a candidate by maximizing its historical test score.
+When ingesting new work, update the latest-result selection in `refresh()` for newly selected configurations. The summary shows the validation-selected speech checkpoint across all corpora; previous checkpoints remain in its model ledger. Never promote a candidate by maximizing its historical test score.

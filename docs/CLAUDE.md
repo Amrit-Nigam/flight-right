@@ -1,3 +1,7 @@
+> **Shared editing rules:** Read [../AGENTS.md](../AGENTS.md) before every task. Add future user-requested editing rules there; this document retains project context, decisions and change history.
+
+> **Current demo workflow (11 November 2026):** Use the [README controller walkthrough](../README.md#a-controllers-complete-walkthrough) for the current interface, supported actions and backend flow. Older status statements below describe historical stages and should not override the present implementation.
+
 > **Evaluation maintenance (9 November 2026):** [evaluation.md](evaluation.md) is the current cross-model results page. Each model has one history/testing ledger under [evaluations/](evaluations/source_inventory.json). Dated report paths mentioned below are historical: their exact contents are in those ledgers and pushed checkpoint `d57fb04`. Use `scripts/consolidate_evaluations.py --restore ORIGINAL_PATH` when a legacy script needs an archived input. Model weights and the recorded classifier headline 270/284 are unchanged.
 
 # Flight Right — Full Project Context for Claude Code
@@ -6472,3 +6476,87 @@ Archit asked whether the 29 remaining uncommitted paths were needed for the late
 Fixed the live-radio document's link to the chain-check report so it points to its preserved evidence in the consolidated clearance-extractor ledger. Included the old metrics-file deletion omitted from the cleanup commit; its original contents remain in the model ledgers and preservation checkpoint. No credentials, installed dependencies, generated frontend assets or ignored model binaries are included. No new model deployment or operating-threshold change is made by this integration.
 
 Validation: all 81 Python tests passed, all seven Node radio/audio-worklet tests passed, and the frontend production build passed. Logged exception traces in the Python suite are expected simulated failure cases. The frontend build required running outside sandbox filesystem restrictions; no source/configuration change was needed to resolve that restriction. Browser/receiver hardware interaction was not re-tested in this publication pass. Existing recorded classifier early catches remain 270/284 (95.07%); no new benchmark is claimed. Commit/push uses Archit's configured Git identity with no co-author attribution, as requested.
+
+### 10 November 2026 - Speech tuning with protected comparison data
+
+Archit requested further speech-model training and allowed research and additional data.
+`ml_pipeline/voice/train_whisper.py` previously dropped incomplete final groups of audio,
+used an assumed position when resuming, omitted saved random/scaling state, and always
+preferred a trained checkpoint even if the initial one was better. It now processes
+the final group, records the exact position, saves those states, forwards audio-loading
+errors, and retains the starting model as an eligible best result. Its synthetic-voice
+score no longer chooses the winning real-radio checkpoint. `export_whisper.py` accepts
+isolated output folders and refuses to overwrite an existing export.
+
+Added `scripts/experiment_voice_tuning.py`, four focused checks in
+`ml_pipeline/tests/test_voice_training.py`, and the plain-language study description
+`docs/experiments/voice_tuning_20261110.md`. The script compares real-radio continuation
+with an Indian-accent practice mixture, selects using real validation recordings, then
+tests only the selected result. The exact rules and input fingerprints are frozen in
+`ml_pipeline/reports/voice_tuning_20261110/protocol.json`. The checks pass. Training has
+started; results will be recorded after completion. No accuracy improvement is claimed
+at this point. The sources and our own design choices are distinguished in the report.
+The existing model and conflict thresholds remain installed. Recorded conflict early
+catches remain 270/284 (95.1%), not remeasured. All work remains local and uncommitted.
+
+
+### 10 November 2026 - Completed speech continuation study and exported candidate
+
+Archit requested proper speech-model tuning, permitted research and extra data, and asked for a beginner-friendly explanation. Completed two 300-update training runs and one uniform weight-average candidate. The full validation comparison chose uniform_soup3 at 11.92% / 10.41% word error, against the original's 12.10% / 10.64%, before any new final-test inference. The averaging candidate was added in a documented validation-only amendment; selection rules stayed fixed.
+
+Files: ml_pipeline/voice/train_whisper.py fixes skipped final groups, saved progress and initial-checkpoint retention; ml_pipeline/voice/export_whisper.py isolates exports; ml_pipeline/voice/blend_whisper.py averages aligned weights without changing originals; ml_pipeline/voice/transcribe.py loads ready runtime folders directly. scripts/experiment_voice_tuning.py runs the study, scripts/audit_voice_data.py checks audio separation, scripts/report_voice_uncertainty.py estimates sampling uncertainty, and ml_pipeline/tests/test_voice_training.py provides nine focused checks. All 90 Python tests pass. Study-specific diagnostic/finalization code, exact outputs and input/source/model fingerprints are preserved in ml_pipeline/reports/voice_tuning_20261110/.
+
+Before this work, unused Indian-accent practice recordings were available, and the trainer could skip incomplete groups and choose a worse trained model over its starting point. It now preserves the data cursor and random/scaling state, processes those groups, forwards loading failures and keeps the starting checkpoint eligible. The audio audit found 34,944 distinct usable waveforms with no exact cross-split duplicates. No training/validation target exceeded the token limit. A fresh 256-recording baseline control matched old transcripts and confidence values exactly. Speed alternatives were tested and rejected; official decoding stayed fixed.
+
+Final test, 12,053 recordings: Separate real-radio collection (ATCO2 clean): 28.29% -> 27.95%; Simulation recordings, separate speakers (ATCOSIM): 4.88% -> 4.8%; Separate radio recordings (UWB): 15.11% -> 15.33%; Everyday Indian English (Svarah; not radio): 33.17% -> 31.46%. Complete instructions 20/31 -> 21/31. These are small, mixed changes, not a universal improvement. Generated practice voices improved from 24.62% to 16.60% word error on 416 held-out generated calls; that does not measure real Indian controllers. The historical test has been inspected before, and the simulation corpus has only three test speakers. The uncertainty file records paired resampling estimates rather than claiming guaranteed future gains.
+
+The new candidate was exported in full and runtime formats, then loaded directly to reproduce a validation transcript. Its model card and exact file fingerprints identify what to use. docs/experiments/voice_tuning_20261110.md and docs/evaluations/asr_small_atc_20261110.md record the study; the original speech ledger links it without rewriting historical evidence. The application's original model stays configured because results are mixed. No alert threshold, classifier or trajectory weights changed. Recorded early conflict catches remain 270/284 (95.1%), not remeasured. All changes and new weights remain local and uncommitted.
+
+
+### 10 November 2026 - Add the shared agent editing-rules file
+
+Archit requested one project rules file that every agent must refer to, initially covering maintenance of the consolidated evaluation/report files and serving as the home for future user-requested rules. Created root AGENTS.md, added an explicit read-before-every-task requirement and a future-rule update process, imported/linked it from root CLAUDE.md, and added README/context pointers. The evaluation rules specify canonical per-model histories, the one current comparison, reproducible configurations/results/provenance, honest metric interpretation, preservation before cleanup, checksum-pinned shared inputs, tool compatibility checks and appropriate validation. No evaluation measurements, weights, deployment settings or headline scores changed or were remeasured. Existing speech-tuning work was preserved. Only documentation references/links were checked for this task; no model training or evaluation was needed. These rule-file changes are local and uncommitted.
+
+
+### 11 November 2026 - Clarify append-only evaluation reports
+
+Archit clarified that preserving old source reports before deleting them was specific to the initial history consolidation. Updated AGENTS.md accordingly: the consolidated per-model reports and cross-model evaluation file are append-only. Keep existing experiments, numbers, tables, explanations and evidence; append dated new experiments/results or explicit correction notes without changing the original entries. Identify superseding/current results through additions rather than deleting prior comparisons. No recurring backup, archive, commit or report deletion is required before a routine addition. Tooling that rewrites or drops existing report content must be adapted before use. Model/data cleanup authorization does not permit removal of report history. Only the rules and this change log were edited; existing evaluation reports, model weights and in-progress speech work were left intact. No metrics were remeasured.
+
+
+### 11 November 2026 - Activate selected speech model and consolidate its study
+
+Archit requested using the latest selected speech model, adding all experiments/results to the existing speech evaluation history and latest comparison, and deleting the newly created standalone reports. Re-read AGENTS.md after the append-only rule clarification. Corrected the older publisher to append dated comparisons and lossless evidence capsules, retain all earlier content, reject changed historical evidence and avoid repeated updates when nothing changes. Recovered the known pre-publication history before appending this study; both canonical report prefixes remain byte-for-byte intact. All historical measured values remain unchanged.
+
+server/app/config.py now defaults to the complete uniform_soup3 CTranslate2 runtime, with the previous P1 model as fallback and explicit environment overrides retained. The actual GPU SpeechService loaded the configured model and matched two evaluated validation transcripts. No persistent backend process was found or restarted. docs/evaluations/asr_small_atc_p1.md now contains the complete continuation/accent/blending study, hyperparameters, validation selection, rejected trials, test scores, uncertainty, limitations, source and artifact hashes, and exact original report bytes. docs/evaluation.md appends the latest speech comparison. The model README points to those canonical files. Updated report consumers to read preserved evidence without recreating removed reports.
+
+Verified 95 Python tests, append-only/idempotent publication, all 288 unique evidence records and all 11 model artifact fingerprints. Removed exactly 63 verified standalone report/source-cache files (481,455 bytes) under the user's separate cleanup authorization; model weights, original datasets and prediction caches remain. Post-cleanup study and uncertainty commands both exited successfully and did not recreate reports; git diff --check passed. Results remain small and mixed: ATCO2 word errors 28.29% to 27.95%, ATCOSIM 4.88% to 4.80%, UWB worsened 15.11% to 15.33%, everyday Indian English 33.17% to 31.46%; complete instructions 20/31 to 21/31. These are the recorded 10 November measurements, not a new evaluation today. Conflict thresholds/weights, trajectory weights and recorded classifier catches 270/284 (95.1%) are unchanged. All work remains local and uncommitted.
+
+
+### 11 November 2026 - Separate latest-best summary from complete model histories
+
+Archit corrected the reporting rule again. This clarification supersedes the earlier blanket append-only policy: docs/evaluation.md keeps only each model's latest best supported numbers and how they were achieved, so superseded summary figures/history may be replaced or removed there. Individual docs/evaluations/<model>.md files retain every experiment and its numbers, with no experiment entries deleted. Only when the same recorded experiment produces verified better results on a comparable basis may its existing numbers and associated date/artifact/evidence references be updated; retain the entry, other experiments and original raw evidence. Different configurations/datasets/experiments receive separate entries, and worse/incomparable reruns must not replace better results. Updated AGENTS.md throughout to remove the conflicting blanket append-only wording and align publication/verification rules. Only the rules and this change log were edited; current evaluation files, tooling, model weights and unrelated speech work were not rewritten or remeasured.
+
+
+### 11 November 2026 - Apply latest-summary reporting rules to publication
+
+Re-read the revised AGENTS.md at Archit's request. Updated scripts/consolidate_evaluations.py so docs/evaluation.md is replaced with one current comparison instead of accumulating dated comparisons. It shows the validation-selected uniform_soup3 checkpoint across all speech corpora, retains measurement dates and uncertainty/contamination limits, and links earlier speech results to the existing model ledger. Superseded served LSTM/multi-path score rows were removed from the summary; their experiments remain in individual histories, while selected candidates are explicitly undeployed. Current served-model status remains stated. Individual model histories and raw evidence remain intact; there was no same-experiment improved rerun requiring a result update. Appended a reporting-policy verification entry and exact test output to the existing speech ledger.
+
+Five affected tests passed, covering summary replacement/idempotence, selected checkpoint consistency, exact archive reads, deployment fallback and retained/rejected history changes. Verified all pre-existing ledger bytes and 288 evidence records unchanged before appending this verification. Model/evidence checksum verification passed afterward. No retraining, new inference, score changes, deployment changes, additional deletion, commit or push. The previous 95-test run is historical; only the five affected tests were rerun for this reporting change.
+
+
+### 11 November 2026 - Explain the current demo from the controller perspective
+
+Archit asked whether a complete, beginner-friendly live-demo guide existed and requested updating it if so. Expanded the existing README rather than creating a competing guide. It now covers source/time checks, the screen, controller actions from startup through audit review, a controller flowchart, backend processing, live radio and sample recordings, typed intent, manual-task coverage and failure cases. Corrected older claims about fixed replay selection, old radio buttons/transcripts, the speech default, selected-flight predictions, option preselection and the scope of the AI assist switch. Linked the implementation and existing radio/evaluation histories; removed obsolete documentation-map targets.
+
+Verified against frontend actions, API routes, service logic, alert gates and configuration. Markdown local targets/anchors, code fences and whitespace were checked. The local backend health URL was unreachable; no running browser demo, receiver capture, training, model evaluation or latency measurement was performed. Only README and this context document were edited for this task; pre-existing work was preserved. No evaluation files, weights, thresholds, deployment or recorded headline changed: classifier early catches remain the recorded 270/284 (95.1%), not remeasured. No commit or push.
+
+
+### 11 November 2026 - Start live monitoring and audit API data paths
+
+Archit requested live mode, asked about live radio, and requested checking all APIs and fixing issues. Restarted the backend outside network-restricted execution after WinError 10013 blocked OpenSky; frontend remains at 127.0.0.1:5173, backend at 127.0.0.1:8000, PostgreSQL at port 5433. OpenSky then suffered repeated connection/read timeouts and one connection reset. Independent upstream checks confirmed adsb.lol, aviationweather.gov and adsbdb were reachable while OpenSky was not. OpenSky subsequently recovered without changing credentials, provider, model weights or alert rules; repeated live updates returned 22-24 aircraft. Live mode remains selected, without a replay fallback. Availability still depends on these external providers.
+
+Fixed one API bug in server/app/api/routes.py: when explicitly live surveillance has no source during an outage, /api/airport now requests live weather rather than taking the archive path. Auto with no source uses live weather; actual replay fallback still uses historical weather. Added ml_pipeline/tests/test_api_contracts.py for this regression plus isolated mode/action/audit/clearance/refresh/trajectory/resolution/validation contracts. All 19 API/radio tests passed, including seven existing radio HTTP/VAD checks. The recognition-failure traceback in that suite is an expected mocked failure. These are API contracts, not a new model accuracy or latency evaluation.
+
+Checked the running read endpoints, source/health payloads, PostgreSQL store, all five sample WAV downloads, expected missing-aircraft/pair responses and two advancing WebSocket frames. Write operations were checked with mocked services rather than inserting fake controller decisions or clearances into the running session. After restart, live METAR came from aviationweather.gov with no error and four runway ends loaded. Speech loaded on CUDA with no error. A live IGO1427 history reached ten reports and its trajectory endpoint returned ready with five points at 0/60/180/300/600 seconds. The live conflict service subsequently assessed eight pairs across twelve eligible aircraft; no alert in that snapshot is evidence only of the current assessment, not a measured accuracy score. One earlier snapshot had routes for 10/24 and types for 18/24 aircraft; absent upstream/cache metadata remains unknown.
+
+Live radio support is installed, but there is no bundled live radio stream or automatic audio acquisition from OpenSky. A receiver/line-in/virtual cable or user-shared browser audio is required; physical capture and receiver/channel availability were not verified. No fresh radio accuracy result is claimed. Only API routing, API regression tests and this context entry changed for this audit; pre-existing work was preserved. No evaluation file, model, preprocessing, decoder, threshold or recorded headline was changed: classifier early catches remain the recorded 270/284 (95.1%), not remeasured. No commit or push.

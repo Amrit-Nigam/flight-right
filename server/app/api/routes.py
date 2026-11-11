@@ -341,7 +341,11 @@ def airport():
     aviationweather.gov; replay: the archived report), runway in use and movements derived
     from the tracks, and upcoming arrivals with estimated times. See airport_service.py."""
     snapshot = aircraft_service.snapshot()
-    return {"ok": True, **airport_service.summary(snapshot["flights"], snapshot["source"],
+    # Surveillance outages must not change explicitly live weather into archived
+    # weather. Auto mode still follows a real replay fallback when one is active.
+    weather_source = ("live" if snapshot["source"] == "none"
+                      and snapshot.get("mode") in ("live", "auto") else snapshot["source"])
+    return {"ok": True, **airport_service.summary(snapshot["flights"], weather_source,
                                                   aircraft_service.data_time(), aircraft_info.destination)}
 
 

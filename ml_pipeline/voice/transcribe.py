@@ -49,6 +49,13 @@ def _slug(model_id: str) -> str:
 
 def ct2_path(model_id: str, quantisation: str) -> Path:
     """Convert a Hugging Face Whisper checkpoint to CTranslate2, once."""
+    supplied = Path(model_id)
+    if (supplied / "model.bin").is_file():
+        required = ("config.json", "tokenizer.json", "preprocessor_config.json")
+        missing = [name for name in required if not (supplied / name).is_file()]
+        if missing:
+            raise RuntimeError(f"Incomplete runtime model at {supplied}: missing {missing}")
+        return supplied.resolve()
     out = CT2_DIR / f"{_slug(model_id)}__{quantisation}"
     if (out / "model.bin").exists():
         return out

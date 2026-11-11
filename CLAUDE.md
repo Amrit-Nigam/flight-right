@@ -1,6 +1,11 @@
 # Flight Right — project instructions
 
-The full instructions live in **[docs/CLAUDE.md](docs/CLAUDE.md)**. This file exists only
+Read **[AGENTS.md](AGENTS.md)** before every task. It contains the shared editing
+rules for all agents, including evaluation/report maintenance and future rule updates.
+
+@AGENTS.md
+
+The detailed project context lives in **[docs/CLAUDE.md](docs/CLAUDE.md)**. This file exists
 so they load automatically: Claude Code reads `CLAUDE.md` from the repository root and does
 not look inside `docs/`.
 
