@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import ssl
 import time
 import urllib.parse
@@ -62,12 +63,23 @@ def airports() -> dict[str, tuple[float, float]]:
     return out
 
 
+@lru_cache(maxsize=1)
+def _shared_routes(path: str) -> dict:
+    """Immutable demo cache; local per-callsign updates can still take precedence."""
+    return json.loads(Path(path).read_text(encoding="utf-8"))["routes"]
+
+
 def route(callsign: str, fetch: bool = False) -> tuple[str | None, str | None]:
     """(origin, destination) ICAO codes for a callsign, from the cache; optionally fetch once."""
     callsign = str(callsign or "").strip().upper()
     if not callsign:
         return None, None
     path = ROUTES / "adsbdb" / f"{callsign}.json"
+    shared = os.environ.get("FLIGHT_RIGHT_ROUTE_CACHE")
+    if not path.exists() and shared:
+        answer = _shared_routes(shared).get(callsign)
+        if answer is not None:
+            return answer.get("origin"), answer.get("destination")
     if not path.exists() and fetch:
         wait = 0.5 - (time.monotonic() - _last_fetch[0])
         if wait > 0:

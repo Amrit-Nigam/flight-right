@@ -54,10 +54,8 @@ sys.path.insert(0, str(ROOT))
 from ml_pipeline.voice.text_norm import normalise  # noqa: E402
 
 HF = Path(os.environ.get("HF_HOME", Path.home() / ".cache/huggingface")) / "hub"
-CACHE = Path(os.environ.get("FLIGHT_RIGHT_VOICE_CACHE",
-                            Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FlightRight/voice"))
+from ml_pipeline.voice.runtime_paths import CACHE, SR
 REPORTS = ROOT / "ml_pipeline/reports"
-SR = 16_000
 MAX_SECONDS = 30.0
 
 ATCOSIM_TEST = {"sm3", "zf3", "gm2"}

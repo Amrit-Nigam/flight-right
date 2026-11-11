@@ -1,0 +1,38 @@
+[
+  {
+    "id": "synthetic_fdb1346_turn",
+    "synthetic": true,
+    "label": "FDB1346 \u2014 sky dubai one three four six turn right heading three one zero",
+    "source": "Synthetic Indian-accented voice (Indic Parler-TTS, speaker Mary, AI4Bharat) through a simulated radio channel. Real callsign from the replayed recording; demo only, never used in a reported number.",
+    "truth": {
+      "callsign": "FDB1346",
+      "action": "TURN",
+      "value": 310.0
+    },
+    "transcripts": {}
+  },
+  {
+    "id": "synthetic_igo086_descend",
+    "synthetic": true,
+    "label": "IGO086 \u2014 ifly zero eight six descend flight level three three zero",
+    "source": "Synthetic Indian-accented voice (Indic Parler-TTS, speaker Chingkhei, AI4Bharat) through a simulated radio channel. Real callsign from the replayed recording; demo only, never used in a reported number.",
+    "truth": {
+      "callsign": "IGO086",
+      "action": "DESCEND",
+      "value": 33000.0
+    },
+    "transcripts": {}
+  },
+  {
+    "id": "synthetic_igo086_readback",
+    "synthetic": true,
+    "label": "IGO086 \u2014 descending flight level three three zero ifly zero eight six",
+    "source": "Synthetic Indian-accented voice (Indic Parler-TTS, speaker Priya, AI4Bharat) through a simulated radio channel. Real callsign from the replayed recording; demo only, never used in a reported number.",
+    "truth": {
+      "callsign": "IGO086",
+      "action": "DESCEND",
+      "value": 33000.0
+    },
+    "transcripts": {}
+  }
+]

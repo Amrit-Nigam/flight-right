@@ -5,3 +5,14 @@ ml_pipeline/reports/conflict_false_alerts_*/source_snapshot.txt -text
 ml_pipeline/reports/conflict_refinement_*/source_snapshot.txt -text
 ml_pipeline/reports/path_confidence_*/source_snapshot.txt -text
 ml_pipeline/reports/path_confidence_*/archived_source/** -text
+
+# Pretrained runtime models. Never commit training checkpoints or secrets wholesale.
+demo/** -text
+ml_pipeline/data/routes/** -text
+ml_pipeline/data/weather/metar_VABB.csv -text
+server/app/ml/saved_models/* -text
+checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/** -text
+server/app/ml/saved_models/trajectory_residual.pt filter=lfs diff=lfs merge=lfs -text
+server/app/ml/saved_models/trajectory_multipath.pkl filter=lfs diff=lfs merge=lfs -text
+server/app/ml/saved_models/xgboost_conflict.json filter=lfs diff=lfs merge=lfs -text
+checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin filter=lfs diff=lfs merge=lfs -text

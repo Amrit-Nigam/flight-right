@@ -20,15 +20,18 @@ that was data. Now:
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
+from pathlib import Path
 
 from ..config import PROJECT_ROOT
 from .airport_service import ARP, bearing_deg, distance_nm
 
 log = logging.getLogger("flightright.aircraft_info")
 
-RECORDED_INFO = PROJECT_ROOT / "ml_pipeline" / "data" / "adsblol" / "aircraft_info.parquet"
+RECORDED_INFO = Path(os.environ.get("FLIGHT_RIGHT_AIRCRAFT_INFO",
+                                  PROJECT_ROOT / "ml_pipeline/data/adsblol/aircraft_info.parquet"))
 
 
 class AircraftInfo:

@@ -3763,6 +3763,44 @@
       "status": "inline_only",
       "preservation": "Exact focused test output recorded directly in existing ledger",
       "replacement": "docs/evaluations/asr_small_atc_p1.md#source-register"
+    },
+    {
+      "path": "demo/verification.json",
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1"
+      ],
+      "sha256": "ceaa9c986f60695746523d095f268717280caa5aeaed384037731868f03280f9",
+      "bytes": 10621,
+      "cleanup": false,
+      "status": "retained_runtime_smoke_evidence"
+    },
+    {
+      "path": "demo/history/manifest_20261111_per_callsign.json",
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1"
+      ],
+      "sha256": "2498a89ed982b1374bfa71acb0efcb2a1b92ff7931948b9cbb283d68af2ba663",
+      "bytes": 24042,
+      "cleanup": false,
+      "status": "inline_only",
+      "preservation": "Exact original demo manifest archived before cache-layout change"
+    },
+    {
+      "path": "demo/audit_20261111.json",
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1",
+        "multipath",
+        "conflict_classifier",
+        "trajectory_lstm"
+      ],
+      "sha256": "7474b8664802002967b21952d3ffb0b30b42b2cab59db1188b322ecbc661f7a5",
+      "bytes": 3300,
+      "cleanup": false,
+      "status": "retained",
+      "preservation": "Exact evidence also retained inline in model ledgers"
     }
   ],
   "retained_context": [
@@ -3841,11 +3879,11 @@
     }
   ],
   "verification": {
-    "unique_evidence_files": 289,
+    "unique_evidence_files": 292,
     "binary_metric_identities_checked": 2295,
     "ledger_count": 18,
     "sha256_round_trip": "passed",
-    "verified_utc": "2026-11-11T14:30:55.044955+00:00"
+    "verified_utc": "2026-11-11T18:09:34.476442+00:00"
   },
   "cleanup_verified_utc": "2026-11-09T14:45:06.306202+00:00",
   "retained_model_artifacts": [
@@ -4513,6 +4551,41 @@
       "removed_bytes": 481455,
       "authorization": "11 November user request; exact inline ledger preservation verified before deletion",
       "weights_and_original_datasets_removed": false
+    },
+    {
+      "iteration": "pretrained_demo_portability_20261111",
+      "authorization": "User requested deletion of only newly downloaded test environment/files after testing; existing files must remain.",
+      "removed_directories": [
+        {
+          "path": ".venv-demo",
+          "bytes": 1352112939,
+          "removed": true
+        },
+        {
+          "path": "checkpoints\\demo_checkout_test",
+          "bytes": 708863706,
+          "removed": true
+        },
+        {
+          "path": "demo\\.runtime",
+          "bytes": 372524739,
+          "removed": true
+        }
+      ],
+      "removed_bytes": 2433501384,
+      "weights_and_original_datasets_removed": false,
+      "original_venv_removed": false,
+      "evidence": "demo/temporary_cleanup.json",
+      "evidence_sha256": "bfc3df1978bff6318f579c07490aacb55d2f038e8fc55086027fe486830f08b7"
     }
-  ]
+  ],
+  "portable_demo_bundle": {
+    "manifest": "demo/manifest.json",
+    "manifest_sha256": "50e9ccf7abfc730d0e1840929ef8d07376bd0c4e62246b45777905eb1d23c8b9",
+    "provenance": "demo/provenance.json",
+    "model_bytes_changed": false,
+    "api_keys_included": false,
+    "git_lfs_upload": "Authorized by user for this delivery; Git pre-push verifies upload",
+    "historical_manifest": "demo/history/manifest_20261111_per_callsign.json"
+  }
 }

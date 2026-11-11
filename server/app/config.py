@@ -15,7 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
-RAW_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "raw"
+RAW_DIRECTORY = Path(os.environ.get("FLIGHT_RIGHT_REPLAY_DIR", DATA_ROOT / "ml_pipeline" / "data" / "raw"))
 AUDIT_DATABASE = Path(os.environ.get("FLIGHT_RIGHT_AUDIT_DB", DATA_ROOT / "server" / "audit.sqlite3"))
 
 # PostgreSQL connection string, written into .env by scripts/postgres.py. When it is set

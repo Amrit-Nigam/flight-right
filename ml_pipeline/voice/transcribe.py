@@ -30,7 +30,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from ml_pipeline.voice.build_audio_cache import CACHE, SR  # noqa: E402
+from ml_pipeline.voice.runtime_paths import CACHE, SR  # noqa: E402
 
 CT2_DIR = CACHE / "ct2"
 TRANSCRIPTS = CACHE / "transcripts"

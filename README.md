@@ -1,5 +1,49 @@
 # Flight Right
 
+**Run the pretrained demo after cloning (no training required):**
+
+```powershell
+git clone --branch fine-tuning https://github.com/Amrit-Nigam/flight-right.git
+cd flight-right
+py -3.13 start.py
+```
+
+On Windows you can also double-click **start_demo.bat**. Install **Python 3.13**,
+**Node.js 22 LTS or newer**, and **Git with Git LFS** first. The launcher downloads
+missing LFS model files, installs/checks pinned Python dependencies and frontend
+dependencies, then starts both servers. First setup needs internet and downloads
+about 376 MiB of demo/model assets plus dependencies. No GPU is required.
+
+Open **http://127.0.0.1:5173**. Leave the terminal open; **Ctrl+C stops both servers**.
+The default is a shareable **recorded adsb.lol replay**, with the same pretrained
+models. It is not a live feed and may show a different encounter from the older
+OpenSky recording. Samples at `/radio` are labelled synthetic and run real speech
+recognition unless you explicitly choose a cached result. No training is started.
+The offline flight-route lookup records are bundled in one `demo/context/routes.json`
+file, rather than hundreds of per-flight files.
+
+**For live aircraft:** copy `.env.example` to `.env`, enter your own
+`OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET`, then run:
+
+```powershell
+py -3.13 start.py --mode live
+```
+
+Never commit `.env`; no API keys are supplied. Provider access/availability still
+applies. Live radio additionally needs your own audio source. Map tiles need internet;
+**RADAR SWEEP** uses local drawing if the map is unavailable. The easy launcher uses
+local **SQLite**, not PostgreSQL's stronger database-enforced append-only protection.
+The speech bundle is for **non-commercial research/education**; attribution and data
+terms are in [demo/THIRD_PARTY.md](demo/THIRD_PARTY.md).
+
+Useful options: `--check` installs/verifies setup without starting servers,
+`--no-browser` leaves the browser closed, `--no-install` only uses installed files.
+An existing compatible environment can use `--use-current-python`; otherwise the
+launcher creates `.venv-demo` and does not alter your other Python environments.
+On macOS/Linux use `python3.13 start.py`; the packaged runtime is tested on Windows,
+and Python/Node/Git LFS must already be installed. `git pull` updates the code; rerun
+the launcher to check any changed dependencies and pretrained assets.
+
 Agents contributing to this repository must read [AGENTS.md](AGENTS.md) before every
 task. It is the maintained home for project-editing rules, including evaluation and
 report updates.
@@ -351,7 +395,7 @@ replay does not substitute pre-written alert cards. Read the source bar before p
 
 | Mode | What appears | What to expect |
 |---|---|---|
-| **replay** | Real recorded aircraft reports | Default for `scripts/start_demo.ps1`. The loader selects the local recording with the newest modification time, not a hard-coded date/pair, and seeks near an encounter by default. Aircraft follow the recording regardless of clicks |
+| **replay** | Real recorded aircraft reports | Default for `start.py`, using the included adsb.lol recording. Within the configured replay directory the loader selects the newest local recording and seeks near an encounter. Aircraft follow the recording regardless of clicks |
 | **live** | Current Mumbai-region reports from OpenSky | Needs credentials, internet and available feed credits. Explicit live mode reports feed failure without switching to replay. A conflict might never appear during a short demo |
 | **auto** | Live when available, otherwise replay | Backend default without a mode override. Falls back when no live aircraft are obtained, including feed errors/credit limits. Read the actual source label |
 
@@ -362,16 +406,18 @@ speed/seek settings and the chosen recording can change which encounter appears 
 
 ### Start and check the session
 
-For this already installed Windows checkout, run from the repository root:
+From the repository root, use the pretrained launcher:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start_demo.ps1
+py -3.13 start.py
 ```
 
-The existing helper starts PostgreSQL, restarts this project's backend on port 8000 in
-replay mode, starts the frontend if needed, opens <http://localhost:5173>, and rotates the
-model trace. Restarting clears in-memory conversation and active instructions; do it
-before presenting. The helper also accepts `-Mode live` or `-Mode auto`.
+It checks dependencies and pretrained assets, starts the backend on port 8000 and frontend
+on port 5173, and opens the dashboard. It uses the shareable replay and local SQLite.
+Restarting clears in-memory conversation and active instructions; do it before presenting.
+Use `--mode live` or `--mode auto` with your own `.env` credentials. The older
+`scripts/start_demo.ps1` is a maintainer helper for an existing PostgreSQL/private-data
+installation; it is not the fresh-clone setup command.
 
 The dashboard opens directly. This prototype has no controller login or shift-handover
 workflow. The displayed controller identity is the server's configured audit identity,
@@ -588,7 +634,13 @@ and distinguish classifier results from full-system results.
 
 ## Running it
 
-Use the helper above, or separate PowerShell terminals from the repository root:
+For a fresh clone, use `py -3.13 start.py` as described at the top of this README.
+The pretrained models are tracked with Git LFS; the public demo inputs are included.
+No retraining or separate release download is required. The launcher sets all demo
+paths, installs missing dependencies, and runs CPU speech recognition.
+
+The manual commands below are for a maintainer's existing local environment with its
+own original replay data and database. They do not configure the shared demo paths:
 
 ```powershell
 # Terminal 1: database, then backend
@@ -604,8 +656,8 @@ npm.cmd run dev
 ```
 
 Open <http://localhost:5173>. Interactive API docs are at <http://127.0.0.1:8000/docs>.
-A first-time machine also needs a Python virtual environment, Node, dependencies and
-local model/recording artifacts. Cloning Git does not supply ignored weights and datasets.
+Full training corpora and historical candidate/backup weights remain ignored. Only the
+served pretrained files and required shareable demo inputs are supplied with this branch.
 
 ```powershell
 # First-time dependencies, after creating venv
@@ -618,8 +670,9 @@ venv\Scripts\python.exe scripts/postgres.py verify
 ```
 
 `server/app/config.py` defines defaults/environment overrides. Backend models are in
-`server/app/ml/saved_models/`; replay files in `ml_pipeline/data/raw/` unless the data
-root is overridden. Speech paths are described above. PostgreSQL uses
+`server/app/ml/saved_models/`; the launcher selects `demo/replay/`, `demo/context/`,
+`demo/voice/` and `demo/clips/` for the included inputs. Manual backend startup defaults
+to `ml_pipeline/data/raw/` unless `FLIGHT_RIGHT_REPLAY_DIR` is set. Speech paths are described above. PostgreSQL uses
 `%LOCALAPPDATA%/FlightRight/`; SQLite defaults to `server/audit.sqlite3`.
 `server/logs/model_trace.log` records model steps and `server/logs/backend.log` service
 activity. Keep credentials out of documentation. Training is separate from demo operation;
@@ -715,7 +768,7 @@ server/app/                      FastAPI backend
   services/                       OpenSky client, replay, aircraft, conflicts, intent (adsb.lol),
                                   clearances, speech, database
   ml/inference.py                 loads every model; assess_pair() runs the full chain
-  ml/saved_models/                trained model files (gitignored)
+  ml/saved_models/                served pretrained models (Git LFS); backups ignored
 ml_pipeline/
   ingestion/                      OpenSky collection scripts (credit-aware, checkpointed)
   training/trajectory/            preprocessing, Model 1, Model 1b, evaluation, tree benchmark

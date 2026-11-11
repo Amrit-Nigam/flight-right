@@ -748,3 +748,35 @@ Machine-readable JSON envelope. `content` is exact UTF-8 text or base64 bytes; n
   ]
 }
 ```
+
+
+## Pretrained demo portability check - 11 November 2026
+
+The existing served artifact was included unchanged in the pretrained demo bundle.
+The CPU-only clean-environment packaging check, input provenance, artifact/code hashes,
+unsuccessful attempts, acceptance checks and limitations are recorded in
+[the full alert-chain ledger](full_alert_chain.md#pretrained-demo-portability-check---11-november-2026)
+and `demo/verification.json`. No training, model selection or accuracy/latency
+measurement occurred; this does not replace any historical result. The residual
+LSTM was loaded, not separately scored. Commit/push awaits user instruction.
+
+
+## Repository delivery cleanup — 11 November 2026
+
+Packaging check, not a new model benchmark. Consolidated 108 route records into one bundled cache; all original records and destination-feature arrays match. All 24 asset hashes passed. The same served artifacts loaded; no weights, preprocessing formulas, thresholds, model selection or measured headline changed. 119 Python and seven radio tests passed; frontend build and npm ci passed; npm audit reports zero vulnerabilities. Eleven existing React lint errors and eight warnings remain; browser visual verification was unavailable. Seeds, training hyperparameters and new accuracy/latency measurements: not applicable/not run. Exact evidence follows. Original experiment entries and raw evidence are preserved.
+
+<!-- evaluation-evidence-v1 -->
+```json
+{
+  "model": "conflict_classifier",
+  "records": [
+    {
+      "path": "demo/audit_20261111.json",
+      "sha256": "7474b8664802002967b21952d3ffb0b30b42b2cab59db1188b322ecbc661f7a5",
+      "bytes": 3300,
+      "encoding": "utf-8",
+      "content": "{\r\n  \"id\": \"repository_delivery_cleanup_20261111\",\r\n  \"checked_utc\": \"2026-11-11T18:09:28.392021+00:00\",\r\n  \"source_version\": \"67a236d plus the delivery changes in this commit\",\r\n  \"purpose\": \"Packaging, dependency and source cleanup; no training or accuracy evaluation\",\r\n  \"scope\": \"Filesystem inventory of 82506 files excluding Git internals; owned source/configuration and deliverable audit. Third-party dependency source was not reviewed line by line.\",\r\n  \"manifest\": {\r\n    \"path\": \"demo/manifest.json\",\r\n    \"sha256\": \"50e9ccf7abfc730d0e1840929ef8d07376bd0c4e62246b45777905eb1d23c8b9\",\r\n    \"files_verified\": 24\r\n  },\r\n  \"route_cache\": {\r\n    \"original_files\": 108,\r\n    \"bundled_files\": 1,\r\n    \"records_identical\": true,\r\n    \"destination_feature_arrays_identical\": true,\r\n    \"unknown_routes_preserved\": true,\r\n    \"local_originals_preserved\": true\r\n  },\r\n  \"checks\": {\r\n    \"python_tests_passed\": 119,\r\n    \"node_radio_tests_passed\": 7,\r\n    \"frontend_build\": \"passed; large MapLibre chunk warning remains\",\r\n    \"npm_ci\": \"passed\",\r\n    \"npm_audit\": {\r\n      \"info\": 0,\r\n      \"low\": 0,\r\n      \"moderate\": 0,\r\n      \"high\": 0,\r\n      \"critical\": 0,\r\n      \"total\": 0\r\n    },\r\n    \"http_frontend\": 200,\r\n    \"http_health\": 200,\r\n    \"all_core_models_loaded\": true,\r\n    \"speech_cpu_loaded\": true,\r\n    \"browser_visual\": \"not run: browser access host unavailable\"\r\n  },\r\n  \"lint\": {\r\n    \"errors\": 11,\r\n    \"warnings\": 8,\r\n    \"remaining_rules\": {\r\n      \"react-hooks/set-state-in-effect\": 7,\r\n      \"react-hooks/exhaustive-deps\": 8,\r\n      \"react-hooks/refs\": 1,\r\n      \"react-hooks/purity\": 2,\r\n      \"react-hooks/immutability\": 1\r\n    },\r\n    \"limitation\": \"Existing React effect/ref/purity and dependency findings remain. No controller state-flow rewrite or lint-rule suppression was included in this packaging cleanup.\"\r\n  },\r\n  \"corrections\": [\r\n    \"Removed unused package named -\",\r\n    \"Updated vulnerable dependency lock entries and MapLibre to 6.17.0\",\r\n    \"Adapted MapLibre namespace import after production build caught removed default export\",\r\n    \"Installed missing React lint plugin; detected actual React version and Node config globals\",\r\n    \"Removed redundant audio-worklet globals and unused import; escaped JSX text\"\r\n  ],\r\n  \"failed_attempts\": [\r\n    \"Initial build blocked by sandbox; reran with approved permissions\",\r\n    \"First MapLibre 6 build failed on obsolete default import; fixed and rebuilt\",\r\n    \"One Node test command used an incorrect filename; reran actual radioSegmenter.test.js successfully\"\r\n  ],\r\n  \"baseline\": \"Same served weights and thresholds; no model content changes\",\r\n  \"accuracy\": \"not measured\",\r\n  \"latency\": \"not measured\",\r\n  \"selection\": \"not applicable; packaging pass/fail only\",\r\n  \"datasets\": \"Existing 5548-report / 98-aircraft shareable replay; demo/provenance.json unchanged\",\r\n  \"original_portability_evidence\": \"demo/verification.json; its original 131-file manifest is preserved as demo/history/manifest_20261111_per_callsign.json in the model-ledger evidence capsules\",\r\n  \"preserved\": [\r\n    \"Original venv\",\r\n    \"Private .env and secrets\",\r\n    \"Served and selected model weights\",\r\n    \"Original datasets\",\r\n    \"Every model experiment history\"\r\n  ],\r\n  \"prior_temporary_cleanup\": \"demo/temporary_cleanup.json\"\r\n}\r\n"
+    }
+  ]
+}
+```

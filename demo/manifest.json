@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "speech_runtime": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16",
+  "replay_directory": "demo/replay",
+  "files": [
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md",
+      "bytes": 431,
+      "sha256": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b"
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/config.json",
+      "bytes": 2609,
+      "sha256": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8"
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin",
+      "bytes": 244612629,
+      "sha256": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1"
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/preprocessor_config.json",
+      "bytes": 329,
+      "sha256": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef"
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/tokenizer.json",
+      "bytes": 3930494,
+      "sha256": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3"
+    },
+    {
+      "path": "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/vocabulary.json",
+      "bytes": 1119969,
+      "sha256": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55"
+    },
+    {
+      "path": "demo/clips/index.json",
+      "bytes": 1534,
+      "sha256": "968a12ca745cc973efe3cb34fb04778f8709f42818b777b9145edf7459c97f76"
+    },
+    {
+      "path": "demo/clips/synthetic_fdb1346_turn.wav",
+      "bytes": 140480,
+      "sha256": "936cf71ec2ad8f68e539447a4d5e359fb02738dcf92d0447056bf7f6ff641e41"
+    },
+    {
+      "path": "demo/clips/synthetic_igo086_descend.wav",
+      "bytes": 197322,
+      "sha256": "6126a5951435fc4e579730ef6f68a51de28aeb4c3b2b96949ac6490f18ec759a"
+    },
+    {
+      "path": "demo/clips/synthetic_igo086_readback.wav",
+      "bytes": 153482,
+      "sha256": "b3a51c823285bd285772eea20183b6f7f6f87ae218b88c86d6cbe44cd88d8d27"
+    },
+    {
+      "path": "demo/context/aircraft_info.parquet",
+      "bytes": 4666,
+      "sha256": "7e52b751f37ed8826e5f9ba3243e36b11ea6ac9c415c79db39aa08ede336aa2b"
+    },
+    {
+      "path": "demo/context/intent.parquet",
+      "bytes": 156291,
+      "sha256": "eb1f91c485b7cc9640c076dc8e3ef5fa80fa1e7a344393f2fd5dbd139366345b"
+    },
+    {
+      "path": "demo/context/routes.json",
+      "bytes": 10445,
+      "sha256": "c9bac0b5e745abd4f4a88783d39e64f3751f150d80826feaa0e187f7b7cc5a94"
+    },
+    {
+      "path": "demo/provenance.json",
+      "bytes": 17681,
+      "sha256": "684bfcfedf119adea45f62d2c8fc69b06d4871a1d8901a54dcd71957c48609cf"
+    },
+    {
+      "path": "demo/replay/adsblol_20260904_204500.parquet",
+      "bytes": 237986,
+      "sha256": "e5ba070a4380c7e7dcf8703cfc2a88dbdeaa63c043fcddca11856c90374819ee"
+    },
+    {
+      "path": "demo/voice/faa_7340_chap3_sec3.html",
+      "bytes": 2487675,
+      "sha256": "2605bd37a1956513bbd70222bbc66eafb644128e0b100b5532abdf8c95e6ac1c"
+    },
+    {
+      "path": "demo/voice/openflights_airlines.dat",
+      "bytes": 396896,
+      "sha256": "39be1a432e8b04ebc12860c29281c974a9cb52169c82b2456a835d66ab1548a1"
+    },
+    {
+      "path": "ml_pipeline/data/routes/ourairports_airports.csv",
+      "bytes": 12731052,
+      "sha256": "37b78b5514711a70fb50e0f4c60b809b30988a84e37b0d814e20ca5591177cc1"
+    },
+    {
+      "path": "ml_pipeline/data/routes/ourairports_runways.csv",
+      "bytes": 3966682,
+      "sha256": "4202aab8eadafaab7f3350115cff5a7e5d8de482b98e1260c43a499a40d4dac4"
+    },
+    {
+      "path": "ml_pipeline/data/weather/metar_VABB.csv",
+      "bytes": 61067,
+      "sha256": "e8330ed172ceefa4ad4ab374ab8ef7d697819d77d29ac884090a853c0ad915d4"
+    },
+    {
+      "path": "server/app/ml/saved_models/trajectory_multipath.pkl",
+      "bytes": 121584812,
+      "sha256": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589"
+    },
+    {
+      "path": "server/app/ml/saved_models/trajectory_residual.pt",
+      "bytes": 895822,
+      "sha256": "cd5e1c14d789a3010a8806b41265deef6806d0e9166cb1e1cc7f2212ab4c7442"
+    },
+    {
+      "path": "server/app/ml/saved_models/xgboost_conflict.json",
+      "bytes": 1457816,
+      "sha256": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65"
+    },
+    {
+      "path": "server/app/ml/saved_models/xgboost_conflict_model_card.json",
+      "bytes": 6112,
+      "sha256": "c86df5f6d3e523248a58d0a4b418eb622d3fc742fc7e162de8fd6af18b32d0d6"
+    }
+  ]
+}

@@ -1,4 +1,3 @@
-/* global AudioWorkletProcessor, registerProcessor, currentFrame, sampleRate */
 class RadioAudioProcessor extends AudioWorkletProcessor {
   constructor() { super(); this.buffer = new Float32Array(2048); this.at = 0; }
   process(inputs) {

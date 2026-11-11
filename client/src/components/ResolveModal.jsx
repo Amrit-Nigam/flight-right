@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { logActivity, logAudit } from "@/lib/siteLogger";
+import { logAudit } from "@/lib/siteLogger";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 
 // ── Mini trajectory diagram ────────────────────────────────────────────────

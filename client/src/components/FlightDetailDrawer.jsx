@@ -127,7 +127,7 @@ export default function FlightDetailDrawer({ flight, onClose, theme = "light" })
                     RECORD
                   </button>
                   <span className="font-body text-[10px]" style={{ color: "var(--text-muted)" }}>
-                    Recorded and used to reshape this aircraft's predicted paths. Nothing is transmitted.
+                    Recorded and used to reshape this aircraft&apos;s predicted paths. Nothing is transmitted.
                   </span>
                 </>
               )}

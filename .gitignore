@@ -10,6 +10,8 @@ secrets/*
 # Python environments and bytecode
 venv/
 .venv/
+.venv-demo/
+demo/.runtime/
 __pycache__/
 *.pyc
 *.py[cod]

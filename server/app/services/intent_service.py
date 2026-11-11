@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import ssl
 import threading
 import time
@@ -40,7 +41,8 @@ RADIUS_NM = 250
 POLL_SECONDS = 30.0
 MAX_AGE_S = 300.0
 LIVE_URL = f"https://api.adsb.lol/v2/point/{VABB[0]}/{VABB[1]}/{RADIUS_NM}"
-RECORDED = PROJECT_ROOT / "ml_pipeline" / "data" / "adsblol" / "intent.parquet"
+RECORDED = Path(os.environ.get("FLIGHT_RIGHT_INTENT_HISTORY",
+                              PROJECT_ROOT / "ml_pipeline" / "data" / "adsblol" / "intent.parquet"))
 HEADERS = {"User-Agent": "FlightRight-research/1.0 (academic project; polls every 30 s)"}
 ATTRIBUTION = "Dialled (selected) altitude: adsb.lol, ODbL 1.0"
 

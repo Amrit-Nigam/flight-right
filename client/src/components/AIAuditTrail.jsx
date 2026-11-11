@@ -157,7 +157,7 @@ export default function AIAuditTrail({ isOpen, onToggle }) {
             {/* Footer note */}
             <div className="px-4 py-2 font-body text-[10px]" style={{ background: 'rgba(0,229,204,0.04)', color: 'var(--text-muted)', borderTop: '1px solid var(--border-default)' }}>
 Every suggestion and decision is written to the server-side append-only log. Nothing is ever
-              edited or deleted, so "reverted" is recorded as a further entry rather than an erasure.
+              edited or deleted, so &quot;reverted&quot; is recorded as a further entry rather than an erasure.
             </div>
           </motion.div>
         )}

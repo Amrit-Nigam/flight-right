@@ -1,0 +1,526 @@
+{
+  "schema": 1,
+  "provider": "adsbdb",
+  "routes": {
+    "ABY405": {
+      "status": 200,
+      "origin": "OMSJ",
+      "destination": "VABB"
+    },
+    "ABY422": {
+      "status": 200,
+      "origin": "OMSJ",
+      "destination": "VOCI"
+    },
+    "ABY471": {
+      "status": 200,
+      "origin": "OMSJ",
+      "destination": "VOMM"
+    },
+    "ABY496": {
+      "status": 200,
+      "origin": "OMSJ",
+      "destination": "VOBL"
+    },
+    "ABY502": {
+      "status": 200,
+      "origin": "OMSJ",
+      "destination": "VCBI"
+    },
+    "ABY800": {
+      "status": 200,
+      "origin": "OMSJ",
+      "destination": "WMKK"
+    },
+    "ADY133": {
+      "status": 200,
+      "origin": "OMAA",
+      "destination": "VOTV"
+    },
+    "ADY141": {
+      "status": 200,
+      "origin": "OMAA",
+      "destination": "VOMM"
+    },
+    "AFR191": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "LFPG"
+    },
+    "AHY059": {
+      "status": 404
+    },
+    "AIC128": {
+      "status": 200,
+      "origin": "EGLL",
+      "destination": "VABB"
+    },
+    "AIC1AB": {
+      "status": 200,
+      "origin": "VIDP",
+      "destination": "VABJ"
+    },
+    "AIC1SK": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "VABB"
+    },
+    "AIC1ZH": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "VOBL"
+    },
+    "AIC2241": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "FIMP"
+    },
+    "AIC2242": {
+      "status": 200,
+      "origin": "FIMP",
+      "destination": "VABB"
+    },
+    "AIC2290": {
+      "status": 200,
+      "origin": "OTHH",
+      "destination": "VABB"
+    },
+    "AIC6PZ": {
+      "status": 200,
+      "origin": "VIDP",
+      "destination": "VAPO"
+    },
+    "AIC7QQ": {
+      "status": 200,
+      "origin": "VIDP",
+      "destination": "VABB"
+    },
+    "AKJ524": {
+      "status": 200,
+      "origin": "OERK",
+      "destination": "VOCI"
+    },
+    "ALK141": {
+      "status": 200,
+      "origin": "VCBI",
+      "destination": "VABB"
+    },
+    "ALK142": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "VCBI"
+    },
+    "AXB1235": {
+      "status": 200,
+      "origin": "VILK",
+      "destination": "VABB"
+    },
+    "AXB236": {
+      "status": 200,
+      "origin": "OOMS",
+      "destination": "VABB"
+    },
+    "AXB417": {
+      "status": 200,
+      "origin": "VOCI",
+      "destination": "OMAA"
+    },
+    "BAW119": {
+      "status": 200,
+      "origin": "EGLL",
+      "destination": "VOBL"
+    },
+    "BAW138": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "EGLL"
+    },
+    "BDA102": {
+      "status": 404
+    },
+    "BDA154": {
+      "status": 404
+    },
+    "BDA201": {
+      "status": 404
+    },
+    "BDA354": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "VABB"
+    },
+    "CEB740": {
+      "status": 200,
+      "origin": "RPLL",
+      "destination": "OERK"
+    },
+    "CPA660": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "VHHX"
+    },
+    "CSN633": {
+      "status": 200,
+      "origin": "ZGGG",
+      "destination": "HKJK"
+    },
+    "DLH756": {
+      "status": 200,
+      "origin": "EDDF",
+      "destination": "VABB"
+    },
+    "DLH757": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "EDDF"
+    },
+    "DLH765": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "EDDM"
+    },
+    "DLH766": {
+      "status": 200,
+      "origin": "EDDM",
+      "destination": "VABB"
+    },
+    "DLH767": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "EDDM"
+    },
+    "ETD476": {
+      "status": 200,
+      "origin": "OMAA",
+      "destination": "WADD"
+    },
+    "ETD498": {
+      "status": 200,
+      "origin": "OMAA",
+      "destination": "WSSS"
+    },
+    "ETD50E": {
+      "status": 200,
+      "origin": "OMAA",
+      "destination": "VOHS"
+    },
+    "ETH3433": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "HAAB"
+    },
+    "ETH607": {
+      "status": 200,
+      "origin": "ZGGG",
+      "destination": "HAAB"
+    },
+    "ETH637": {
+      "status": 200,
+      "origin": "ZUTF",
+      "destination": "HAAB"
+    },
+    "ETH640": {
+      "status": 200,
+      "origin": "HAAB",
+      "destination": "VABB"
+    },
+    "EXV822": {
+      "status": 200,
+      "origin": "OMDB",
+      "destination": "VCBI"
+    },
+    "FDB1346": {
+      "status": 200,
+      "origin": "VTBD",
+      "destination": "OMDB"
+    },
+    "GFA282": {
+      "status": 200,
+      "origin": "OBBI",
+      "destination": "VOBL"
+    },
+    "GFA284": {
+      "status": 200,
+      "origin": "OBBI",
+      "destination": "VOGO"
+    },
+    "IGO018": {
+      "status": 404
+    },
+    "IGO077": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "OEJN"
+    },
+    "IGO086": {
+      "status": 404
+    },
+    "IGO1186": {
+      "status": 200,
+      "origin": "VCBI",
+      "destination": "VABB"
+    },
+    "IGO1236": {
+      "status": 200,
+      "origin": "OKBK",
+      "destination": "VABB"
+    },
+    "IGO1316": {
+      "status": 200,
+      "origin": "OTHH",
+      "destination": "VOHS"
+    },
+    "IGO1402": {
+      "status": 200,
+      "origin": "OMAA",
+      "destination": "VABB"
+    },
+    "IGO1466": {
+      "status": 200,
+      "origin": "OMDB",
+      "destination": "VOHS"
+    },
+    "IGO1486": {
+      "status": 200,
+      "origin": "OMDB",
+      "destination": "VOBL"
+    },
+    "IGO1501": {
+      "status": 404
+    },
+    "IGO1853": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "HKJK"
+    },
+    "IGO242": {
+      "status": 200,
+      "origin": "VOCI",
+      "destination": "VAPO"
+    },
+    "IGO245C": {
+      "status": 200,
+      "origin": "VAPO",
+      "destination": "VIDP"
+    },
+    "IGO27H": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "OMAA"
+    },
+    "IGO337": {
+      "status": 200,
+      "origin": "VOHS",
+      "destination": "VAPO"
+    },
+    "IGO46V": {
+      "status": 200,
+      "origin": "OTHH",
+      "destination": "VABB"
+    },
+    "IGO5152": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "VOGA"
+    },
+    "IGO5293": {
+      "status": 200,
+      "origin": "VOBL",
+      "destination": "VABB"
+    },
+    "IGO6129": {
+      "status": 200,
+      "origin": "VIAR",
+      "destination": "VAPO"
+    },
+    "IGO6140": {
+      "status": 200,
+      "origin": "VIDP",
+      "destination": "VOBL"
+    },
+    "IGO6205": {
+      "status": 200,
+      "origin": "VIDP",
+      "destination": "VOGO"
+    },
+    "IGO623": {
+      "status": 200,
+      "origin": "VAPO",
+      "destination": "VEGT"
+    },
+    "IGO6363": {
+      "status": 200,
+      "origin": "VOHS",
+      "destination": "VABB"
+    },
+    "IGO6564": {
+      "status": 200,
+      "origin": "VAPO",
+      "destination": "VOBL"
+    },
+    "IGO67P": {
+      "status": 200,
+      "origin": "VOMM",
+      "destination": "OMAA"
+    },
+    "JZR402": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "OEPA"
+    },
+    "JZR428": {
+      "status": 200,
+      "origin": "VOMM",
+      "destination": "OEPA"
+    },
+    "KAC341": {
+      "status": 404
+    },
+    "KLM874": {
+      "status": 200,
+      "origin": "EHAM",
+      "destination": "VABB"
+    },
+    "KLM877": {
+      "status": 200,
+      "origin": "EHAM",
+      "destination": "VABB"
+    },
+    "KLM878": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "EHAM"
+    },
+    "KNE321": {
+      "status": 200,
+      "origin": "OERK",
+      "destination": "VABB"
+    },
+    "KQA202": {
+      "status": 200,
+      "origin": "HKJK",
+      "destination": "VABB"
+    },
+    "KQA203": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "HKJK"
+    },
+    "MAS157": {
+      "status": 200,
+      "origin": "OEJN",
+      "destination": "WMKK"
+    },
+    "OMA833": {
+      "status": 200,
+      "origin": "OOMS",
+      "destination": "VTSP"
+    },
+    "OMS735": {
+      "status": 200,
+      "origin": "OOMS",
+      "destination": "VOHS"
+    },
+    "OMS761": {
+      "status": 200,
+      "origin": "OOMS",
+      "destination": "VABB"
+    },
+    "OMS783": {
+      "status": 200,
+      "origin": "OOMS",
+      "destination": "VOBL"
+    },
+    "PAL655": {
+      "status": 200,
+      "origin": "OERK",
+      "destination": "RPLL"
+    },
+    "QTR830": {
+      "status": 200,
+      "origin": "OTHH",
+      "destination": "VTBS"
+    },
+    "QTR93W": {
+      "status": 200,
+      "origin": "VOTV",
+      "destination": "OTHH"
+    },
+    "RJA190": {
+      "status": 200,
+      "origin": "OJAI",
+      "destination": "VABB"
+    },
+    "SVA752": {
+      "status": 200,
+      "origin": "OEJN",
+      "destination": "VOHS"
+    },
+    "SVA772": {
+      "status": 200,
+      "origin": "OEJN",
+      "destination": "VABB"
+    },
+    "SVA773": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "OEJN"
+    },
+    "SVA853": {
+      "status": 200,
+      "origin": "VTSP",
+      "destination": "OEJN"
+    },
+    "SVA871": {
+      "status": 200,
+      "origin": "RPLL",
+      "destination": "OEJN"
+    },
+    "THA351": {
+      "status": 200,
+      "origin": "VTBS",
+      "destination": "VABB"
+    },
+    "THA352": {
+      "status": 200,
+      "origin": "VABB",
+      "destination": "VTBS"
+    },
+    "UAE335": {
+      "status": 200,
+      "origin": "RPLL",
+      "destination": "OMDB"
+    },
+    "UAE353": {
+      "status": 200,
+      "origin": "WSSS",
+      "destination": "OMDB"
+    },
+    "UAE385": {
+      "status": 200,
+      "origin": "VTBS",
+      "destination": "OMDB"
+    },
+    "UAE417": {
+      "status": 200,
+      "origin": "YSSY",
+      "destination": "OMDB"
+    },
+    "UAE42N": {
+      "status": 200,
+      "origin": "OMDB",
+      "destination": "VOHS"
+    },
+    "UAE500": {
+      "status": 200,
+      "origin": "OMDB",
+      "destination": "VABB"
+    },
+    "VJT210": {
+      "status": 404
+    },
+    "VTJSJ": {
+      "status": 404
+    }
+  }
+}

@@ -1,0 +1,17 @@
+﻿[
+    {
+        "path":  ".venv-demo",
+        "bytes":  1352112939,
+        "removed":  true
+    },
+    {
+        "path":  "checkpoints\\demo_checkout_test",
+        "bytes":  708863706,
+        "removed":  true
+    },
+    {
+        "path":  "demo\\.runtime",
+        "bytes":  372524739,
+        "removed":  true
+    }
+]

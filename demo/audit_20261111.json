@@ -1,0 +1,77 @@
+{
+  "id": "repository_delivery_cleanup_20261111",
+  "checked_utc": "2026-11-11T18:09:28.392021+00:00",
+  "source_version": "67a236d plus the delivery changes in this commit",
+  "purpose": "Packaging, dependency and source cleanup; no training or accuracy evaluation",
+  "scope": "Filesystem inventory of 82506 files excluding Git internals; owned source/configuration and deliverable audit. Third-party dependency source was not reviewed line by line.",
+  "manifest": {
+    "path": "demo/manifest.json",
+    "sha256": "50e9ccf7abfc730d0e1840929ef8d07376bd0c4e62246b45777905eb1d23c8b9",
+    "files_verified": 24
+  },
+  "route_cache": {
+    "original_files": 108,
+    "bundled_files": 1,
+    "records_identical": true,
+    "destination_feature_arrays_identical": true,
+    "unknown_routes_preserved": true,
+    "local_originals_preserved": true
+  },
+  "checks": {
+    "python_tests_passed": 119,
+    "node_radio_tests_passed": 7,
+    "frontend_build": "passed; large MapLibre chunk warning remains",
+    "npm_ci": "passed",
+    "npm_audit": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "http_frontend": 200,
+    "http_health": 200,
+    "all_core_models_loaded": true,
+    "speech_cpu_loaded": true,
+    "browser_visual": "not run: browser access host unavailable"
+  },
+  "lint": {
+    "errors": 11,
+    "warnings": 8,
+    "remaining_rules": {
+      "react-hooks/set-state-in-effect": 7,
+      "react-hooks/exhaustive-deps": 8,
+      "react-hooks/refs": 1,
+      "react-hooks/purity": 2,
+      "react-hooks/immutability": 1
+    },
+    "limitation": "Existing React effect/ref/purity and dependency findings remain. No controller state-flow rewrite or lint-rule suppression was included in this packaging cleanup."
+  },
+  "corrections": [
+    "Removed unused package named -",
+    "Updated vulnerable dependency lock entries and MapLibre to 6.17.0",
+    "Adapted MapLibre namespace import after production build caught removed default export",
+    "Installed missing React lint plugin; detected actual React version and Node config globals",
+    "Removed redundant audio-worklet globals and unused import; escaped JSX text"
+  ],
+  "failed_attempts": [
+    "Initial build blocked by sandbox; reran with approved permissions",
+    "First MapLibre 6 build failed on obsolete default import; fixed and rebuilt",
+    "One Node test command used an incorrect filename; reran actual radioSegmenter.test.js successfully"
+  ],
+  "baseline": "Same served weights and thresholds; no model content changes",
+  "accuracy": "not measured",
+  "latency": "not measured",
+  "selection": "not applicable; packaging pass/fail only",
+  "datasets": "Existing 5548-report / 98-aircraft shareable replay; demo/provenance.json unchanged",
+  "original_portability_evidence": "demo/verification.json; its original 131-file manifest is preserved as demo/history/manifest_20261111_per_callsign.json in the model-ledger evidence capsules",
+  "preserved": [
+    "Original venv",
+    "Private .env and secrets",
+    "Served and selected model weights",
+    "Original datasets",
+    "Every model experiment history"
+  ],
+  "prior_temporary_cleanup": "demo/temporary_cleanup.json"
+}

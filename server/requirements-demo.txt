@@ -1,0 +1,21 @@
+# Runtime versions used by the shipped pretrained artifacts (Python 3.13).
+# The launcher installs the CPU torch wheel before the remaining packages.
+numpy==2.5.2
+pandas==3.0.5
+pyarrow==25.0.1
+scikit-learn==1.9.0
+xgboost==3.4.1
+torch==2.13.0
+joblib==1.5.3
+fastapi==0.141.1
+uvicorn==0.52.4
+websockets==17.1
+requests==2.34.2
+python-dotenv==1.2.3
+psycopg[binary]==3.3.5
+faster-whisper==1.2.1
+ctranslate2==4.8.2
+rapidfuzz==3.14.6
+soundfile==0.14.0
+scipy==1.18.1
+certifi
