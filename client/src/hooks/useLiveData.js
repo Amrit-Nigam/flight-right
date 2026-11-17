@@ -41,14 +41,16 @@ export function useLiveData() {
   const pollRef = useRef(null);
   const reconnectRef = useRef(null);
   const mountedRef = useRef(true);
+  const lastFrameRef = useRef(0);
 
   const applyPayload = useCallback((aircraft, conflictPayload) => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || !navigator.onLine) return;
     if (aircraft) {
       setFlights(Array.isArray(aircraft.flights) ? aircraft.flights : []);
       setFeed({
         mode: aircraft.mode, source: aircraft.source, provider: aircraft.provider,
         updatedAt: aircraft.updatedAt, error: aircraft.error, replay: aircraft.replay,
+        receivedAt: new Date().toISOString(),
         // The time the picture describes: the recording's own time in replay, now in live.
         dataTimeUtc: aircraft.dataTimeUtc || aircraft.replay?.dataTimeUtc || null,
         creditsRemaining: aircraft.creditsRemaining, count: aircraft.count ?? 0,
@@ -60,12 +62,14 @@ export function useLiveData() {
 
   const pollOnce = useCallback(async () => {
     try {
-      const [aircraft, conflictPayload] = await Promise.all([
+      const [traffic, assessment] = await Promise.allSettled([
         getLatestAircraft(),
         getActiveConflicts(),
       ]);
-      applyPayload(aircraft, conflictPayload);
-      if (mountedRef.current) setConnection((c) => (c === "streaming" ? c : "polling"));
+      if(traffic.status==='rejected')throw traffic.reason;
+      applyPayload(traffic.value, assessment.status==='fulfilled'?assessment.value:null);
+      if(assessment.status==='rejected'&&mountedRef.current)setLastError(`${assessment.reason.message} Traffic updates remain available; cached conflict results may be old.`);
+      if (mountedRef.current && navigator.onLine) setConnection((c) => (c === "streaming" ? c : "polling"));
     } catch (error) {
       if (!mountedRef.current) return;
       setConnection("offline");
@@ -74,7 +78,7 @@ export function useLiveData() {
   }, [applyPayload]);
 
   const startPolling = useCallback(() => {
-    if (pollRef.current) return;
+    if (pollRef.current || !navigator.onLine) return;
     pollOnce();
     pollRef.current = setInterval(pollOnce, POLL_MS);
   }, [pollOnce]);
@@ -86,7 +90,8 @@ export function useLiveData() {
     }
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connectSocket() {
+    if (!navigator.onLine || socketRef.current?.readyState < 2) return;
     let socket;
     try {
       socket = new WebSocket(streamUrl());
@@ -98,43 +103,68 @@ export function useLiveData() {
 
     socket.onopen = () => {
       if (!mountedRef.current) return;
-      stopPolling();
-      setConnection("streaming");
+      // Opening a socket is not evidence that a traffic frame arrived.
     };
     socket.onmessage = (event) => {
+      if(!mountedRef.current || socketRef.current!==socket)return;
       try {
         const message = JSON.parse(event.data);
-        if (message.type === "update") applyPayload(message.aircraft, message.conflicts);
+        if (message.type === "update" && navigator.onLine && message.aircraft) {
+          applyPayload(message.aircraft, message.conflicts);
+          lastFrameRef.current=Date.now();
+          stopPolling();
+          setConnection("streaming");
+        }
       } catch {
         /* a malformed frame is not worth tearing the socket down for */
       }
     };
-    socket.onerror = () => { /* onclose always follows; handled there */ };
+    socket.onerror = () => { if(mountedRef.current)startPolling(); };
     socket.onclose = () => {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || socketRef.current!==socket) return;
       socketRef.current = null;
       // Poll while the socket is away, so the picture keeps updating rather than
       // freezing on the last frame, and keep trying to get the socket back.
       startPolling();
-      setConnection((c) => (c === "offline" ? c : "polling"));
-      reconnectRef.current = setTimeout(connect, RECONNECT_MS);
+      setConnection((c) => (!navigator.onLine || c === "offline" ? "offline" : c==='polling'?'polling':"connecting"));
+      reconnectRef.current = setTimeout(connectSocket, RECONNECT_MS);
     };
   }, [applyPayload, startPolling, stopPolling]);
 
   useEffect(() => {
     mountedRef.current = true;
-    pollOnce();
+    const offline=()=>{
+      setConnection('offline');
+      setLastError('Browser offline. Traffic and conflict services disconnected; cached reports remain visible.');
+      stopPolling();
+      socketRef.current?.close();
+    };
+    const online=()=>{setConnection('connecting');startPolling();pollOnce();connect();};
+    window.addEventListener('offline',offline);
+    window.addEventListener('online',online);
+    startPolling();
     connect();
+    const watchdog=setInterval(()=>{
+      if(navigator.onLine&&lastFrameRef.current&&Date.now()-lastFrameRef.current>15000){
+        setConnection(c=>c==='streaming'?'connecting':c);startPolling();
+      }
+    },5000);
     return () => {
       mountedRef.current = false;
+      window.removeEventListener('offline',offline);
+      window.removeEventListener('online',online);
+      clearInterval(watchdog);
       stopPolling();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       if (socketRef.current) {
         socketRef.current.onclose = null;
+        socketRef.current.onmessage = null;
+        socketRef.current.onerror = null;
         socketRef.current.close();
+        socketRef.current=null;
       }
     };
-  }, [connect, pollOnce, stopPolling]);
+  }, [connect, pollOnce, startPolling, stopPolling]);
 
   return { flights, conflicts, feed, connection, lastError, refresh: pollOnce };
 }

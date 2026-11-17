@@ -41,6 +41,14 @@ export function conflictFromAlerts(active = [], constants = null) {
     severity: alarm.severity,
     reason: alarm.reason,
     probability: alarm.classifierProbability,
+    ruleIsConflict:alarm.ruleIsConflict,
+    triggerGate:alarm.triggerGate,
+    classifierDecision:alarm.classifierDecision,
+    confirmationUpdates:alarm.confirmationUpdates,
+    nominalCpa:alarm.nominalCpa,
+    alternativeCpa:alarm.alternativeCpa,
+    multipathProbability:alarm.multipathProbability,
+    combinationsBreaching:alarm.combinationsBreaching,
     sources: alarm.sources,
     explanation: alarm.explanation,
     resolution: alarm.resolution,
@@ -65,6 +73,8 @@ export function resolveOptionsFromAlert(alert, constants = null) {
         `${Math.round(option.resulting_vertical_separation_ft)} ft. ` +
         `Established about ${Math.round(option.seconds_to_establish)} s from now.`,
       confidence: `${Math.round((option.confidence ?? 0) * 100)}%`,
+      secondsToEstablish:option.seconds_to_establish,
+      timingMargin:Number.isFinite(option.seconds_to_establish)?(alert.nominalCpa?.seconds ?? alert.countdown)-option.seconds_to_establish:null,
       // Coarse proxies. The engine says so itself and so does the tooltip.
       fuelImpact: `${sign}${Math.round(option.fuel_equivalent_seconds ?? 0)} s equivalent burn`,
       delayImpact: `${sign}${Math.round((option.delay_seconds ?? 0) / 60)} min ${option.aircraft}`,
@@ -127,6 +137,14 @@ export function watchListFromAlerts(active = []) {
       cpaLateralNm: alert.cpaLateralNm,
       cpaVerticalFt: alert.cpaVerticalFt,
       probability: alert.classifierProbability,
+      ruleIsConflict:alert.ruleIsConflict,
+      triggerGate:alert.triggerGate,
+      classifierDecision:alert.classifierDecision,
+      confirmationUpdates:alert.confirmationUpdates,
+      nominalCpa:alert.nominalCpa,
+      alternativeCpa:alert.alternativeCpa,
+      multipathProbability:alert.multipathProbability,
+      combinationsBreaching:alert.combinationsBreaching,
       reason: alert.reason,
     }));
 }

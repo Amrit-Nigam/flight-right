@@ -1,6 +1,8 @@
 "use client";
+import { REFERENCE_LIGHT, REFERENCE_DARK } from "@/lib/referenceMap";
 
 import * as MapLibreGL from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import type { PopupOptions, MarkerOptions } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
@@ -20,6 +22,10 @@ import { createPortal } from "react-dom";
 import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+
+// Vite relocates the main module during dependency optimization. Explicitly emit
+// the worker asset so its relative URL works in both development and production.
+MapLibreGL.setWorkerUrl(workerUrl);
 
 const defaultStyles = {
   dark: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
@@ -184,6 +190,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapInstance, setMapInstance] = useState<MapLibreGL.Map | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [sourceError, setSourceError] = useState(false);
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
   const currentStyleRef = useRef<MapStyleOption | null>(null);
   const styleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -244,7 +251,17 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
         }
       }, 100);
     };
-    const loadHandler = () => setIsLoaded(true);
+    const loadHandler = () => { setIsLoaded(true); setIsStyleLoaded(true); };
+    let fallbackUsed = false;
+    const useReferenceOnly = () => {
+      if (fallbackUsed || map.isStyleLoaded()) return;
+      fallbackUsed = true;
+      setSourceError(true);
+      map.setStyle(resolvedTheme === 'dark' ? REFERENCE_DARK : REFERENCE_LIGHT);
+    };
+    const errorHandler = () => { setSourceError(true); useReferenceOnly(); };
+    const sourceTimer = setTimeout(useReferenceOnly, 8000);
+    map.on('error', errorHandler);
 
     // Viewport change handler - skip if triggered by internal update
     const handleMove = () => {
@@ -253,13 +270,17 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     };
 
     map.on("load", loadHandler);
+    map.on("style.load", loadHandler);
     map.on("styledata", styleDataHandler);
     map.on("move", handleMove);
     setMapInstance(map);
 
     return () => {
       clearStyleTimeout();
+      clearTimeout(sourceTimer);
+      map.off("error", errorHandler);
       map.off("load", loadHandler);
+      map.off("style.load", loadHandler);
       map.off("styledata", styleDataHandler);
       map.off("move", handleMove);
       map.remove();
@@ -310,6 +331,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     clearStyleTimeout();
     currentStyleRef.current = newStyle;
     setIsStyleLoaded(false);
+    setSourceError(false);
 
     mapInstance.setStyle(newStyle, { diff: true });
   }, [mapInstance, resolvedTheme, mapStyles, clearStyleTimeout]);
@@ -329,6 +351,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
         className={cn("relative h-full w-full", className)}
       >
         {(!isLoaded || loading) && <DefaultLoader />}
+        {sourceError && <div role="status" data-map-panel className="basemap-warning">Basemap unavailable or incomplete. Offline reference shown where available; aircraft positions remain reported data. Not an airport surface chart.</div>}
         {/* SSR-safe: children render only when map is loaded on client */}
         {mapInstance && children}
       </div>
@@ -646,10 +669,14 @@ function MarkerTooltip({
 
     marker.getElement()?.addEventListener("mouseenter", handleMouseEnter);
     marker.getElement()?.addEventListener("mouseleave", handleMouseLeave);
+    marker.getElement()?.addEventListener("focusin", handleMouseEnter);
+    marker.getElement()?.addEventListener("focusout", handleMouseLeave);
 
     return () => {
       marker.getElement()?.removeEventListener("mouseenter", handleMouseEnter);
       marker.getElement()?.removeEventListener("mouseleave", handleMouseLeave);
+      marker.getElement()?.removeEventListener("focusin", handleMouseEnter);
+      marker.getElement()?.removeEventListener("focusout", handleMouseLeave);
       tooltip.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -671,7 +698,7 @@ function MarkerTooltip({
   return createPortal(
     <div
       className={cn(
-        "bg-foreground text-background pointer-events-none rounded-md px-2 py-1 text-xs text-balance shadow-md",
+        "bg-[var(--bg-panel)] text-[var(--text-primary)] pointer-events-none rounded-md px-2 py-1 text-xs shadow-md",
         "animate-in fade-in-0 zoom-in-95 duration-200 ease-out",
         className,
       )}

@@ -1,4 +1,4 @@
-// Talks to the Flight Right backend.
+// Talks to the FlightRight backend.
 //
 // Restored from the Express-era client that was deleted on 30 August 2026 and extended
 // for the model endpoints that did not exist then: conflicts, resolutions and the
@@ -8,13 +8,19 @@
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const service=path.includes('/trajectory')?'Forecast':path.includes('/history')?'Track history':path.startsWith('/api/aircraft')?'Traffic':path.startsWith('/api/planning')?'Sequence':path.startsWith('/api/conflicts')?'Conflict assessment':path.startsWith('/api/clearances')?'Instructions':path.startsWith('/api/airport')?'Airport':path.startsWith('/api/speech')?'Radio':path.startsWith('/api/audit')?'Audit':path.startsWith('/api/workspace')?'Strip workflow':'Backend';
+  let response;
+  try { response = await fetch(`${API_BASE_URL}${path}`, {
+    signal: typeof AbortSignal.timeout==='function' ? AbortSignal.timeout(15000) : undefined,
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     ...options,
-  });
+  }); } catch(error) {
+    throw new Error(`${service} service ${error.name==='TimeoutError'?'timed out':'unreachable'}. ${navigator.onLine?'Check the local server connection.':'Browser is offline.'}`);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok || data.ok === false) {
-    throw new Error(data.detail || data.error || `Request failed: ${response.status}`);
+    const detail=data.detail || data.error;
+    throw new Error(`${service}: ${typeof detail==='string'?detail:detail?.problems?.join('; ') || detail?.message || `Request failed (${response.status})`}`);
   }
   return data;
 }
@@ -53,6 +59,8 @@ export const getAuditLog = ({ limit = 200, level, search } = {}) => {
 };
 
 export const getHealth = () => request("/api/health");
+export const getWorkspace = () => request("/api/workspace");
+export const updateWorkspace = (payload) => request("/api/workspace/event", { method: "POST", body: JSON.stringify(payload) });
 
 // ---------------------------------------------------------------------- airport
 // VABB's real runways, the METAR for the time on screen, runway in use and movements derived
@@ -92,3 +100,10 @@ export const reviewRadioTransmission = (transcriptionId, text, role) => request(
 
 export const streamUrl = () => `${API_BASE_URL.replace(/^http/, "ws")}/ws/stream`;
 export { API_BASE_URL };
+
+export const getClearances = (icao24) => request(`/api/clearances?limit=100${icao24?`&icao24=${encodeURIComponent(icao24)}`:''}`);
+
+export const getPlan = () => request("/api/planning");
+export const changePlan = (payload) => request("/api/planning/event", {method:"POST",body:JSON.stringify(payload)});
+export const syncPlanningRadio = (scope) => request('/api/planning/radio/sync',{method:'POST',body:JSON.stringify({scope})});
+export const submitPlanningCommunication = (payload) => request('/api/planning/communication',{method:'POST',body:JSON.stringify(payload)});

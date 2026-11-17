@@ -3801,6 +3801,39 @@
       "cleanup": false,
       "status": "retained",
       "preservation": "Exact evidence also retained inline in model ledgers"
+    },
+    {
+      "path": "docs/evaluations/evidence/controller_workflow_20261116.json",
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1"
+      ],
+      "sha256": "149f2137519d5c2f9dc3a4c3d058fbfa7cb648a79a6a9f6f0376c99ac8645f42",
+      "bytes": 14720,
+      "cleanup": false,
+      "status": "preserved_controller_integration_evidence"
+    },
+    {
+      "path": "checkpoints/ui_review_20261116/results.json",
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1"
+      ],
+      "sha256": "e7b0b8b9f25e9db245569dd3d4114913374e828678f0333d85967e80a7990595",
+      "bytes": 1954,
+      "cleanup": false,
+      "status": "preserved_controller_integration_evidence"
+    },
+    {
+      "path": "checkpoints/ui_review_20261116/model-review-results.json",
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1"
+      ],
+      "sha256": "f787c4de59bd78493fe80886bbb39f473fc2cd9bbb7df2d80e4c972f8f9c85fc",
+      "bytes": 313,
+      "cleanup": false,
+      "status": "preserved_controller_integration_evidence"
     }
   ],
   "retained_context": [
@@ -3879,11 +3912,11 @@
     }
   ],
   "verification": {
-    "unique_evidence_files": 292,
+    "unique_evidence_files": 295,
     "binary_metric_identities_checked": 2295,
     "ledger_count": 18,
     "sha256_round_trip": "passed",
-    "verified_utc": "2026-11-11T18:09:34.476442+00:00"
+    "verified_utc": "2026-11-15T21:12:04.602829+00:00"
   },
   "cleanup_verified_utc": "2026-11-09T14:45:06.306202+00:00",
   "retained_model_artifacts": [

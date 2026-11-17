@@ -119,7 +119,7 @@ class SpeechService:
 
     def hear(self, audio: np.ndarray, clip_ref: str, flights: list[dict],
              transcript: str | None = None, heard_at: float | None = None,
-             role: str = "auto", allow_apply: bool = True) -> dict[str, Any]:
+             role: str = "auto", allow_apply: bool = True, display_context=None) -> dict[str, Any]:
         """Run the chain on one transmission. ``transcript`` skips recognition (cached rows)."""
         from ml_pipeline.voice.transcribe import transcribe_array
         if not ASR_MODEL_ID and transcript is None:
@@ -147,12 +147,12 @@ class SpeechService:
                 return {"ok": True, "speechDetected": False, "reason": "no intelligible speech recognised"}
         return self.process_text(transcript, flights, role=role, clip_ref=clip_ref,
                                  logprob=logprob, heard_at=heard_at, started=started, allow_apply=allow_apply,
-                                 live_radio=clip_ref == "live-radio")
+                                 live_radio=clip_ref == "live-radio", display_context=display_context)
 
     def process_text(self, transcript: str, flights: list[dict], role: str = "atco",
                      clip_ref: str = "typed", logprob: float | None = None,
                      heard_at: float | None = None, started: float | None = None,
-                     allow_apply: bool = True, review_of: int | None = None, live_radio: bool = False) -> dict[str, Any]:
+                     allow_apply: bool = True, review_of: int | None = None, live_radio: bool = False, display_context=None) -> dict[str, Any]:
         """One explicit speaker per transmission. Pilot speech cannot issue a clearance."""
         from ml_pipeline.voice.transcribe import ASR_VERSION
         if role not in ("auto", "pilot", "atco", "unknown"):
@@ -194,6 +194,7 @@ class SpeechService:
             "role": role, "clearances": [], "readback": None, "recordedAt": time.time(),
             "roleSource": role_source, "roleReason": role_hint["reason"] if role_source == "phrase-hint" else "speaker role supplied by channel or review",
             "reviewOf": review_of, "heardAt": heard_at, "liveRadio": live_radio,
+            "displayContext": display_context,
         }
         with self._conversation_lock:
             if not allow_apply:
@@ -220,7 +221,7 @@ class SpeechService:
                         out["clearances"].append(clearance_service.submit(
                             {"callsign": snapped["code"], **action, "confidence": round(confidence, 3),
                              "transcription_id": transcription_id}, flights,
-                            source=model_id if reviewed else f"asr:{model_id}"))
+                            source=model_id if reviewed else f"asr:{model_id}", display_context=display_context))
                     out["clearance"] = out["clearances"][0] if out["clearances"] else None
                     if any(c["applied"] for c in out["clearances"]):
                         self._readbacks.pop(snapped["code"], None)
@@ -247,7 +248,7 @@ class SpeechService:
                 raise ValueError("transmission is older than two minutes; stale radio intent cannot be applied")
             return self.process_text(text, flights, role=role, clip_ref="reviewed-radio", review_of=transcription_id,
                                      heard_at=original.get("heardAt"), live_radio=original.get("liveRadio", False),
-                                     allow_apply=allow_apply or not original.get("liveRadio", False))
+                                     allow_apply=allow_apply or not original.get("liveRadio", False), display_context=original.get('displayContext'))
 
     def _check_readback(self, extracted, snapped: dict, asr_confidence: float | None) -> dict:
         code = snapped["code"]

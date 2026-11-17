@@ -4,14 +4,14 @@
 
 // ========== STATUS COLORS MAP ==========
 export const statusColors = {
-  CONFLICT:  "#ff2d2d",
-  HOLDING:   "#ffdd00",
-  LANDING:   "#00e5cc",
-  TAKEOFF:   "#f5a623",
-  CRUISE:    "#8a7d65",
-  APPROACH:  "#00e5cc",
-  DEPARTING: "#f5a623",
-  ENROUTE:   "#8a7d65",
+  CONFLICT:  "#ff8b92",
+  HOLDING:   "#e5cb78",
+  LANDING:   "#64cfc4",
+  TAKEOFF:   "#e8b45e",
+  CRUISE:    "#b7c6d5",
+  APPROACH:  "#64cfc4",
+  DEPARTING: "#e8b45e",
+  ENROUTE:   "#b7c6d5",
 };
 
 /** Darker / WCAG-friendlier on light panels */

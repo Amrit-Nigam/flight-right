@@ -26,6 +26,7 @@ from ..services.intent_service import intent_service
 from ..services.aircraft_info import aircraft_info
 from ..services.airport_service import airport_service
 from ..services.trajectory_service import trajectory_service
+from ..services.traffic_context import display_context
 from ..config import SPEECH_DEMO_DIR
 
 log = logging.getLogger("flightright.api")
@@ -75,8 +76,26 @@ def refresh_aircraft():
 
 @router.get("/aircraft/history")
 def aircraft_history(icao24: str = Query(..., description="ICAO24 address or callsign")):
-    states = aircraft_service.history(icao24)
-    return {"ok": True, "icao24": icao24, "count": len(states), "states": states}
+    from ..services.track_store import track_store
+    snapshot = aircraft_service.snapshot()
+    current = next((f for f in snapshot['flights'] if icao24.lower() in
+                   (str(f.get('icao24', '')).lower(), str(f.get('callsign', '')).lower())), None)
+    if not current:
+        return {"ok": True, "states": [], "count": 0}
+    until = current.get('timePosition') or aircraft_service.data_time()
+    key = current.get('icao24') or current['callsign']
+    try:
+        scope = snapshot.get('provider', '') + ':' + snapshot['source']
+        if snapshot['source'] == 'replay':
+            scope += ':' + str((snapshot.get('replay') or {}).get('session', ''))
+        states = track_store.history(scope, key, until)
+        storage = 'persistent observed visit (maximum 2000 reports)'
+    except Exception:
+        states, storage = [], 'persistent store unavailable; rolling buffer only'
+    if not states:
+        states = aircraft_service.history(icao24)
+        storage = 'rolling buffer'
+    return {"ok": True, "icao24": icao24, "count": len(states), "states": states, "storage": storage}
 
 
 @router.get("/aircraft/trajectory")
@@ -194,17 +213,19 @@ def submit_clearance(payload: dict = Body(...)):
     here; the speech chain submits through the same service with its own source. The
     result says whether it was applied and why, and is recorded either way.
     """
-    result = clearance_service.submit(payload, aircraft_service.snapshot()["flights"], source="manual")
+    feed = aircraft_service.snapshot()
+    result = clearance_service.submit(payload, feed["flights"], source="manual", display_context=display_context(feed))
     if not result["ok"]:
         raise HTTPException(status_code=422, detail=result)
     return result
 
 
 @router.get("/clearances")
-def list_clearances(limit: int = Query(100, ge=1, le=1000)):
+def list_clearances(limit: int = Query(100, ge=1, le=1000), icao24: str | None = Query(None, max_length=16)):
     return {"ok": True, "supported": clearance_service.supported(),
             "inForce": {k: [c.to_dict() for c in v] for k, v in clearance_service.in_force().items()},
-            "history": database.clearance_history(limit)}
+            "context": display_context(aircraft_service.snapshot()),
+            "history": database.clearance_history(limit, icao24) if icao24 else database.clearance_history(limit)}
 
 
 @router.delete("/clearances")
@@ -268,7 +289,7 @@ async def speech_hear(request: Request, clip: str | None = None, cached: bool = 
         transcript = (entry.get("transcripts") or {}).get(speech_service.status()["modelId"] or "") if cached else None
         audio = None if transcript is not None else decode_wav((SPEECH_DEMO_DIR / f"{clip}.wav").read_bytes())
         return await run_in_threadpool(speech_service.hear, audio, f"demo:{clip}", flights,
-                                       transcript=transcript, role=role, allow_apply=allow_apply)
+                                       transcript=transcript, role=role, allow_apply=allow_apply, display_context=display_context(snapshot))
     body = await request.body()
     if not body or len(body) > 10_000_000:
         raise HTTPException(status_code=422, detail="send a clip id or up to 10 MB of audio")
@@ -280,7 +301,7 @@ async def speech_hear(request: Request, clip: str | None = None, cached: bool = 
         raise HTTPException(status_code=422, detail="one nonempty transmission at a time: 30 s at most")
     try:
         return await run_in_threadpool(speech_service.hear, audio, "live-radio" if live else "upload", flights,
-                                       role=role, heard_at=heard_at, allow_apply=allow_apply)
+                                       role=role, heard_at=heard_at, allow_apply=allow_apply, display_context=display_context(snapshot))
     except ValueError as failure:
         raise HTTPException(status_code=422, detail=str(failure)) from failure
     except Exception as failure:

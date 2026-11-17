@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { logAudit } from "@/lib/siteLogger";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
+import AlertEvidence from '@/components/AlertEvidence';
 
 // ── Mini trajectory diagram ────────────────────────────────────────────────
 function MiniRadar({ conflict }) {
@@ -142,13 +143,13 @@ function XaiReason({ reason }) {
 
 // ── Live countdown hook ────────────────────────────────────────────────────
 function useLiveCountdown(initialSeconds) {
-  const [secs, setSecs] = useState(initialSeconds);
+  const [clock, setClock] = useState({initialSeconds,secs:initialSeconds});
+  if(clock.initialSeconds!==initialSeconds)setClock({initialSeconds,secs:initialSeconds});
   useEffect(() => {
-    setSecs(initialSeconds);
-    const id = setInterval(() => setSecs(s => (s <= 1 ? 0 : s - 1)), 1000);
+    const id = setInterval(() => setClock(s => ({...s,secs:s.secs<=1?0:s.secs-1})), 1000);
     return () => clearInterval(id);
   }, [initialSeconds]);
-  return secs;
+  return clock.secs;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,21 +166,22 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
     <AnimatePresence>
       {open && (
         <motion.div
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           className="fixed inset-0 z-[9999] flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
         >
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-            className="w-full max-w-[720px] mx-4 panel-cut overflow-hidden"
+            initial={false} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+            role="dialog" aria-modal="true" aria-label="Conflict resolution"
+            className="w-full max-w-[720px] max-h-[90dvh] mx-4 rounded overflow-y-auto"
             style={{ background: 'var(--bg-panel)', border: '2px solid var(--red)' }}
           >
             {/* ── HEADER ── */}
-            <div className="flex items-start justify-between p-5" style={{ borderBottom: '2px solid var(--red)', background: 'rgba(255,45,45,0.04)' }}>
+            <div className="flex flex-wrap items-start justify-between gap-3 p-5" style={{ borderBottom: '2px solid var(--red)', background: 'rgba(255,45,45,0.04)' }}>
               {/* Left: callsigns + mini diagram */}
-              <div className="flex items-start gap-4 flex-1">
-                <MiniRadar conflict={conflict} />
-                <div>
+              <div className="flex items-start gap-4 flex-1 min-w-0">
+                <div className="hidden sm:block shrink-0"><MiniRadar conflict={conflict} /><small>Schematic · not to scale</small></div>
+                <div className="min-w-0 flex-1">
                   <h2 className="font-display text-[15px] tracking-wider glow-red" style={{ color: 'var(--red)' }}>
                     ⚡ CONFLICT RESOLUTION
                   </h2>
@@ -190,13 +192,13 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                     {conflict.reason}
                   </p>
                   <p className="font-display text-[11px] mt-1 tracking-wide" style={{ color: 'var(--text-muted)' }}>
-                    Predicted closest approach:{" "}
+                    Alert-path closest approach:{" "}
                     <span style={{ color: urgencyColor }}>
                       {Number(conflict.cpaNM).toFixed(2)} NM / {Math.round(conflict.cpaVerticalFt ?? 0)} ft
                     </span>{" "}
                     — separation standard 5 NM laterally or 1000 ft vertically (en-route)
                     {conflict.probability != null && (
-                      <> · model confidence {(conflict.probability * 100).toFixed(0)}%</>
+                      <> · classifier probability {(conflict.probability * 100).toFixed(0)}%</>
                     )}
                   </p>
                 </div>
@@ -209,7 +211,7 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                 </p>
                 <p
                   className="font-display tabular-nums leading-none"
-                  style={{ fontSize: 52, color: urgencyColor, textShadow: `0 0 24px ${urgencyColor}80`, fontVariantNumeric: 'tabular-nums', letterSpacing: 2 }}
+                  style={{ fontSize: 'clamp(28px, 6vw, 52px)', color: urgencyColor, fontVariantNumeric: 'tabular-nums', letterSpacing: 2 }}
                 >
                   {secs > 0 ? timeStr : "00:00"}
                 </p>
@@ -229,6 +231,7 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
 
             {/* ── SELECTION NOTICE ── */}
             <div className="px-5 pt-4">
+              <AlertEvidence alert={conflict}/>
               <p className="font-body text-[13px]" style={{ color: 'var(--text-secondary)' }}>
                 {options.length
                   ? <>Select a resolution strategy — <span style={{ color: 'var(--green)' }}>ranked best first</span>. Nothing is transmitted; accepting records your decision.</>
@@ -265,7 +268,7 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                     {opt.recommended && (
                       <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
                         <span className="font-display text-[10px] px-2 py-0.5" style={{ border: '1px solid var(--green)', color: 'var(--green)', background: 'rgba(0,255,136,0.08)' }}>
-                          AI RECOMMENDED
+                          TOP RANKED SIMULATION
                         </span>
                       </div>
                     )}
@@ -274,12 +277,17 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                     </p>
                     <p className="font-body text-[13px] mt-1" style={{ color: 'var(--text-secondary)' }}>{opt.action}</p>
                     <p className="font-body text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{opt.result}</p>
+                    <div className="resolution-timing" style={{color:opt.timingMargin<0?'var(--amber)':'var(--text-secondary)'}}>
+                      <strong>Full-manoeuvre margin to {Number.isFinite(conflict.nominalCpa?.seconds)?'nominal':'displayed'} CPA: {opt.timingMargin==null?'not reported':`${Math.round(opt.timingMargin)} s`} (assessment time)</strong>
+                      {opt.timingMargin<0&&<p>Fully established after nominal CPA. Separation may improve during the manoeuvre; the engine tests the simulated window, including response delay. Full establishment is not its acceptance gate. Review the rationale and residual path risk before recording a decision.</p>}
+                      <p>Residual candidate-path breach weight: {opt.residualRisk==null?'not reported':`${Math.round(opt.residualRisk*100)}%`}. Simulation does not establish operational viability.</p>
+                    </div>
 
-                    <div className="flex gap-5 mt-2 font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 mt-2 font-display text-[11px]" style={{ color: 'var(--text-muted)' }}>
                       <span>
-                        Confidence: <span style={{ color: 'var(--teal)' }}>{opt.confidence}</span>
+                        Manoeuvre heuristic: <span style={{ color: 'var(--teal)' }}>{opt.confidence}</span>
                       </span>
-                      <span>Score: {opt.score?.toFixed(3)}</span>
+                      <span>Weighted ranking score: {opt.score?.toFixed(3)} (higher ranks first)</span>
                       <span>Fuel: {opt.fuelImpact}</span>
                       <span>Delay: {opt.delayImpact}</span>
                       {opt.newConflictRisk > 0 && (
@@ -288,6 +296,7 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                         </span>
                       )}
                     </div>
+                    <details className="resolution-definitions"><summary>What these scores mean</summary><p>Manoeuvre heuristic combines simulated separation margin, establishment timing, vertical-motion steadiness and residual path risk. It is not a measured success probability. Ranking score combines safety, delay, fuel, workload and that heuristic using fixed project weights; it is not classifier confidence.</p></details>
 
                     {/* XAI expandable reason */}
                     {opt.xaiReason && <XaiReason reason={opt.xaiReason} />}
@@ -297,7 +306,7 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
             </div>
 
             {/* ── FOOTER ACTIONS (equal weight) ── */}
-            <div className="p-5 flex gap-3" style={{ borderTop: '1px solid var(--border-default)' }}>
+            <div className="p-5 flex flex-col sm:flex-row gap-3" style={{ borderTop: '1px solid var(--border-default)',position:'sticky',bottom:0,background:'var(--bg-panel)',zIndex:2 }}>
               <button
                 type="button"
                 onClick={() => {
@@ -306,7 +315,7 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                 }}
                 disabled={!selectedOption || !options.length}
                 className="flex-1 py-3 font-display text-[14px] tracking-wider transition-colors disabled:opacity-30"
-                style={{ background: 'var(--amber)', color: 'black' }}
+                style={{ background: 'var(--amber)', color: 'var(--on-amber)' }}
               >
                 ACCEPT — RECORD DECISION
               </button>

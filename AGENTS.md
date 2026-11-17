@@ -1,4 +1,4 @@
-# Flight Right: repository editing rules
+# FlightRight: repository editing rules
 
 This is the maintained home for shared project-editing rules. These instructions
 apply to every agent working in the repository root or any subdirectory.
@@ -175,3 +175,7 @@ user's request; do not invent extra approval requirements. Keep `CLAUDE.md`, the
 README and other entry points as pointers rather than copying this policy into
 several files. Log substantive rule changes in `docs/CLAUDE.md` while preserving
 unrelated project history.
+
+## Computer use during implementation
+
+Use the user's computer only when needed for relevant UI inspection or functionality checks. Prefer code inspection and automated checks for other work; avoid unnecessary or repeated desktop interactions.

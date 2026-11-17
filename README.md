@@ -1,4 +1,9 @@
-# Flight Right
+# FlightRight
+
+**Full project documentation:** [Project handbook and development history](docs/PROJECT_HANDBOOK.md).
+It covers the architecture, data sources/flow, tech stack, major model iterations and
+their measured results, classifier confusion matrices, latest selected speech results,
+UI evolution, verification and limitations through 17 November 2026.
 
 **Run the pretrained demo after cloning (no training required):**
 
@@ -52,7 +57,8 @@ report updates.
 airspace.** It watches real aircraft, predicts which pairs are heading for a loss of
 separation (getting closer than the legal minimum distance), explains why, suggests costed
 ways out, listens to controller radio, and records every decision in a log that cannot be
-edited afterwards.
+edited through the application's journal interface. Protection depends on the store:
+PostgreSQL restricts audit updates/deletes; the easy SQLite demo is append-only by convention.
 
 The controller always decides. Accept and dismiss actions are recorded; leaving a suggestion
 untouched does not record an explicit decision to ignore it. Nothing is ever sent to an aircraft.
@@ -65,6 +71,14 @@ untouched does not record an explicit decision to ignore it. Nothing is ever sen
 ---
 
 **New to the demo? Start with the [controller walkthrough](#a-controllers-complete-walkthrough).**
+
+**Current workspace:** Map, Traffic, Sequence, Details, ML, Radio and Airport are separate
+tools. Traffic strips and the right inspector open/close independently, with visible
+reopen controls. Layout adapts to desktop/tablet/phone in light and dark themes.
+The header distinguishes connection status from individual report age and estimated
+runway usage. Local strips default to 50 NM; the map retains wider surveillance.
+Overdue movements have explicit close-out/history, and forecast warm-up shows report
+progress. See [the complete UI workflow](docs/frontend-workflow.md).
 
 ## Contents
 
@@ -91,6 +105,11 @@ untouched does not record an explicit decision to ignore it. Nothing is ever sen
 ---
 
 ## The headline result
+
+These are recorded historical measurements, not a new November UI benchmark.
+Served/candidate status and corpus/split details are maintained in
+[the current evaluation](docs/evaluation.md); iteration-by-iteration explanations and
+confusion matrices are in [handbook sections 11–17](docs/PROJECT_HANDBOOK.md#11-single-position-trajectory-model-evolution-and-results).
 
 > **95.1% of conflicts are caught with at least three minutes of warning**
 > (270 of 284 real conflicts in held-out test data). Through the whole running system, which is
@@ -286,11 +305,12 @@ Every learned model has a simple method underneath that still works without it.
 
 **Why these techniques and not bigger ones.** We measured the alternatives and they did not
 help:
-- A bidirectional LSTM did not help.
+- The earlier absolute-position trajectory formulation failed; local residual framing improved it.
 - A longer input window did not help.
-- Very different models (a tree and an LSTM) landed within 2 points of each other.
+- The tree point-prediction reference remained stronger than the served LSTM at ten minutes; the handbook records the actual split-dependent gaps.
 
-The limit is the *information* available, not model size. Two aircraft in identical situations
+The experiments indicate a substantial information limit; they do not prove that model
+architecture can never help. Two aircraft in similar observed situations
 end up **7.9 NM apart on average** after ten minutes, because the outcome depends on a
 controller instruction we do not see. That is why the path model offers five possibilities
 instead of one guess, and why the speech chain exists.
@@ -358,26 +378,29 @@ flowchart LR
 
 ## What is on the screen, and where each panel gets its data
 
-| Panel | Shows | Comes from |
-|---|---|---|
-| **Top bar** | VABB runway in use (derived from observed movements or METAR wind), weather, data-time clock, configured controller identity, radio-monitor shortcut, theme/AI controls and notifications | `/api/airport`, `/api/health`, alert feed |
-| **Data source bar** | LIVE or REPLAY, which recording, aircraft count, pairs assessed and how long it took, and the permanent strip "PROTOTYPE · DECISION SUPPORT · CONTROLLER DECIDES" | `/api/aircraft/source`, WebSocket |
-| **Conflict banner** | The most urgent tier 1 alarm, with a **RESOLVE NOW** button | Alert feed `attention` |
-| **Flight list** | Every aircraft, searchable; the METAR strip (raw and decoded, with its source and issue time) | `/ws/stream` aircraft, `/api/airport` |
-| **Map / radar sweep** | Aircraft positions and conflict pairs over Mumbai; selected aircraft's observed trail and most probable predicted path when available | `/ws/stream`, `/api/aircraft/history`, `/api/aircraft/trajectory` |
-| **Flight detail drawer** | Route, type/registration, altitude, speed, vertical rate, distance/bearing from VABB, estimated ETA for VABB-bound flights and received squawk; **ISSUE CLEARANCE** records typed intent. Supported altitude/heading effects can reshape predictions; speed is recorded only | `/ws/stream`, `POST /api/clearances` |
-| **AI suggestions** | Ranked manoeuvres with explanation, confidence and cost | Model 3 via the alert feed |
-| **Resolve dialog** | Review/select an available option; **ACCEPT, RECORD DECISION**. The first available option may already be selected; acceptance is disabled when no option exists | Alert snapshot's resolution options → `/api/actions/accept` |
-| **Watch list** | Tier 2 pairs, plus the counted low-confidence group | Alert feed `active` |
-| **Metrics row** | Aircraft tracked, en-route count, alarms, watch list, assessment time | Backend tick metrics |
-| **Timeline** | Predicted closest approaches on a time axis | Alert feed |
-| **Radio panel** | Start/stop passive listening, inspect/review captured text and intent; `/radio` also offers labelled sample recordings | `/api/speech/*` |
-| **Audit trail / Logs page** | Recorded actions/decisions; refresh, search/filter and export server logs or view separate browser-tab records | `/api/audit` (PostgreSQL, or reported SQLite fallback) |
-| **Runway panel** | Mumbai's real runways; landings and departures **observed** in the tracks over the last 45 min, arrivals **estimated** for the next 30 min | `/api/airport` (derived; see `airport_service.py`) |
-| **Map / radar overlays** | The OpenSky query box, a 50 NM ring, the real runways with a 10 NM extended centreline on the runway in use; for an alarm, each aircraft's straight-line position at the predicted closest approach | `/api/airport`, alert feed |
+| Tool / region | Current behavior | Source |
+| --- | --- | --- |
+| Header and session | Source/connection, last successful traffic receipt, UTC data time, estimated runway basis, theme and notifications | `/ws/stream`, `/api/health`, `/api/airport` |
+| Traffic | Searchable strips; 25/50/100 NM or All scope; surface/VABB-arrival priority; report age and source uncertainty | Aircraft feed and `/api/workspace` |
+| Map / Radar | Reported-coordinate markers, hover/focus details, overlapping-identity chooser, observed history and most-probable forecast | Feed, `/api/aircraft/history`, `/trajectory` |
+| Details | Main reported values first, route/type/ETA provenance, old-report warning, instruction history, planning/coordination actions | Feed, `/api/clearances`, `/api/workspace` |
+| Sequence | Observed/manual ARR/DEP, drag/arrows, pins, UTC preview/save, overdue reconciliation and Completed/Cancelled history | `/api/planning` and versioned `/event` |
+| ML | Actual model status, forecast report progress, eligibility/exclusions, alerts/watch, explanation and ranked simulations | `/api/health`, conflict feed, trajectory endpoint |
+| Persistent alarm / resolution review | Qualifying gate, nominal versus alternative geometry, classifier probability, candidate weight, manoeuvre heuristic, ranking score and timing margin | Existing assessment/resolution payload and decision API |
+| Radio | Passive audio, transcript/intent review and guarded communication-to-sequence; labelled examples at `/radio` | `/api/speech/*`, planning communication/sync |
+| Airport / Weather | METAR source/time, reference runways, track-derived movements and estimated usage; not ATIS | `/api/airport` |
+| Logs / audit | Server journal or separate browser-tab log, filtering and export; actual storage protection shown | `/api/audit`, `/api/health.store` |
+| Timeline | Expandable predicted encounter times | Conflict feed |
 
-The five candidate paths support tiering, conflict probability and manoeuvre checks. The
-selected-flight display draws the most probable one, rather than the whole candidate fan.
+Traffic and the right inspector have independent show/hide/reopen controls. Desktop
+uses separate regions; tablet/phone layouts adapt and scroll rather than overlap.
+Only relevant task tools are shown at once; the urgent alarm stays outside optional tools.
+An individual position older than 60 seconds or without a timestamp is marked old,
+and its ETA is withheld. This display policy does not alter inference thresholds.
+
+The five candidate paths support geometry and manoeuvre checks. The selected-flight
+map draws the most probable candidate, not the entire fan. Route lookup, observed
+history and forecast are distinct from a filed flight plan.
 
 ---
 
@@ -399,7 +422,7 @@ replay does not substitute pre-written alert cards. Read the source bar before p
 | **live** | Current Mumbai-region reports from OpenSky | Needs credentials, internet and available feed credits. Explicit live mode reports feed failure without switching to replay. A conflict might never appear during a short demo |
 | **auto** | Live when available, otherwise replay | Backend default without a mode override. Falls back when no live aircraft are obtained, including feed errors/credit limits. Read the actual source label |
 
-In replay the top-bar clock is historical data time; the source bar's "updated" time is
+In replay the top-bar clock is historical data time; the header's last successful traffic update is
 receipt time on the computer. A recording received just now is still a recording.
 Restarting the backend resets its replay clock; refreshing the browser does not. Replay
 speed/seek settings and the chosen recording can change which encounter appears and when.
@@ -433,17 +456,17 @@ not proof of an authenticated user. VABB means Mumbai airport.
 
 ### A controller's complete walkthrough
 
-1. **Understand the screen.** The left flight list and central map show received aircraft.
-   The right panels show counts, suggestions, the watch list, runway summary and radio
-   monitor; scroll that column for lower panels. The top shows airport/weather,
-   notifications and controls. The bottom timeline expands predicted encounter times.
+1. **Understand the screen.** Use Map, Traffic, Sequence, Details, ML, Radio and Airport
+   tools. Traffic and the right inspector open independently; Show traffic / Show details
+   controls restore closed panes. The header shows source, connection, last update and
+   estimated runway basis. Weather is optional; the bottom timeline expands encounters.
    "Tracked" means visible aircraft. "En-route" means aircraft passing assessment filters
    with sufficient history. Live aircraft need ten distinct reports, roughly 90-100 seconds
    at the default cadence; replay can load past reports to shorten that wait.
 2. **Inspect an aircraft.** Search/filter the list and click an entry or map aircraft.
    The detail drawer shows altitude, ground speed, vertical rate (climb/descent), direction
    and route/type/registration when available. Unknown fields remain unknown. Use
-   **MAP VIEW / RADAR SWEEP** to switch displays and **METAR** to see the airport weather
+   **Map view / Radar** to switch displays and **Weather** to see the airport weather
    report with source/time. Neither changes monitoring decisions.
 3. **Read the lines correctly.** The selected aircraft's observed trail shows received past
    positions. Its predicted line, when available, is the most probable candidate at 1, 3,
@@ -455,11 +478,12 @@ not proof of an authenticated user. VABB means Mumbai airport.
    No manoeuvre is offered for these earlier warnings. A low-confidence group counts
    less prominent entries rather than pretending they do not exist.
 5. **Review an urgent alarm.** A confirmed tier 1 alarm is within three minutes of
-   predicted closest approach. Press **RESOLVE NOW**. Check the two callsigns, predicted
+   predicted closest approach. Press **Review resolution**. Check the two callsigns, predicted
    horizontal and vertical gaps, countdown and reasons. Closest approach means "when they
    are expected to be nearest," not a guaranteed collision time.
-6. **Compare options.** Read **WHY THIS OPTION?**, confidence, score, estimated fuel/delay
-   and resulting separation. The first available option can already be selected; inspect
+6. **Compare options.** Read **WHY THIS OPTION?**, the qualifying gate, nominal/alternative
+   geometry, classifier probability, manoeuvre heuristic, weighted score, residual risk,
+   establishment margin and approximate fuel/delay. These numbers have different meanings. The first available option can already be selected; inspect
    it before accepting. There can be fewer than three options or none: candidates may
    fail, time may be insufficient, or the resolution simulation may find doing nothing
    already safe. These are estimates, not guaranteed outcomes.
@@ -472,7 +496,7 @@ not proof of an authenticated user. VABB means Mumbai airport.
    The prototype cannot contact a pilot. In replay, explain that step or use labelled
    sample audio; the recorded aircraft will not react to a decision.
 9. **Optionally record an instruction for prediction.** Select the aircraft, open
-   **ISSUE CLEARANCE**, choose CLIMB, DESCEND, TURN or SPEED, enter the displayed unit and
+   **RECORD AIRBORNE INSTRUCTION**, choose CLIMB, DESCEND, TURN or SPEED, enter the displayed unit and
    press **RECORD**. A clearance is a controller instruction. Enter `33000` feet for
    FL330 (33,000 ft), not `330`. Turn value `90` means heading 090 degrees, approximately
    east. Check the response: altitude/heading instructions can adjust candidate paths;
@@ -483,11 +507,20 @@ not proof of an authenticated user. VABB means Mumbai airport.
     Replay positions remain historical. Accepted/dismissed suggestion cards may be hidden
     for their episode in this page session while monitoring continues. The queue's
     **RESOLVED** counter counts accepted cards, not verified restored separation.
-11. **Inspect the record.** Open `/logs`, choose **Server (append-only)**, refresh and
+11. **Inspect the record.** Open `/logs`, choose **Server journal**, refresh and
     search/filter by callsign/action. Export JSON if needed. Decisions include details
     and server-stamped conflict-model versions; transcription records identify the speech
     model. **This tab** is a separate browser log; clearing it does not delete server
     audit records. Verify the server record if a request failed or a card disappeared.
+
+12. **Manage the demonstration sequence.** Use Add observed flight or an explicit manual
+    Arrival/Departure. Drag or use arrows, review proposed UTC targets and Check & save.
+    Pins/version checks are enforced. Overdue means reconcile the target, not automatic
+    completion. Explicit Completed/Cancelled close-out retains history and other targets;
+    the 120-second scheduling gap is educational, not operational clearance.
+13. **Review communications.** Supported trusted/reviewed tower phrases can feed the scoped
+    demo sequence. Pilot requests, uncertain/conditional speech and blocked changes remain
+    for review. Nothing transmits to an aircraft or establishes a controller's authority.
 
 ```mermaid
 flowchart TD
@@ -496,7 +529,7 @@ flowchart TD
     C -->|No| B
     C -->|"Tier 2: over 3 through 10 minutes"| D["Watch pair and reassess"]
     D --> B
-    C -->|"Tier 1: up to 3 minutes"| E["Open RESOLVE NOW; review reasons and options"]
+    C -->|"Tier 1: up to 3 minutes"| E["Open resolution review; inspect gate, geometry and options"]
     E --> F{"Controller choice"}
     F -->|Accept| G["Record selected decision"]
     F -->|Dismiss or no usable option| H["Handle manually; record dismissal if chosen"]
@@ -507,6 +540,34 @@ flowchart TD
     G --> K["Inspect server audit log"]
     H --> K
 ```
+
+### Integrated sequencing and map controls
+
+The left strip pane now contains the shared **Runway sequence** and observed traffic.
+Select an aircraft to see its details, recent observed path and model forecast. Use
+**Arrival** in the details panel to add it to the plan. A flight already airborne
+cannot be scheduled for another takeoff; add a future departure using the manual
+callsign field above the sequence. Manual departure readiness remains unverified.
+
+Drag a sequence handle or use **Earlier / Later**, inspect the proposed order,
+then choose **Check & save**. Click a UTC target to edit it, or pin a slot.
+**Recalculate sequence** uses an earliest-ready baseline while respecting pins and
+emergency priority; it is not a claim of global optimality. Arrival readiness may use
+the labelled distance/ground-speed estimate, not a learned landing-clearance rule.
+
+The top planning bar shows normal, emergency-plan or controller-takeover mode.
+Normal plan advisories wait for **Authorize current plan advisories**. Emergency
+priority automatically reprioritizes and records simulated advisories. **Take control**
+remains available during other requests. These actions never transmit to pilots or
+move replay aircraft. The 120-second planning gap is educational and does not
+replace operational wake, separation, surface, aircraft-performance or local rules.
+
+The default map includes an offline, coarse Natural Earth land reference. Detailed
+external imagery is optional. Both views retain real report positions and runway
+reference overlays. Use zoom, **Airport**, **Fit selected**, the nautical-mile scale
+and pinch navigation; map detail does not imply surface-surveillance accuracy.
+Selected aircraft absent from the latest feed retain a labelled snapshot with
+instruction entry disabled. Coordination is collapsible beneath flight details.
 
 ### Radio: what the controller can do
 
@@ -606,9 +667,9 @@ managing every manual duty end to end.
 |---|---|
 | No alerts | Could be quiet traffic, short history, excluded aircraft or missing models. Check source, eligible/pair counts and health; silence does not prove all visible aircraft are safe |
 | Polling | Browser requests updates every five seconds while trying to restore streaming |
-| BACKEND UNREACHABLE | Previously drawn information can remain; read connection/error/update indicators instead of assuming freshness |
+| Disconnected / service error | Cached reports can remain. Read the named service, last traffic receipt and each aircraft age; a conflict-only failure can coexist with healthy traffic updates |
 | Live failure or replay in auto | Explicit live reports missing data; auto may substitute a recording. Read the actual source |
-| Missing predicted line | Short history or unavailable multi-path model. Missing model files are reported; rule support remains where available. Corrupt/incompatible models are not guaranteed to fall back |
+| Missing predicted line | Check distinct-report warm-up progress, elapsed wait or service error. Short history or unavailable multi-path model. Missing model files are reported; rule support remains where available. Corrupt/incompatible models are not guaranteed to fall back |
 | No resolution option | Read the reason: ineffective candidates, insufficient time or do-nothing already safe in simulation. Handle manually |
 | Instruction accepted, paths unchanged | Check actual effect report: already-satisfied cap, heading fallback, unsupported speed/direct action or no eligible assessment |
 | Speech unavailable/rejected | Check model, audio source, match, confidence, role, age and live/replay compatibility; surveillance can continue without speech |
@@ -800,7 +861,11 @@ docs/                            documentation, figures, consolidated model eval
 | GET · POST | `/api/speech/status` · `/clips` · `/clips/{id}/audio` · `/hear` · `/transcriptions` | The speech chain |
 | GET · POST | `/api/speech/conversation` · `/api/speech/review` | Current radio conversation/readback/intent view; review captured information |
 | GET · POST | `/api/audit` | The append-only audit log |
-| GET | `/api/health` | Models, versions, store, feeds (with adsb.lol ODbL credit) |
+| GET | `/api/health` | Models, versions, actual store protection and feeds (with adsb.lol ODbL credit) |
+| GET | `/api/airport` | METAR, published runway geometry and inferred movement/usage |
+| GET / POST | `/api/workspace` / `/api/workspace/event` | Scoped strip coordination records |
+| GET / POST | `/api/planning` / `/api/planning/event` | Versioned movement plan, editing and explicit close-out |
+| POST | `/api/planning/radio/sync` / `/api/planning/communication` | Guarded transcript/communication sequencing |
 | WS | `/ws/stream` | Aircraft and alerts, pushed together every tick |
 
 ---
@@ -809,6 +874,8 @@ docs/                            documentation, figures, consolidated model eval
 
 | File | Read it for |
 |---|---|
+| [Complete project handbook](docs/PROJECT_HANDBOOK.md) | A-to-Z architecture, data evolution, model iteration numbers/matrices, speech and UI history |
+| [Current frontend workflow](docs/frontend-workflow.md) | Responsive panels, map, sequence, communication and latest UI verification |
 | [Demo walkthrough](#the-demo-live-or-recorded-and-the-script) / [Running it](#running-it) | Controller steps, backend, setup and troubleshooting |
 | [docs/live-radio.md](docs/live-radio.md) | Audio capture, review and live/replay isolation |
 | [docs/evaluation.md](docs/evaluation.md) | Current best supported comparisons, measurement basis and served/candidate status |
@@ -832,3 +899,5 @@ docs/                            documentation, figures, consolidated model eval
 - **OpenAI Whisper**: the base speech model.
 - **EUROCONTROL** STCA guidelines and **ICAO** Doc 4444 / Doc 9432 phraseology: design
   references. Every other source is cited where it is used, in [docs/CLAUDE.md](docs/CLAUDE.md).
+
+The role-based dashboard and ground-data limitations are described in [Controller workspace](docs/controller-workspace.md). Tower, Ground and Clearance share the same demonstration session; select a flight strip to inspect details and record supported instructions alongside the map.

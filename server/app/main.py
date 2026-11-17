@@ -1,4 +1,4 @@
-"""Flight Right backend.
+"""FlightRight backend.
 
     python -m uvicorn server.app.main:app --reload --port 8000
 
@@ -22,6 +22,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
+from .api.workspace import router as workspace_router
 from .config import CORS_ORIGINS, DATA_MODE, INTENT_FEED, POLL_SECONDS
 from .services.aircraft_service import aircraft_service
 from .services.database import database
@@ -37,13 +38,16 @@ log = logging.getLogger("flightright")
 setup_file_logging()      # server/logs/backend.log and server/logs/model_trace.log
 
 app = FastAPI(
-    title="Flight Right",
+    title="FlightRight",
     version="0.1.0",
     description="AI-assisted ATC decision support. Prototype, human always in the loop.",
 )
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
+from .api.planning import router as planning_router
+app.include_router(planning_router)
+app.include_router(workspace_router)
 
 _subscribers: set[WebSocket] = set()
 
@@ -54,7 +58,7 @@ async def _ingest_loop() -> None:
         try:
             await asyncio.to_thread(aircraft_service.refresh)
             assessment = await asyncio.to_thread(
-                conflict_service.assess, aircraft_service.histories_for_models())
+                conflict_service.assess, aircraft_service.histories_for_models(), aircraft_service.histories_for_coverage())
             # Persist what was raised. The audit log stays the append-only record of
             # decisions; this is the working state behind /api/conflicts/history.
             await asyncio.to_thread(database.record_conflicts, assessment.get("active", []))
@@ -132,7 +136,7 @@ async def startup() -> None:
     # Replay carries its own past, so the models can start assessing immediately rather
     # than waiting a hundred seconds for ten updates to accumulate.
     await asyncio.to_thread(aircraft_service.warm_up)
-    await asyncio.to_thread(conflict_service.assess, aircraft_service.histories_for_models())
+    await asyncio.to_thread(conflict_service.assess, aircraft_service.histories_for_models(), aircraft_service.histories_for_coverage())
     database.record({"level": "system", "source": "server",
                           "action": "Backend started",
                           "detail": {"mode": aircraft_service.mode,
@@ -158,4 +162,4 @@ async def shutdown() -> None:
 
 @app.get("/")
 def root():
-    return {"service": "Flight Right backend", "docs": "/docs", "health": "/api/health"}
+    return {"service": "FlightRight backend", "docs": "/docs", "health": "/api/health"}

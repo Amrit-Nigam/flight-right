@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 
 // A radar-scope view of the real traffic, centred on Mumbai (VABB), at true scale.
 //
@@ -39,15 +39,19 @@ function ahead(f, seconds) {
   return { lat: f.lat + (d * Math.cos(h)) / 60, lng: f.lng + (d * Math.sin(h)) / (60 * Math.cos((f.lat * Math.PI) / 180)) };
 }
 
-export default function RadarCanvas({ flights = [], selectedFlight, selectedTrack = null, theme, conflict = null, airport = null, feed = {} }) {
+export default function RadarCanvas({ flights = [], selectedFlight, selectedTrack = null, onSelectFlight, theme, conflict = null, airport = null, feed = {} }) {
   const canvasRef = useRef(null);
+  const hitRef = useRef([]);
+  const [manualRange, setManualRange] = useState(50);
+  const rangeRef = useRef(manualRange);
+  useEffect(() => { rangeRef.current = manualRange; }, [manualRange]);
   const animRef = useRef(null);
   const angleRef = useRef(0);
   const dataRef = useRef({ flights, conflict, airport, feed, selectedFlight });
-  dataRef.current = { flights, conflict, airport, feed, selectedFlight, selectedTrack };
+  useEffect(() => { dataRef.current = { flights, conflict, airport, feed, selectedFlight, selectedTrack }; }, [flights, conflict, airport, feed, selectedFlight, selectedTrack]);
 
   const isLight = theme === "light";
-  const range = scopeRange(flights, conflict);
+  const range = manualRange;
   const inRange = flights.filter((f) => f.lat != null && Math.hypot(toNm(f.lat, f.lng).x, toNm(f.lat, f.lng).y) <= range).length;
   const runwayPairs = new Set((airport?.runways || []).map((r) => r.runway)).size;
 
@@ -94,7 +98,11 @@ export default function RadarCanvas({ flights = [], selectedFlight, selectedTrac
       const { flights: fl, conflict: c, airport: ap, feed: fd, selectedFlight: sel } = dataRef.current;
       const cx = w / 2, cy = h / 2;
       const radius = Math.max(0, Math.min(cx, cy) - 20);
-      const RANGE_NM = scopeRange(fl, c);
+      const RANGE_NM = rangeRef.current;
+      hitRef.current = fl.filter(f => f.lat != null && f.lng != null).map(f => {
+        const p = toNm(f.lat, f.lng);
+        return {callsign:f.callsign,x:cx+(p.x/RANGE_NM)*radius,y:cy-(p.y/RANGE_NM)*radius};
+      });
       const px = (lat, lng) => { const p = toNm(lat, lng); return [cx + (p.x / RANGE_NM) * radius, cy - (p.y / RANGE_NM) * radius]; };
       const nmPx = radius / RANGE_NM;
 
@@ -194,7 +202,7 @@ export default function RadarCanvas({ flights = [], selectedFlight, selectedTrac
         if (f.lat == null) continue;
         const [fx, fy] = px(f.lat, f.lng);
         if (Math.hypot(fx - cx, fy - cy) > radius + 4) continue;
-        const color = statusColors[String(f.status || "").toLowerCase()] || baseColor;
+        const color = f.staleTrack?(isLight?'#64748b':'#94a3b8'):statusColors[String(f.status || "").toLowerCase()] || baseColor;
         const [vx, vy] = (() => { const p = ahead(f, 60); return px(p.lat, p.lng); })();
         ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(vx, vy);
         ctx.strokeStyle = `rgba(${ringRGB},0.7)`; ctx.lineWidth = 1; ctx.stroke();
@@ -206,7 +214,7 @@ export default function RadarCanvas({ flights = [], selectedFlight, selectedTrac
         const labelled = RANGE_NM <= BASE_RANGE_NM || sel === f.callsign || pair.includes(f);
         if (labelled) {
           ctx.fillStyle = color; ctx.font = "bold 11px 'Geist Variable', system-ui, sans-serif"; ctx.fillText(f.callsign, fx + 10, fy - 5);
-          ctx.fillStyle = textMuted; ctx.font = "10px 'Geist Variable', system-ui, sans-serif"; ctx.fillText(f.altitude || "", fx + 10, fy + 8);
+          ctx.fillStyle = textMuted; ctx.font = "12px 'Geist Variable', system-ui, sans-serif"; ctx.fillText(`${f.altitude || ''}${f.staleTrack?' · OLD':''}`, fx + 10, fy + 8);
         }
       }
 
@@ -224,7 +232,18 @@ export default function RadarCanvas({ flights = [], selectedFlight, selectedTrac
   return (
     <div className="panel overflow-hidden flex flex-col h-full w-full">
       <div className="flex-1 relative w-full h-full">
-        <canvas ref={canvasRef} className="absolute inset-0 block" style={{ background: isLight ? "var(--bg-base)" : "#060608" }} />
+        <canvas ref={canvasRef} onClick={e => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x=e.clientX-rect.left,y=e.clientY-rect.top;
+          const nearest=hitRef.current.map(p => ({...p,d:Math.hypot(p.x-x,p.y-y)})).sort((a,b)=>a.d-b.d)[0];
+          if(nearest?.d<18) onSelectFlight?.(nearest.callsign,{surface:'radar'});
+        }} className="absolute inset-0 block" style={{ background: isLight ? "var(--bg-base)" : "#060608" }} />
+      </div>
+      <div className="flex items-center gap-3 px-3 py-1 text-xs">
+        <button onClick={() => setManualRange(r => Math.max(5,r/2))}>Zoom in</button>
+        <button onClick={() => setManualRange(r => Math.min(800,r*2))}>Zoom out</button>
+        <button onClick={() => setManualRange(scopeRange(flights,conflict))}>Locate alert / reset</button>
+        <span>Fixed centre VABB; use map view for pinch and pan</span>
       </div>
       <div className="flex items-center justify-between px-5 py-3 shrink-0" style={{ background: "var(--bg-panel)", borderTop: "1px solid var(--border-default)" }}>
         {[`${inRange} IN ${range} NM`, `${flights.length} TRACKED`, `${runwayPairs || "—"} RUNWAYS`, conflict ? "ALARM" : "NO ALARM"].map((s) => (

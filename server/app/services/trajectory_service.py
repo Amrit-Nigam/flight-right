@@ -15,7 +15,8 @@ class TrajectoryService:
 
     def predict(self, engine, states, clearances):
         if len(states) < 10:
-            return {"status": "warming", "reason": "Waiting for 10 position reports"}
+            return {"status": "warming", "reason": "Waiting for 10 distinct position reports",
+                    "reportsReceived": len(states), "requiredReports": 10, "fallback": None}
         if engine is None or engine.multipath is None:
             return {"status": "unavailable", "reason": "Multi-path model unavailable"}
         recent = states[-10:]

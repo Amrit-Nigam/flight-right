@@ -69,12 +69,18 @@ class AircraftInfo:
                                "squawk": ac.get("squawk"), "at": now}
 
     def route(self, callsign: str | None) -> tuple[str | None, str | None]:
-        """(origin, destination) ICAO codes from the adsbdb cache; re-read every ten minutes."""
+        """Read known routes for ten minutes, but retry display misses after ten seconds.
+
+        The model's route lookup can populate its disk cache after a flight was first
+        displayed. A missing display value must not mask that result for ten minutes.
+        This reader never initiates network lookups or changes model route inputs.
+        """
         key = str(callsign or "").strip().upper()
         if not key:
             return None, None
         cached = self._routes.get(key)
-        if cached and time.time() - cached[0] < 600:
+        ttl = 600 if cached and all(cached[1]) else 10
+        if cached and time.time() - cached[0] < ttl:
             return cached[1]
         try:
             from ml_pipeline.utils.route_features import route

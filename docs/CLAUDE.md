@@ -1,10 +1,14 @@
 > **Shared editing rules:** Read [../AGENTS.md](../AGENTS.md) before every task. Add future user-requested editing rules there; this document retains project context, decisions and change history.
 
+> **Project handbook (17 November 2026):** [PROJECT_HANDBOOK.md](PROJECT_HANDBOOK.md) provides the complete explanatory project history, architecture/data flow, model iterations/results, classifier confusion matrices, selected speech results and UI evolution. It is a dated narrative guide; evaluation.md and the individual ledgers remain canonical for evaluation maintenance.
+
 > **Current demo workflow (11 November 2026):** Use the [README controller walkthrough](../README.md#a-controllers-complete-walkthrough) for the current interface, supported actions and backend flow. Older status statements below describe historical stages and should not override the present implementation.
 
 > **Evaluation maintenance (9 November 2026):** [evaluation.md](evaluation.md) is the current cross-model results page. Each model has one history/testing ledger under [evaluations/](evaluations/source_inventory.json). Dated report paths mentioned below are historical: their exact contents are in those ledgers and pushed checkpoint `d57fb04`. Use `scripts/consolidate_evaluations.py --restore ORIGINAL_PATH` when a legacy script needs an archived input. Model weights and the recorded classifier headline 270/284 are unchanged.
 
 # Flight Right — Full Project Context for Claude Code
+
+> **ATC automation research (12 November 2026):** [../automating_system.md](../automating_system.md) records sourced controller responsibilities, role boundaries, preliminary engineering implications and unresolved local-procedure questions. It is research context for future design, not an implemented autonomous capability or a change to current operational authority.
 
 Read this entire file at the start of every session. It is the single
 source of truth for this project — you should not need to open README.md
@@ -6583,3 +6587,243 @@ Archit explicitly authorized cleaning the repository and committing/pushing to f
 Removed the unused package named -, updated vulnerable dependencies including MapLibre 6.17.0, and adapted its ESM import. Installed the missing React lint plugin, corrected config globals/version detection, removed redundant worklet globals and an unused import, and escaped JSX text. npm ci and audit pass with zero reported vulnerabilities. Eleven existing React state/effect/ref/purity lint errors and eight dependency warnings remain explicitly recorded; no controller state-flow rewrite or lint suppression was included. Frontend build passes with a large map chunk warning. Browser visual verification could not run because the browser access host is unavailable.
 
 All 119 Python tests and seven Node radio tests pass. The updated launcher started frontend/backend, loaded all core models and speech on CPU, and served replay health plus frontend HTTP 200. The prior isolated fresh-environment smoke remains preserved in demo/verification.json. Added demo/audit_20261111.json and exact evidence to full_alert_chain, asr_small_atc_p1, multipath, conflict_classifier and trajectory_lstm ledgers; registered sources and current manifest hash. The verifier passes 18 ledgers, 292 evidence records and 11/11 artifact fingerprints. docs/evaluation.md, weights, thresholds, deployment selection and recorded accuracy headlines remain unchanged; no training, new accuracy or latency measurement. Temporary audit runtime and regenerated client/dist are removable outputs; original venv, private .env, datasets and selected weights are preserved. No release or hosted deployment is created.
+
+### 12 November 2026 - Controller position workspace
+
+Implemented Tower, Ground and Clearance position views over the existing shared feed. Replaced the left flight list with searchable electronic strips, moved selected-flight details into the side panel so the traffic picture stays visible, and prioritised communications/runway panels by position. Fixed the central map width to consume remaining space instead of 55vw alongside fixed sidebars. Existing weather, trajectories, instructions, AI decisions, radio and audit API connections remain in use. Position switches are audited; these are view changes, not authenticated control transfers. Ground filters explicit onGround reports and displays a coverage message for the airborne-only replay. Disabled the airborne instruction form for ground aircraft.
+
+Added docs/controller-workspace.md with design references, API mapping, missing operational controls and ground-data research. OpenSky/adsb.lol are possible sources of received surface reports; current Mumbai coverage and access to operational airport surface surveillance remain unverified. No ground acquisition or airborne-model changes were made. Production build and frontend/backend HTTP smoke passed; browser verification was attempted but the browser access host was unavailable. No new accuracy evaluation, weight changes, commit or push.
+
+### 12 November 2026 - Research responsibilities for possible ATC automation
+
+Created root automating_system.md at the user's request and added a pointer in docs/CLAUDE.md. Previously the controller-workspace notes covered interface/data limitations but there was no dedicated end-to-end controller-responsibility research reference. The new file explains Clearance, Ground, Tower, Approach/Departure and Area Control, separates scheduling/apron partners from ATC, and inventories normal operations, communications, handoffs, emergencies and continuity. FAA, AAI AIP and EUROCONTROL links support the findings; proposed software/ML responsibilities are explicitly engineering synthesis. Current Mumbai staffing, current local agreements and the latest effective Indian procedures were not verified; the AAI manual PDF failed to open and is not used as detailed evidence. This establishes context for later requirements, architecture and UI work without implementing those changes. Checked document structure, local links and whitespace; no training or model evaluation was needed. Evaluation files, weights, deployment and the recorded classifier headline 270/284 (95.1%) are unchanged and not remeasured. Preserved unrelated pending work; no commit or push.
+
+### 12 November 2026 - Expand automation research for emergency recovery and scheduling
+
+Expanded root automating_system.md and logged the work here in docs/CLAUDE.md. The earlier file inventoried controller responsibilities; it now captures the user's clarified goal of normal-operation optimization and coordinated emergency recovery, including the unaffected traffic, generated pilot instructions and familiar controller workspaces. Added NASA IADS/ATD-2 references, scheduling papers, controller interface/human-factors research, a code-grounded component map, proposed architecture/data flow, instruction lifecycle, simulation/evaluation plan and staged deliverables. Current workspace code includes recorded demo ownership/handoffs, which is now distinguished from operational transfer authority. Existing synthesis is training/demo tooling, not an operational transmit service.
+
+The user's added requirement to account for every safety rule is recorded as traceable coverage of every applicable rule: source hierarchy, broad rule-family checklist, versioned rule records, pass/fail/unknown checking, emergency exceptions and degraded modes. Full effective Indian/local rule text, Mumbai workstation/staffing and operational approval remain unverified; no claim of exhaustive rules or guaranteed optimal/safe autonomy is made. Checked local links, responsibility/section retention, Markdown fences and whitespace. No code/UI changes, model experiments, training, operational transmission, new scores, deployment, commit or push. Evaluation files and weights are unchanged; recorded classifier headline remains 270/284 (95.1%), not remeasured. Existing pending changes were preserved.
+
+### 12 November 2026 - Clarify controller-assistant authority and strip/map interaction research
+
+Updated automating_system.md and logged this context change here in docs/CLAUDE.md. Previously the research still used controller-replacement framing and only broad interface proposals. The user clarified the target: retain the ATCO, require explicit authorization for normal outbound instructions, automatically manage defined emergency operations with immediate controller override, and provide editable drag scheduling, broad two-finger map zoom and selected-flight past/predicted paths with existing details. Revised the opening, brief, architecture authority gateway and build framing; added sections 20-25 covering activation/scope, takeover/send races, handback, schedule edit validation, gestures, persistent history design, additional interactions and acceptance scenarios. This is product research, not a new repository-editing rule.
+
+Inspected current frontend/backend paths: the map already renders selected recent and predicted tracks but limits zoom to 7-11; /api/aircraft/history reads a 24-report rolling in-memory buffer, not a persistent full-track store. Existing demo strips record stages/ownership but have no scheduling model. Added primary-source research from Veyrie et al. (2026), FAA, MapLibre and W3C. The CODA paper explicitly excludes emergency/separation tasks, so its transparency findings do not validate our proposed emergency autonomy. No code/UI edits, runtime/device tests, model experiments, new score, transmission, deployment, commit or push. Evaluation files and weights are unchanged; classifier headline remains the previously recorded 270/284 (95.1%), not remeasured. Unrelated pending changes preserved.
+
+### 13 November 2026 - Implement initial controller-assistant stages
+
+Read AGENTS.md, project context and automating_system.md; preserved pending workspace/UI work. Implemented map zoom/navigation and explicit alert locating, kept selected historical/predicted tracks/details, corrected TRACK label, and added fixed-centre fallback canvas range controls/click selection. Added server/app/services/track_store.py and connected ingestion/display-history API to persistent observations while preserving short model input windows. Added planning_service.py, api/planning.py and client PlanningWorkspace.jsx: persistent sandbox scheduling, validated versioned edits, drag/arrow ordering, target times, pins/undo, explicit normal authorization, one simulated emergency, takeover/handback and local speech preview. Hooked into the dashboard without changing live model intent or transmitting to aircraft.
+
+Before, strips recorded workflow only and history was memory-only; now these additional interactions have real backend state. The scheduling gap is explicitly educational, not an operational minimum. Planning simulation does not include aircraft dynamics, real readbacks, full safety rules or global optimization. Section 26 of automating_system.md gives implementation/remaining-work status and checks. Forty-two relevant Python tests pass and production build passes; initial SQLite lifecycle failures were fixed. Targeted lint checks planning/canvas; browser visual verification is pending because prior browser-host/URL access was blocked. Replay HTTP smoke loaded all core models/speech and returned persistent history. No evaluation file, trained model, feature/preprocessing/decoder, alert gate, deployment model selection or headline score changed; recorded 270/284 (95.1%) remains historical, not remeasured. No commit or push.
+
+Final verification for this checkpoint: 42 tests passed again and final production build passed; targeted planning/canvas lint passed. Browser recheck failed with "browser access host is unavailable", so no visual or physical-gesture success is claimed. Display tracks are additionally partitioned by replay session. Section 26 explicitly lists incomplete operational/simulator capabilities; the scheduling workspace is not an implementation of every research requirement.
+
+### 13 November 2026 - First successful Brave inspection and focused UI corrections
+
+Brave desktop access succeeded after the user's permission clarification. Observed the real dashboard, selected a visible strip, and saw overlapping map controls/status, an apparently blank basemap, and coordination content preceding flight details. Desktop element coordinates were sometimes inconsistent with the window size, so not every attempted click was treated as success. The final inspected view displayed the new basemap-unavailable warning and a reference-only background; it does not establish that external map imagery is working.
+
+Updated client/src/pages/HomePage.jsx to put flight details before collapsible coordination and preserve a selected observed snapshot when the aircraft drops from the sparse feed. FlightDetailDrawer.jsx labels this state and disables instruction entry; useFlightTrack.js stops new prediction requests for it and withholds forecasts. FlightRadarMap.tsx moves navigation away from filters and wraps track status text. ui/map.tsx reports source errors and uses a local background if the external style fails, allowing reference overlays to load; this is not a replacement airport chart. Final explicit control positioning was built but not visually rechecked after the user requested limiting desktop use.
+
+Added the user's preference to AGENTS.md: use computer access only for relevant necessary UI checks, preferring code/tests otherwise. This is a usage rule, not another approval gate. Eighteen planning/trajectory-display tests and final frontend build passed (existing map chunk warning). No new model metrics, evaluation-file changes, model/threshold/deployment changes, commit or push. Recorded classifier headline 270/284 (95.1%) is unchanged and not remeasured. Full scheduling integration and operational emergency capability remain outstanding as documented.
+
+### 13 November 2026 - Integrate sequence planning into the controller workspace
+
+At the user's request to complete the work, removed the detached bottom-only planning component and put the shared sequence above observed flight strips. Added usePlanning.js and SequencePanel.jsx components for UTC targets, add-current-flight actions, manually planned future departures, order previews, drag/arrow editing, time changes, pins/undo/removal, emergency priority, normal authorization, takeover and advisory history/voice preview. Sector metrics are collapsed so flight details and controls have priority. README documents the actual workflow and operational limits.
+
+Planning backend now scopes event journals by feed/recording/day/replay cycle, preserves prior sandbox rows in their old table, rejects mismatched sessions, uses current/estimated readiness, prevents scheduling airborne traffic for another takeoff and recovers emergency state into takeover after restart. Takeover wins despite a stale plan revision in the current scope. Recalculation retains emergency priority. New tests caught and cover API scoping and the already-first emergency instruction case. These are planning software behaviours, not validated ATC instructions.
+
+Added a public-domain coarse Natural Earth offline map (138160 bytes, SHA-256 9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9) and exact source provenance. Default map no longer relies on external tiles; detailed imagery is opt-in. Improved style-ready handling, added nautical scale and Fit selected. This is geographic reference, not a certified airport chart.
+
+Verification: 48 relevant Python tests pass; targeted new UI/hook lint has zero errors and one existing constants-export warning; final build passes with large chunks noted. Restarted the own replay backend; health/planning return 200 and exact offline asset hash is served. No model, decoder, features, alert thresholds, served model selection, evaluation harness or accuracy headline changed; no accuracy/latency measurement. Evaluation reports/weights unchanged. Section 27 of automating_system.md records implementation and outstanding operational requirements. No commit/push. At the user's stop-access instruction, reset computer use and did not resume screenshots/input; final integrated visual and physical-gesture verification remain unperformed.
+
+
+### 14 November 2026 - Refresh context and resume frontend verification
+
+Read repository rules, current context and automating_system.md; restarted the replay API and frontend. The user explicitly authorized a relevant Brave check. Both CUA inventory and the supported native helper failed: native pipe missing (Windows error 2), with browser host also unavailable. No screenshot/input succeeded; ended the inspection attempt without repeated desktop access. This failure is separate from user authorization.
+
+Frontend review corrected local sequence drafts surviving a plan-scope transition (key the editor by scope), UTC target editing losing the date across midnight (use date plus time explicitly labelled UTC), and target editors submitting against a newer plan without reopening (bind editor to revision). Build passed with the existing chunk warning; targeted planning UI/hook lint has zero errors and the existing ControllerWorkspace export warning. Dashboard, health, planning, aircraft/latest, an observed history/trajectory, conflicts, workspace and airport returned HTTP 200. Offline map hash matches provenance. No new Python test run for these frontend-only edits; prior dated results remain unchanged.
+
+Section 28 of automating_system.md records observations and limits. Actual Brave layout, drag, selection, emergency/takeover and physical gestures remain pending until the desktop connection is restored. Evaluation files, weights, served model configuration and historical classifier headline 270/284 (95.1%) are unchanged, not remeasured. Preserved unrelated pending work; no commit or push.
+
+
+### 14 November 2026 - Successful isolated Chromium review and frontend fixes
+
+The user authorized Playwright/Chromium after extension and in-app browser hosts remained unavailable, then requested frontend improvements while excluding personal browser content. Used a separate installed Chromium context limited to the local app; did not access existing browser tabs/profiles. Actual rendering exposed a MapLibre worker 404 (leaving geographic layers blank) and flex shrink collapsing selected-flight details. Fixed explicit Vite worker asset emission, preserved/wrapped detail cards, responsive map-first layouts, overlapping controls, dark contrast, truthful feed-health/visibility labels and decision-error feedback. Added planned-only/removed selection states, UTC reorder impact previews, pending-submit handling and planning reconnection recovery. Preserved all unrelated pending work.
+
+Sixteen browser scenarios and four planning-preview unit tests pass; desktop/laptop/tablet/phone screenshots are in `checkpoints/ui_review_20261114/`. Tests exercised actual local sandbox scheduling with temporary QAUI101/QAUI102 movements, removed those movements and cleared their draft undo afterward, retaining the simulated journal. Fault cases used labelled intercepted UI fixtures. No airborne clearance recording, microphone capture or operational transmission. Final build passes with the existing chunk-size warning; emitted production worker returns 200 and renders layers. Full static-preview/backend integration remains unverified because of origin/loopback restrictions, which were not disabled. Supporting changed components/hooks lint with zero errors and one existing Fast Refresh warning; HomePage's three existing effect-state lint errors/dependency warnings remain. Earlier harness selector/date-normalization failures are retained alongside final passing evidence. Section 29 of automating_system.md records details and limits, including pending physical gestures, shared scheduling timeline and operational/simulator capabilities.
+
+No Python/model training or accuracy/latency evaluation was run for these frontend changes. Evaluation ledgers/comparison, weights, thresholds, model deployment and historical classifier 270/284 (95.1%) are unchanged and not remeasured. No commit or push. Main local frontend/backend remain running for user review.
+
+
+### 16 November 2026 — Practical controller workflow and ML review integration
+
+Implemented the user's map/gesture, selection speed, easy sequencing, communication
+consumer and instruction-history requests, with practical readable layouts. Preserved
+and surfaced actual model identities/readiness, selected forecast, conflict/watch data,
+ranked resolutions and decision audit actions. Full checklist and source references:
+[frontend-workflow.md](frontend-workflow.md); root automating_system.md section 30.
+
+Street tiles load in the authorized isolated Chromium context; a clearly labelled
+offline geographic reference remains available. Hover/selected aircraft differ; real
+report coordinates, track and timestamps remain distinct from model forecasts and
+recorded altitude/direction instructions. Immediate details use independent cached
+track/forecast reads. Added observed-flight picker, named remove/undo, numbered rows,
+drag feedback and retained server-checked UTC previews. A bounded, idempotent downstream
+speech-to-plan adapter accepts reviewed/identified ATCO movements and routes uncertain,
+pilot, old/future, auto-off and takeover cases to review. Conditional/negative/ambiguous
+messages are journalled without silent plan edits. Source/session/server-run metadata
+is display correlation; ASR extraction/acceptance and model features are unchanged.
+
+66 relevant backend tests, 14 JS tests and 11 browser scenarios pass, plus a focused
+desktop/phone ML dialog check. Final local selection visibility was 104ms under 2200ms
+delayed track/forecast APIs, not inference latency. Real reported marker data and
+Mercator screen placement agree within 2px. Desktop/laptop/tablet/phone screenshots
+were visually inspected; phone map crowding and modal layout were corrected. Build
+passes with its existing bundle warning. Changed JS lint has zero errors and one
+existing ControllerWorkspace export warning; corrected the dashboard's three prior
+effect-state errors/dependency warnings and the modal countdown's effect-state error.
+
+Retained exact integration evidence in docs/evaluations/evidence/controller_workflow_20261116.json
+and the existing full-alert-chain/ASR ledgers, registered by generic supported tooling
+without refreshing model selections. Verifier: 18 ledgers, 295 evidence records,
+2295 metric identities, 11/11 artifact fingerprints. Existing ledger byte prefixes and
+the current comparison are unchanged. No training, new accuracy or model latency
+measurement, weight replacement, threshold change or deployment selection occurred.
+
+Browser checks used only a fresh isolated Chromium profile and app/assets. Temporary
+QA movements and their undo were removed; simulated journals retained. Physical
+trackpad/touchscreen, live audio and production hosting remain outside verified scope.
+Servers are left running at local 5173/8000 for review. Unrelated working-tree changes
+preserved; no commit or push.
+
+
+### 16 November 2026 — Responsive workspace decluttering
+
+At the user's feedback that the UI felt crowded, replaced the header stack and
+simultaneous three-column tool/card layout with a compact header and one selected
+tool pane. At >=1100 CSS pixels the map shares space with one flexible pane; below
+that, map/tools use the full content width. Map closes the pane, and Back to map is
+always available. Viewport changes update the map canvas through ResizeObserver.
+Aircraft selection opens focused details; hidden pages stay mounted to preserve
+drafts/radio state. Added task views for Traffic, Sequence, Flight, ML, Radio and
+Airport. Critical conflicts/feed problems remain visible; model status, suggestions,
+watch list, forecast and decision review retain their existing API connections.
+Collapsed secondary map/radio controls and made labels/duplicate conflict cards
+optional. Very short landscape windows retain usable dimensions through scrolling.
+
+Ten browser scenarios passed across 12 viewport sizes, plus final phone/header
+checks, using fresh isolated Chromium profiles limited to the app/assets. Inspected
+desktop/laptop/tablet/phone/landscape screenshots, selection, tool switching, canvas
+resizing, draft retention, sequence access, position selector, models, map gestures,
+weather/theme, session menu, timeline, persistent alert/decision-failure and offline
+fixtures. Build passed with the existing bundle warning; changed JS/hook lint has
+zero errors and one existing export warning. No new model/ASR accuracy evaluation,
+training, weights, thresholds, backend changes or deployment selection. No evaluation
+files changed in this presentation-only correction. Existing servers on 5173/8000
+were reused and remain running. No commit or push. See frontend-workflow.md's
+Responsive workspace correction and root automating_system.md section 31. Evidence:
+checkpoints/ui_declutter_20261116/. Preserved all unrelated working-tree changes.
+
+
+### 16 November 2026 — Independent strips and inspector recovery
+
+Corrected the shared-panel behavior reported by the user: selecting a strip now
+opens separate details without replacing the traffic panel. Added independent panel
+visibility state, persistent Show/Hide traffic and Show details/right panel controls,
+and last-right-tool restoration. Closing details retains flight selection; clicking
+the same selected flight reopens it. Clearing selection is explicit. Strip search,
+scroll, radio draft state and keyboard focus recovery are retained. Source strip
+selection keeps the list open while resizing. Desktop uses separate strips/map/details
+columns; tablet uses distinct panel columns when both are open; phone uses compact
+stacked panels with independent scrolling, rather than overlapping them.
+
+Nine isolated Chromium cases pass across ten viewport sizes, including rectangle
+non-overlap, same-flight reopening, independent close/restore and map-only recovery.
+Visually inspected desktop and phone screenshots. Build passes with the existing
+chunk warning; changed JS/hook lint has zero errors and one existing export warning.
+Actual replay snapshot used for repeatable UI tests; no model accuracy evaluation,
+backend, threshold, weight, evaluation-file or deployment changes. Servers reused
+and left running. Evidence: checkpoints/ui_panels_20261116/. Full current behavior:
+frontend-workflow.md, Independent traffic and details panels; root context section 32.
+Preserved unrelated work and earlier evidence. No commit or push.
+
+
+### 16 November 2026 — Dark theme refinement
+
+Reviewed actual dark rendering and replaced the near-black/brown/neon palette with
+layered slate surfaces, readable neutral/status text, calmer accents and clearer
+selection/borders. Native controls, placeholders, checkboxes/ranges/meters, keyboard
+focus, map attribution/scale/popups, instruction/model cards and alert/resolution
+feedback are themed consistently. Basemap raster brightness/saturation remapping
+creates dark backgrounds/light labels without inverting aircraft or conflict layers.
+Fixed invalid watch-list border colours; added explicit amber-button foregrounds.
+Model status displays the local checkpoint name rather than a wrapping filesystem
+path, without changing its runtime identity. Theme is saved under the app's own
+aerosync.theme key and restored before React renders; unavailable storage is handled.
+
+Nine isolated Chromium scenarios pass, including persistence, all tool views,
+phone panel restoration, alert/resolution/failure fixtures, standalone radio/log
+pages and light-mode regression. Ten sampled text pairs pass 4.5:1 (minimum about
+6.49:1) and an input boundary passes 3:1; this is not a full accessibility audit.
+Baseline/final desktop and phone screenshots inspected. Corrected the harness's
+initial pointer-versus-keyboard focus assumption. No uncaught page errors. Build
+passes with the existing bundle warning; changed JS lint passes with zero findings.
+No backend, model, threshold, evaluation-file, accuracy or deployment change.
+No microphone/clearance/planning submission, personal profile access, commit or push.
+Existing servers remain running. Details: frontend-workflow.md, Dark theme refinement;
+root automating_system.md section 33. Evidence: checkpoints/ui_dark_20261116/.
+
+
+### 16 November 2026 — Route display cache freshness
+
+Investigated live missing routes: initial 26/33 had route metadata; fallback hex IDs,
+absent lookup entries and retained provider 404s explain some missing destinations.
+Found a concrete display race: IGO147/CLX9931 were already known on disk but the
+metadata layer cached their earlier unknown results for 600s. Unknown/partial/error
+display entries now expire after 10s; complete entries retain 600s. Fetch remains
+False; no route-matrix input/source-cache/preprocessing changes. Three isolated unit
+tests pass. Restarted both servers in live mode and confirmed 200/live/no feed error;
+both example routes then appeared. This is metadata freshness, not an accuracy result.
+Public route lookup coverage, date correctness and on-disk 404 expiry remain limits.
+See frontend-workflow.md, Route availability and display freshness; root section 34.
+No model/evaluation/threshold/weight changes, training, commit or push.
+
+
+### 17 November 2026 — ATCO review UI and status corrections
+
+Implemented the 16 November live review and extended findings: honest feed/track
+freshness, offline/service errors, forecast progress, local strip scope, overlap
+identity chooser, inferred-runway/metadata labels, model coverage/gate explanations,
+resolution timing/score definitions, overdue reconciliation and persistent explicit
+movement close-out. Fixed closed-socket retention across development remounts;
+polling remains active until a valid stream frame and resumes for stalled streams.
+Sequence review actions stay reachable; numeric instruction validation precedes
+submission; main details and phone strip controls use space more effectively in
+light/dark mode. Audit protection reflects the actual storage backend.
+
+Production build, 21 Node tests, 75 backend tests and 14 isolated Chromium scenarios
+pass; targeted JS lint has zero errors with an existing Fast Refresh warning. Browser
+screenshots inspected. Live plan r8/8014DA preserved; mutation/fault scenarios were
+intercepted fixtures and temporary-DB tests. No model-quality evaluation, weight,
+threshold, input-preprocessing, alert-selection or resolution-acceptance changes.
+Original review and unrelated evaluation/worktree edits retained. No backup/failover
+certification. Both local servers stopped after verification per user request; both
+ports confirmed closed. Details: frontend-workflow.md, ATCO live-review corrections;
+checkpoints/atco_review_fixes_20261117/REPORT.md. No commit/push.
+
+
+### 17 November 2026 — Project handbook and README refresh
+
+Created docs/PROJECT_HANDBOOK.md, a 25-chapter explanatory guide from early repository/prototype history through the current controller workspace. Includes architecture, stack, surveillance/speech data evolution and flow, major ML iterations with measured outcomes and served/candidate/rejected status, latest validation-selected speech numbers, binary conflict confusion matrices and an exported 40-class route matrix/heatmap with source checksum. Refreshed README current UI, actions, planning/radio APIs, provenance and handbook navigation while preserving other setup/project material.
+
+Documentation only: no model training/inference benchmark, weights, thresholds, deployment or evaluation-ledger changes. Checked local links, 292 embedded evidence records, 2295 binary metric/count relationships and ten model/deployment hashes using intact JSON capsules. Standard verifier remains blocked by pre-existing full-chain narrative encoding and inventory references missing matching capsules; these original files are preserved and limitations are recorded in the handbook. Source/matrix extraction and verification details are in checkpoints/project_handbook_20261117/. No servers started/stopped by this documentation task. No commit/push.
+
+
+### 17 November 2026 — Project name correction
+
+The project and displayed application name are Flight Right. Corrected the handbook opening, workspace header, browser title and description to use Flight Right. Retained the internal legacy theme-storage key to preserve existing preferences; historical evidence is unchanged. Presentation-only correction; no model, score, threshold, deployment, commit or push. No servers started for this task.
+
+
+### 17 November 2026 — Exact project spelling: FlightRight
+
+The user clarified that the project name is FlightRight, one word with capital F and R. This supersedes the spaced spelling in the preceding naming entry. Updated README/handbook branding, workspace/browser branding, API metadata and the editing-rules title. Historical evidence, identifiers, theme preferences and model results are retained. No servers started, no model or deployment changes, no commit/push.

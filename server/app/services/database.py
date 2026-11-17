@@ -484,11 +484,12 @@ class Database:
                     row[key] = row[key].isoformat()
         return rows
 
-    def clearance_history(self, limit: int = 100) -> list[dict]:
+    def clearance_history(self, limit: int = 100, icao24: str | None = None) -> list[dict]:
         limit = max(1, min(int(limit), 1000))
         rows = self._execute(
-            "SELECT * FROM extracted_clearances ORDER BY id DESC LIMIT %s",
-            "SELECT * FROM extracted_clearances ORDER BY id DESC LIMIT ?", (limit,))
+            "SELECT * FROM extracted_clearances" + (" WHERE matched_icao24=%s" if icao24 else '') + " ORDER BY id DESC LIMIT %s",
+            "SELECT * FROM extracted_clearances" + (" WHERE matched_icao24=?" if icao24 else '') + " ORDER BY id DESC LIMIT ?",
+            (icao24.lower(),limit) if icao24 else (limit,))
         for row in rows:
             for key in ("recorded_at", "issued_at"):
                 if hasattr(row.get(key), "isoformat"):

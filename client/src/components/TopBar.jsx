@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Bell, Sun, Moon, Radio, ScrollText } from "lucide-react";
 import { logAudit } from "@/lib/siteLogger";
@@ -8,37 +8,31 @@ import { logAudit } from "@/lib/siteLogger";
 // controller name, today's wall clock while replaying a recording, a microphone that only
 // showed "coming soon", and a bell that always said "No new system notifications".
 
-function useDataClock(dataTimeUtc) {
+function useDataClock(feed, connection) {
   // The time the picture on screen describes, advancing between updates.
-  const [now, setNow] = useState(Date.now());
-  const anchor = useRef({ data: null, wall: Date.now() });
-  useEffect(() => {
-    if (dataTimeUtc) anchor.current = { data: Date.parse(dataTimeUtc), wall: Date.now() };
-  }, [dataTimeUtc]);
+  const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-  const { data, wall } = anchor.current;
-  return data ? new Date(data + (now - wall)) : null;
+  const data = Date.parse(feed.dataTimeUtc);
+  const age = Math.max(0, now - Date.parse(feed.updatedAt));
+  // This is a display freshness indicator, not an alert/model threshold.
+  const stale = !Number.isFinite(age) || age > 45000;
+  const advancing = connection !== 'offline' && !feed.error && !stale;
+  const elapsed = advancing ? age * (feed.replay?.speed ?? 1) : 0;
+  return { clock: Number.isFinite(data) ? new Date(data + elapsed) : null, stale, elapsed };
 }
 
 export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onToggleTheme, conflict, trackedCount = 0,
-                                 feed = {}, airport = null, health = null, notifications = [] }) {
-  const [cpaSeconds, setCpaSeconds] = useState(conflict?.countdown ?? 0);
+                                 feed = {}, airport = null, health = null, notifications = [], connection = 'connecting' }) {
   const [bellOpen, setBellOpen] = useState(false);
-  const timerRef = useRef(null);
-  const clock = useDataClock(feed.dataTimeUtc);
-
-  useEffect(() => {
-    if (!conflict) { setCpaSeconds(0); return; }
-    setCpaSeconds(conflict.countdown);
-    clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => setCpaSeconds((s) => (s <= 1 ? 0 : s - 1)), 1000);
-    return () => clearInterval(timerRef.current);
-  }, [conflict]);
+  const {clock, stale, elapsed} = useDataClock(feed, connection);
+  const cpaSeconds = conflict ? Math.max(0, Math.round(conflict.countdown - elapsed / 1000)) : 0;
+  const feedStatus = connection === 'offline' ? 'DISCONNECTED' : !feed.source ? 'CONNECTING' : feed.error ? 'FEED ERROR' : stale ? 'STALE DATA' : null;
 
   const hasAlerts = alertCount > 0;
+  const statusColor = feedStatus || hasAlerts ? 'var(--red)' : 'var(--green)';
   const cpaStr = `${String(Math.floor(cpaSeconds / 60)).padStart(2, "0")}:${String(cpaSeconds % 60).padStart(2, "0")}`;
   const cpaColor = cpaSeconds < 180 ? "var(--red)" : cpaSeconds < 480 ? "var(--amber)" : "var(--green)";
   const isReplay = feed.source === "replay";
@@ -50,7 +44,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
 
   return (
     <header
-      className={`sticky top-0 z-50 flex items-stretch justify-between h-[80px] ${hasAlerts ? "animate-header-pulse" : ""}`}
+      className={`atc-header sticky top-0 z-50 flex shrink-0 items-stretch justify-between h-[80px] ${hasAlerts ? "animate-header-pulse" : ""}`}
       style={{
         background: "var(--bg-panel-alt)",
         borderBottom: hasAlerts ? "2px solid var(--red)" : "2px solid var(--amber)",
@@ -85,7 +79,7 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
       {/* CENTER: the time the picture describes */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 gap-1" style={{ borderRight: "1px solid var(--border-default)" }}>
         <div className="flex items-baseline gap-2">
-          <div className="font-display tabular-nums text-[40px] tracking-widest leading-none"
+          <div className="data-clock font-display tabular-nums text-[36px] tracking-widest leading-none"
                style={{ color: "var(--amber)", textShadow: "0 0 10px rgba(245,166,35,0.22)", fontVariantNumeric: "tabular-nums" }}
                title={isReplay ? "The recording's own time (UTC), not today's" : "UTC"}>
             {clock ? clock.toISOString().slice(11, 19) : "--:--:--"}
@@ -95,10 +89,10 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm" style={{ border: `1px solid ${hasAlerts ? "var(--red)" : "var(--green)"}`, background: hasAlerts ? "var(--status-alert-bg)" : "var(--status-nominal-bg)" }}>
-            <span className={`w-1.5 h-1.5 rounded-full ${hasAlerts ? "animate-blink" : "animate-pulse-dot"}`} style={{ background: hasAlerts ? "var(--red)" : "var(--green)" }} />
-            <span className="font-display text-[9px] tracking-widest uppercase" style={{ color: hasAlerts ? "var(--red)" : "var(--green)" }}>
-              {hasAlerts ? "ATC ALERT" : "NOMINAL"}
+          <div role="status" className="flex items-center gap-1.5 px-2 py-0.5 rounded-sm" style={{ border: `1px solid ${statusColor}`, background: feedStatus || hasAlerts ? "var(--status-alert-bg)" : "var(--status-nominal-bg)" }}>
+            <span className={`w-1.5 h-1.5 rounded-full ${hasAlerts ? "animate-blink" : "animate-pulse-dot"}`} style={{ background: statusColor }} />
+            <span className="font-display text-[9px] tracking-widest uppercase" style={{ color: statusColor }}>
+              {feedStatus || (hasAlerts ? "ATC ALERT" : "NO ACTIVE ALERTS")}
             </span>
           </div>
           {conflict && cpaSeconds > 0 && (
@@ -117,14 +111,16 @@ export default function TopBar({ alertCount, aiEnabled, onToggleAI, theme, onTog
       {/* RIGHT */}
       <div className="flex-1 flex items-center justify-end px-3 lg:px-5 gap-2 lg:gap-4 min-w-0">
         <button
+          title="Show or hide the suggestions panel. Monitoring and planning continue."
+          aria-pressed={aiEnabled}
           onClick={() => { logAudit("topbar:ai", "AI assist control clicked", { priorEnabled: aiEnabled }); onToggleAI(); }}
           className="flex flex-col items-end text-right transition-colors shrink min-w-0"
         >
-          <span className="font-body text-[9px] sm:text-[10px] uppercase tracking-wider mb-0.5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>AI Engine</span>
+          <span className="font-body text-[9px] sm:text-[10px] uppercase tracking-wider mb-0.5 whitespace-nowrap" style={{ color: "var(--text-muted)" }}>Suggestions</span>
           <div className="flex items-center gap-1.5">
             {aiEnabled && <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--teal)", boxShadow: "0 0 6px rgba(0,229,204,0.6)" }} />}
             <span className="font-display text-[12px] sm:text-[13px] whitespace-nowrap" style={{ color: aiEnabled ? "var(--teal)" : "var(--text-secondary)" }}>
-              {aiEnabled ? "ASSIST ACTIVE" : "ASSIST OFF"}
+              {aiEnabled ? "SHOWN" : "HIDDEN"}
             </span>
           </div>
           {aiEnabled && (

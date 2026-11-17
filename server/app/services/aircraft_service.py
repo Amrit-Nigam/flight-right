@@ -28,6 +28,7 @@ from .aircraft_info import aircraft_info
 from .airport_service import airport_service
 from .opensky_client import OpenSkyClient, OpenSkyUnavailable
 from .replay_service import ReplayService
+from .track_store import track_store
 
 log = logging.getLogger("flightright.aircraft")
 
@@ -91,6 +92,10 @@ class AircraftService:
             self.updates += 1
             self._record_history(flights)
             recent = {k: list(v) for k, v in self.histories.items() if k in self.current_keys}
+        try:
+            track_store.record(self.provider + ':' + source + ':' + str(self.replay.status().get('session', '')) if source == 'replay' else self.provider + ':' + source, flights)
+        except Exception:
+            log.exception("Display history persistence failed; model windows are unaffected")
         airport_service.observe(recent)                 # runway movements, derived from the tracks
         return self.snapshot()
 
@@ -194,6 +199,12 @@ class AircraftService:
                 if aircraft["callsign"].upper() == key.upper():
                     return list(self.histories.get(aircraft["icao24"], []))
         return []
+
+    def histories_for_coverage(self) -> dict[str, list[dict]]:
+        """Current display cohort, including short windows. Never used as model input."""
+        with self._lock:
+            return {key: list(window) for key, window in self.histories.items()
+                    if window and key in self.current_keys}
 
     def histories_for_models(self) -> dict[str, list[dict]]:
         """Aircraft that are BOTH currently visible and have a long enough window.

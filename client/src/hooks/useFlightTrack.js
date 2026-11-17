@@ -1,36 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAircraftHistory, getAircraftTrajectory } from "@/lib/api";
 import { flightTrackSegments } from "@/lib/flightTrack";
+import {createRequestCache} from '@/lib/requestCache';
 
-export function useFlightTrack(flight, source, update) {
+const historyCache=createRequestCache({ttl:8000});
+const predictionCache=createRequestCache({ttl:15000});
+
+export function useFlightTrack(flight, source, update, scope=source, intentRevision='') {
   const identity = flight?.icao24 || flight?.callsign;
-  const [result, setResult] = useState(null);
-  const [prediction, setPrediction] = useState(null);
+  const [,refresh]=useState(0);
+  const [now,setNow]=useState(Date.now);
+  const observationKey=`${scope}|${identity}`;
+  const [wait,setWait]=useState(()=>({key:observationKey,since:Date.now()}));
+  if(wait.key!==observationKey)setWait({key:observationKey,since:now});
+  useEffect(()=>{const id=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(id);},[]);
+  const historyKey=`${scope}|${identity}`;
+  const predictionKey=`${historyKey}|${flight?.timePosition}|${intentRevision}`;
   useEffect(() => {
-    if (!identity) return;
+    if (!identity || flight?.staleSelection) return;
     let cancelled = false;
-    getAircraftHistory(identity).then((data) => {
-      if (!cancelled) setResult({ identity, source, update, states: data.states || [] });
-    }).catch(() => {
-      if (!cancelled) setResult({ identity, source, update, states: [], error: true });
-    });
-    getAircraftTrajectory(identity).then((data) => {
-      if (!cancelled) setPrediction({ identity, update, ...data });
-    }).catch(() => {
-      if (!cancelled) setPrediction({ identity, source, update, status: "unavailable" });
-    });
+    const settled=()=>{if(!cancelled)refresh(n=>n+1);};
+    historyCache.load(historyKey,()=>getAircraftHistory(identity)).then(settled,settled);
+    predictionCache.load(predictionKey,()=>getAircraftTrajectory(identity)).then(settled,settled);
     return () => { cancelled = true; };
-  }, [identity, source, update]);
+  }, [identity, historyKey, predictionKey, update, flight?.staleSelection]);
 
-  const matching = result?.identity === identity && result?.source === source;
-  const segments = useMemo(() => flightTrackSegments(matching ? result.states : [], flight),
-    [matching, result, flight]);
-  const predictionMatches = prediction?.identity === identity && prediction?.source === source
+  const history=historyCache.peek(historyKey);
+  const predicted=predictionCache.peek(predictionKey);
+  const prediction=predicted?.value;
+  const states=history?.value?.states;
+  const segments = useMemo(() => flightTrackSegments(states || [], flight),[states, flight]);
+  const predictionMatches = prediction?.source === source
     && prediction?.timePosition === flight?.timePosition;
-  return { segments, prediction: predictionMatches ? prediction : null,
-    predictionStatus: predictionMatches ? prediction.status
-      : prediction?.identity === identity && prediction?.update === update && prediction?.status === "unavailable"
-        ? "unavailable" : "loading",
-    status: !matching || result.update !== update ? "loading"
-    : result.error ? "error" : segments.length ? "ready" : "empty" };
+  return { segments, prediction: predictionMatches && !predicted?.error && !flight?.staleSelection ? prediction : null,
+    elapsedSeconds:Math.max(0,Math.floor((now-wait.since)/1000)),
+    predictionError:predicted?.error?.message || prediction?.reason || '',
+    predictionStatus: predicted?.error ? 'unavailable' : predictionMatches ? prediction.status
+      : predicted?.error ? 'unavailable' : 'loading',
+    status: flight?.staleSelection ? "stale" : history?.error ? 'error' : !states ? 'loading' : segments.length ? 'ready' : 'empty' };
 }

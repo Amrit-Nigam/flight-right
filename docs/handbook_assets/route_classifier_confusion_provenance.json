@@ -1,0 +1,10 @@
+{
+  "source_ledger": "docs/evaluations/multipath.md",
+  "original_source": "ml_pipeline/reports/multipath_tuning_20261101/summary.json",
+  "original_source_sha256": "2c4484cd42673cbad9ff5c023c60646649b26c70898969f593d70d0d68de7036",
+  "samples": 18662,
+  "classes": 40,
+  "rows": "actual route-pattern class",
+  "columns": "predicted route-pattern class",
+  "basis": "Existing November 1 historical test evidence; no new inference"
+}

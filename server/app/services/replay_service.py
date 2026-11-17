@@ -224,6 +224,7 @@ class ReplayService:
         return {
             "session": self.session_path.split("\\")[-1].split("/")[-1] if self.session_path else None,
             "frame": index,
+            "cycle": (self.start_index + int((time.monotonic()-self.started_monotonic)*REPLAY_SPEED // FRAME_SECONDS)) // len(self.frames) if self.frames else 0,
             "frames": len(self.frames),
             "positionSeconds": (self.frames[index] - self.frames[0]) if self.frames else 0,
             # When this frame was actually recorded (the OpenSky poll time), so the dashboard

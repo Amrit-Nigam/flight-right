@@ -97,7 +97,7 @@ class ConflictService:
         return pairs[:MAX_PAIRS_PER_UPDATE]
 
     # ------------------------------------------------------------------ assessment
-    def assess(self, histories: dict[str, list[dict]]) -> dict:
+    def assess(self, histories: dict[str, list[dict]], coverage_histories=None) -> dict:
         """One full pass: every candidate pair through the chain, then the alert feed."""
         self.load()
         started = time.perf_counter()
@@ -185,6 +185,8 @@ class ConflictService:
                                      if entry.get("clearance")},
                 "pairsSkippedShortHistory": skipped,
                 "eligibleAircraft": sum(1 for w in histories.values() if w and self.eligible(w[-1])),
+                "coverage": self.coverage(coverage_histories if coverage_histories is not None else histories,
+                                          len(pairs), len(assessments), skipped),
                 "durationMs": round(self.last_duration_ms, 1),
                 "modelVersions": self.engine.status(),
                 "counts": feed_output["counts"],
@@ -199,6 +201,33 @@ class ConflictService:
         return self.last_result
 
     # ------------------------------------------------------------------ presentation
+    @staticmethod
+    def coverage(histories, considered, assessed, short_history):
+        """Read-only accounting of the existing selection; does not alter eligibility."""
+        counts = dict(ground=0, belowFloor=0, lowSpeed=0, eligible=0, warming=0)
+        for window in histories.values():
+            if not window:
+                continue
+            current = window[-1]
+            if current.get('onGround'):
+                counts['ground'] += 1
+            elif current.get('altitudeFt', 0) < CONFLICT_MIN_ALTITUDE_FT:
+                counts['belowFloor'] += 1
+            elif current.get('velocityMs', 0) <= CONFLICT_MIN_VELOCITY_MS:
+                counts['lowSpeed'] += 1
+            else:
+                counts['eligible'] += 1
+                counts['warming'] += int(len(window) < 10)
+        ready = counts['eligible'] - counts['warming']
+        total_pairs = ready * (ready - 1) // 2
+        return {**counts, 'reportedAircraft': sum(counts[k] for k in ('ground', 'belowFloor', 'lowSpeed', 'eligible')),
+                'readyAircraft': ready, 'pairsNotShortlisted': max(0, total_pairs-considered),
+                'pairsFailed': max(0, considered-assessed-short_history),
+                'minimumAltitudeFt': CONFLICT_MIN_ALTITUDE_FT,
+                'minimumSpeedMs': CONFLICT_MIN_VELOCITY_MS,
+                'pairLimit': MAX_PAIRS_PER_UPDATE,
+                'pairFilterNm': PAIR_PREFILTER_NM, 'pairFilterFt': PAIR_PREFILTER_FT}
+
     @staticmethod
     def _present(entry: dict) -> dict:
         """One alert row, flattened into plain JSON the dashboard can render.
@@ -228,7 +257,19 @@ class ConflictService:
             "cpaVerticalFt": entry["cpa_vertical_separation_ft"],
             "probability": entry["probability"],
             "classifierProbability": entry.get("classifier_conflict_probability"),
+            "classifierDecision": {"alert": classifier.get("alert"),
+                                   "calibratedThreshold": classifier.get("calibrated_decision_threshold"),
+                                   "rawProbability": classifier.get("raw_probability"),
+                                   "rawThreshold": classifier.get("decision_threshold")},
             "ruleIsConflict": entry["rule_is_conflict"],
+            "triggerGate": assessment.get("escalation", {}).get("gate"),
+            "confirmationUpdates": assessment.get("escalation", {}).get("consecutive_updates"),
+            "nominalCpa": {"lateralNm": rule.get("cpa_lateral_distance_nm"),
+                           "verticalFt": rule.get("cpa_vertical_separation_ft"),
+                           "seconds": rule.get("time_to_cpa_seconds")},
+            "alternativeCpa": {"lateralNm": multipath.get("cpa_lateral_distance_nm"),
+                               "verticalFt": multipath.get("cpa_vertical_separation_ft"),
+                               "seconds": multipath.get("time_to_cpa_seconds")},
             "isConverging": rule.get("is_converging"),
             "firstSeen": entry["first_seen"],
             "notificationsSoFar": entry["notifications_so_far"],

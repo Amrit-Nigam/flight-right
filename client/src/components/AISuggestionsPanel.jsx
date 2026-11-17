@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { logActivity, logAudit } from "@/lib/siteLogger";
 
-export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, aiEnabled, acceptedCount }) {
+export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, aiEnabled, acceptedCount, selectedFlight, onSelectFlight }) {
   const [showMedium, setShowMedium] = useState(false);
 
   const critical = suggestions.filter(s => s.priority === 'CRITICAL');
@@ -20,7 +20,7 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
       style={{
         background: 'var(--bg-panel)',
         border: '1px solid var(--border-default)',
-        borderLeft: `4px solid ${s.typeColor}`,
+        borderLeft: `4px solid ${s.type==='CONFLICT'?'var(--red)':s.typeColor}`,
       }}
     >
       {/* Background glow for critical */}
@@ -31,7 +31,7 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <span className="font-display text-[10px] uppercase tracking-wider px-2 py-0.5" style={{ borderWidth: '1px', borderStyle: 'solid', borderColor: s.typeColor, color: s.typeColor, background: `${s.typeColor}10` }}>
+            <span className="font-display text-[10px] uppercase tracking-wider px-2 py-0.5" style={{ borderWidth: '1px', borderStyle: 'solid', borderColor: s.type==='CONFLICT'?'var(--red)':s.typeColor, color: s.type==='CONFLICT'?'var(--red)':s.typeColor, background: s.type==='CONFLICT'?'var(--red-glow)':`${s.typeColor}10` }}>
               {s.type}
             </span>
             <span className="font-display text-[10px] px-2 py-0.5" style={{
@@ -46,9 +46,9 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
 
         <div className="flex gap-1 mb-2">
           {s.flights.map((f) => (
-            <span key={f} className="font-display text-[10px] px-2 py-0.5" style={{ background: 'var(--bg-raised)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}>
+            <button key={f} onClick={()=>onSelectFlight?.(f,{surface:'model-suggestion'})} aria-pressed={selectedFlight===f} className="font-display text-[11px] underline px-2 py-1" style={{ background: 'var(--bg-raised)', border: `1px solid ${selectedFlight===f?'var(--amber)':'var(--border-default)'}`, color: 'var(--text-primary)' }}>
               {f}
-            </span>
+            </button>
           ))}
         </div>
 
@@ -102,7 +102,8 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
       {!aiEnabled && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[var(--bg-base)] bg-opacity-95 backdrop-blur-sm">
           <span className="text-[24px] mb-2 opacity-50">✦</span>
-          <p className="font-display text-[14px] tracking-wider text-[var(--text-muted)]">AI SYSTEM DISENGAGED</p>
+          <p className="font-display text-[14px] tracking-wider text-[var(--text-muted)]">SUGGESTIONS HIDDEN</p>
+          <p className="mt-2 px-4 text-center text-xs text-[var(--text-muted)]">Monitoring and planning continue.</p>
         </div>
       )}
 
@@ -164,7 +165,7 @@ export default function AISuggestionsPanel({ suggestions, onAccept, onDismiss, a
         )}
 
         {suggestions.length === 0 && (
-          <div className="flex items-center justify-center py-10 opacity-50">
+          <div className="flex items-center justify-center py-2">
             <p className="font-display text-[11px] tracking-widest text-[var(--text-muted)]">— NO PENDING ACTIONS —</p>
           </div>
         )}

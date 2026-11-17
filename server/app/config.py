@@ -1,4 +1,4 @@
-"""Settings for the Flight Right backend, all overridable from the environment.
+"""Settings for the FlightRight backend, all overridable from the environment.
 
 Defaults match the decisions recorded in CLAUDE.md so that running the server with no
 configuration at all reproduces the documented behaviour.

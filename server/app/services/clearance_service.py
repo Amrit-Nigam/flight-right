@@ -37,7 +37,7 @@ class ClearanceService:
         self._lock = threading.Lock()
         self._in_force: dict[str, dict[str, Clearance]] = {}
 
-    def submit(self, payload: dict[str, Any], flights: list[dict], source: str = "manual") -> dict[str, Any]:
+    def submit(self, payload: dict[str, Any], flights: list[dict], source: str = "manual", display_context=None) -> dict[str, Any]:
         """Validate, match to a visible aircraft, record, and (if acceptable) put in force."""
         action = str(payload.get("action", "")).strip().upper()
         wanted = str(payload.get("icao24") or payload.get("callsign") or "").strip()
@@ -62,7 +62,8 @@ class ClearanceService:
             source=source, issued_at=time.time(),
             valid_seconds=valid_seconds,
             transcription_id=payload.get("transcription_id"),
-            notes={"callsign_heard": wanted[:16], "requested_by": payload.get("user", DEFAULT_USER)})
+            notes={"callsign_heard": wanted[:16], "requested_by": payload.get("user", DEFAULT_USER),
+                   **({'displayContext':display_context} if display_context else {})})
 
         problems = clearance.problems()
         if invalid_numeric:
@@ -78,6 +79,8 @@ class ClearanceService:
                   "effect": ("caps predicted altitude at the cleared level" if GROUP.get(action) == "level"
                              else "eliminates candidate paths whose track contradicts the heading" if action == "TURN"
                              else "recorded only; not yet used to adjust paths")}
+        if display_context:
+            report['displayContext'] = display_context
         if applied:
             with self._lock:
                 self._in_force.setdefault(clearance.icao24, {})[GROUP[action]] = clearance

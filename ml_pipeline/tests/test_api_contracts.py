@@ -32,6 +32,16 @@ class APIContractTests(unittest.TestCase):
         self.database.query.return_value = []
         self.intent_service.status.return_value = {}
 
+    def test_flight_instruction_history_is_filtered_and_correlated(self):
+        self.database.clearance_history.return_value=[]
+        self.clearance_service.supported.return_value={}
+        self.clearance_service.in_force.return_value={}
+        response=self.client.get('/api/clearances?icao24=abc123&limit=50')
+        self.assertEqual(response.status_code,200)
+        self.database.clearance_history.assert_called_once_with(50,'abc123')
+        self.assertTrue(response.json()['context']['scope'].startswith('live:'))
+        self.assertTrue(response.json()['context']['runId'])
+
     def test_live_weather_continues_when_surveillance_fails(self):
         self.snapshot.update(source="none", flights=[], count=0)
         self.airport_service.summary.return_value = {"metar": None, "metarError": "upstream timeout"}

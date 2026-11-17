@@ -34,6 +34,15 @@ class SpeechWorkflowTests(unittest.TestCase):
         self.assertTrue(report["applied"])
         self.assertTrue(np.all(adjusted[:, :, 2] >= 33000 / 3.28084))
 
+    def test_display_correlation_survives_clearance_and_review(self):
+        context={'scope':'replay:sample:2026-09-04:cycle2','runId':'test-run'}
+        result=self.send('IGO086 descend FL330',display_context=context)
+        self.assertEqual(result['displayContext'],context)
+        self.assertEqual(result['clearance']['displayContext'],context)
+        self.assertEqual(self.clearances.in_force()['abc123'][0].notes['displayContext'],context)
+        reviewed=self.service.review(result['transcriptionId'],'IGO086 turn heading 090','atco',self.flights)
+        self.assertEqual(reviewed['displayContext'],context)
+
     def test_readback_confirm_mismatch_and_request_do_not_issue(self):
         self.send("IGO086 descend FL330 and turn heading 090")
         original = self.clearances.in_force()
