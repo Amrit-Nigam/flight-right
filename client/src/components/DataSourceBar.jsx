@@ -25,7 +25,7 @@ export default function DataSourceBar({ feed = {}, connection, lastError, confli
 
   return (
     <div
-      className="flex w-full shrink-0 flex-wrap items-center gap-x-5 gap-y-1 px-4 py-1.5"
+      className="data-source-bar flex w-full shrink-0 flex-wrap items-center gap-x-5 gap-y-1 px-4 py-1.5"
       style={{
         background: offline ? "rgba(227,73,72,0.10)" : "var(--bg-panel, rgba(0,0,0,0.03))",
         borderBottom: "1px solid var(--border, rgba(0,0,0,0.08))",
@@ -45,7 +45,7 @@ export default function DataSourceBar({ feed = {}, connection, lastError, confli
       </span>
 
       {feed.replay && (
-        <span style={{ color: "var(--text-muted)" }}>
+        <span className="source-session" style={{ color: "var(--text-muted)" }}>
           {feed.replay.session} · frame {feed.replay.frame + 1}/{feed.replay.frames}
           {feed.replay.speed !== 1 ? ` · ${feed.replay.speed}×` : ""}
         </span>
@@ -55,7 +55,7 @@ export default function DataSourceBar({ feed = {}, connection, lastError, confli
         <span style={{ color: "var(--text-muted)" }}>{feed.creditsRemaining} OpenSky credits left</span>
       )}
 
-      <span style={{ color: "var(--text-muted)" }}>
+      <span className="source-metrics" style={{ color: "var(--text-muted)" }}>
         {feed.count ?? 0} tracked · {conflicts.eligibleAircraft ?? 0} en-route ·{" "}
         {conflicts.pairsAssessed ?? 0} pairs assessed
         {conflicts.durationMs != null ? ` in ${conflicts.durationMs} ms` : ""}
@@ -81,7 +81,7 @@ export default function DataSourceBar({ feed = {}, connection, lastError, confli
         </span>
       )}
 
-      <span className="ml-auto" style={{ color: "var(--text-muted)", opacity: 0.75 }}>
+      <span className="source-disclaimer ml-auto" style={{ color: "var(--text-muted)", opacity: 0.75 }}>
         PROTOTYPE · DECISION SUPPORT · CONTROLLER DECIDES
       </span>
     </div>

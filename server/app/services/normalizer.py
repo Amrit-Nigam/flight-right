@@ -60,21 +60,6 @@ def infer_status(altitude_ft: float, speed_kt: float, vertical_rate_fpm: float,
     return "CRUISE"
 
 
-def infer_waypoint(lat: float, lng: float, altitude_ft: float, heading: float) -> str:
-    """A nearest-fix label for the detail drawer. Cosmetic, and approximate."""
-    if lat is None or lng is None:
-        return "TMA"
-    if altitude_ft < 7000 and lng < 72.75:
-        return "27L ILS"
-    if altitude_ft < 7000 and 240 < heading < 300:
-        return "27R ILS"
-    if lat > 20:
-        return "OKLOV"
-    if lng > 73.2:
-        return "DISHA"
-    return "DEGAN"
-
-
 def normalize(raw: Mapping[str, Any], now: datetime | None = None) -> dict[str, Any]:
     """One aircraft, in the shape the React components consume."""
     now = now or datetime.now(timezone.utc)
@@ -102,18 +87,15 @@ def normalize(raw: Mapping[str, Any], now: datetime | None = None) -> dict[str, 
         "status": infer_status(altitude_ft, speed_kt, vertical_rate_fpm,
                                bool(raw.get("onGround")), raw.get("status")),
         "onGround": bool(raw.get("onGround")),
-        # The fields below have no source in ADS-B. They are placeholders the dashboard
-        # renders, and they are marked so the UI can label them rather than imply they
-        # are measured. A flight-plan feed would fill route, eta and aircraft type.
-        "route": raw.get("route") or "BOM TMA",
-        "aircraft": raw.get("aircraft") or "UNK",
-        "eta": raw.get("eta") or "--",
-        "squawk": raw.get("squawk") or "----",
-        "fuel": raw.get("fuel") or "--",
-        "waypoint": raw.get("waypoint") or infer_waypoint(
-            float(lat) if lat is not None else 0.0,
-            float(lng) if lng is not None else 0.0, altitude_ft, heading),
-        "estimatedFields": ["route", "eta", "aircraft", "fuel", "waypoint"],
+        # Until 27 Sep 2026 this carried placeholders (route "BOM TMA", type "UNK", fuel "--"
+        # and a waypoint guessed from position). They are gone: aircraft_info.enrich() fills
+        # route, type, registration and ETA from real sources, and anything without a source
+        # stays None rather than being invented. Fuel has no public source and was removed.
+        "route": raw.get("route"),
+        "aircraft": raw.get("aircraft"),
+        "eta": raw.get("eta"),
+        "squawk": raw.get("squawk") or None,
+        "estimatedFields": ["status"],
         "timePosition": raw.get("timePosition"),
         "updatedAt": now.isoformat(),
         "source": raw.get("source") or "replay",
@@ -154,9 +136,6 @@ def from_opensky_state(state: Sequence[Any], now: datetime | None = None) -> dic
         "onGround": bool(on_ground),
         "squawk": squawk,
         "timePosition": time_position,
-        "route": "OpenSky live",
-        "aircraft": "ADS-B",
-        "eta": "LIVE",
         "source": "opensky",
     }, now)
 

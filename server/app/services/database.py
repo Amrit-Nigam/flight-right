@@ -49,7 +49,9 @@ log = logging.getLogger("flightright.database")
 
 # A caller cannot invent levels. Anything else is stored as "audit".
 LEVELS = {"audit", "system", "mock", "console:error", "warning", "error"}
-DEFAULT_USER = "demo-controller"
+# The identity every audit row is written under. There is no login (MVP security posture,
+# Section 3), so it is one configured name; the dashboard shows this same value.
+DEFAULT_USER = os.environ.get("FLIGHT_RIGHT_CONTROLLER_ID", "demo-controller").strip() or "demo-controller"
 MAX_DETAIL_BYTES = 16_384
 MAX_TEXT = 2_000
 
@@ -69,6 +71,25 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     detail        JSONB       NOT NULL DEFAULT '{}'::jsonb
 );
 """
+
+def _add_missing_sqlite_columns(connection: sqlite3.Connection) -> None:
+    """Bring an older SQLite file up to SQLITE_SCHEMA by adding columns, never dropping any.
+
+    CREATE TABLE IF NOT EXISTS leaves an existing table alone, so a file written by the 8 Sep
+    audit_service.py (detail_json, no detail) made every audit write fail whenever PostgreSQL was
+    down. Old rows and old columns are kept as they are; new columns get their schema default."""
+    reference = sqlite3.connect(":memory:")
+    reference.executescript(SQLITE_SCHEMA)
+    for (table,) in reference.execute("SELECT name FROM sqlite_master WHERE type='table'"
+                                      " AND name NOT LIKE 'sqlite_%'"):
+        have = {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+        for _, name, kind, _notnull, default, _pk in reference.execute(f"PRAGMA table_info({table})"):
+            if name not in have:
+                suffix = f" NOT NULL DEFAULT {default}" if default is not None else ""
+                connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {kind}{suffix}")
+                log.warning("SQLite store: added missing column %s.%s", table, name)
+    reference.close()
+
 
 SQLITE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -104,6 +125,21 @@ CREATE TABLE IF NOT EXISTS resolution_options (
     residual_risk REAL, new_conflict_risk REAL, explanation TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS resolution_conflict ON resolution_options (conflict_id);
+
+-- Plan Phase 7.3: the voice chain's records, append-only (see scripts/postgres.py).
+CREATE TABLE IF NOT EXISTS transcriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, recorded_at TEXT NOT NULL, clip_ref TEXT NOT NULL,
+    heard_at TEXT, frequency_mhz REAL, transcript TEXT NOT NULL, model_id TEXT NOT NULL,
+    quantisation TEXT, asr_version TEXT NOT NULL, confidence REAL
+);
+CREATE TABLE IF NOT EXISTS extracted_clearances (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, recorded_at TEXT NOT NULL, transcription_id INTEGER,
+    source TEXT NOT NULL, matched_icao24 TEXT NOT NULL, callsign_heard TEXT,
+    callsign_matched TEXT, action TEXT NOT NULL, value REAL, fix TEXT, confidence REAL NOT NULL,
+    issued_at TEXT NOT NULL, valid_seconds REAL NOT NULL, applied INTEGER NOT NULL,
+    report TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS clearances_icao ON extracted_clearances (matched_icao24, issued_at DESC);
 """
 
 
@@ -151,6 +187,7 @@ class Database:
             AUDIT_DATABASE.parent.mkdir(parents=True, exist_ok=True)
             with sqlite3.connect(self.sqlite_path) as connection:
                 connection.executescript(SQLITE_SCHEMA)
+                _add_missing_sqlite_columns(connection)
             self._backend = "sqlite"
             log.info("Audit store: SQLite at %s (append-only by convention, not enforced)",
                      self.sqlite_path)
@@ -176,6 +213,11 @@ class Database:
 
     def _execute(self, postgres_sql: str, sqlite_sql: str, params: tuple = ()) -> list[dict]:
         """Run a statement on whichever backend is live, returning rows as dicts."""
+        if self._backend == "none":
+            # The server initialises at startup; a script or test that imports a service
+            # directly did not, and used to write into an SQLite file with no schema
+            # ("no such table: transcriptions", found 26 Sep). Initialise on first use.
+            self.initialise()
         with self._lock:
             if self._backend == "postgresql" and self._postgres is not None:
                 try:
@@ -384,6 +426,80 @@ class Database:
             for key in ("first_seen", "last_seen"):
                 if hasattr(row.get(key), "isoformat"):
                     row[key] = row[key].isoformat()
+        return rows
+
+    # --------------------------------------------- voice chain (plan Phase 7.3)
+    def record_transcription(self, row: dict[str, Any]) -> int | None:
+        """One transcript and the model that produced it. INSERT only.
+
+        Unused until the speech chain exists (plan Phases 4-5). model_id and asr_version
+        are required, so no transcript can be stored without saying what heard it.
+        """
+        now = datetime.now(timezone.utc)
+        heard = row.get("heard_at")
+        values = (now, _clip(row["clip_ref"], 500),
+                  datetime.fromtimestamp(float(heard), timezone.utc) if heard is not None else None,
+                  _float(row.get("frequency_mhz")), _clip(row["transcript"]),
+                  _clip(row["model_id"], 200), _clip(row.get("quantisation"), 32),
+                  _clip(row["asr_version"], 200), _float(row.get("confidence")))
+        rows = self._execute(
+            "INSERT INTO transcriptions (recorded_at, clip_ref, heard_at, frequency_mhz, transcript,"
+            " model_id, quantisation, asr_version, confidence) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            " RETURNING id",
+            "INSERT INTO transcriptions (recorded_at, clip_ref, heard_at, frequency_mhz, transcript,"
+            " model_id, quantisation, asr_version, confidence) VALUES (?,?,?,?,?,?,?,?,?)",
+            _iso_for_sqlite(values, self._backend))
+        return rows[0]["id"] if rows else None
+
+    def record_clearance(self, clearance: dict[str, Any], applied: bool, report: dict[str, Any]) -> int | None:
+        """One clearance and what the system did with it. INSERT only."""
+        now = datetime.now(timezone.utc)
+        values = (now, clearance.get("transcription_id"), _clip(clearance.get("source"), 120),
+                  _clip(clearance.get("icao24"), 16), _clip(clearance.get("notes", {}).get("callsign_heard"), 16),
+                  _clip(clearance.get("callsign"), 16), _clip(clearance.get("action"), 16),
+                  _float(clearance.get("value")), _clip(clearance.get("fix"), 16),
+                  float(clearance.get("confidence", 0.0)),
+                  datetime.fromtimestamp(float(clearance.get("issued_at", 0.0)), timezone.utc),
+                  float(clearance.get("valid_seconds", 0.0)), bool(applied),
+                  json.dumps(report, default=str)[:MAX_DETAIL_BYTES])
+        rows = self._execute(
+            "INSERT INTO extracted_clearances (recorded_at, transcription_id, source, matched_icao24,"
+            " callsign_heard, callsign_matched, action, value, fix, confidence, issued_at,"
+            " valid_seconds, applied, report)"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb) RETURNING id",
+            "INSERT INTO extracted_clearances (recorded_at, transcription_id, source, matched_icao24,"
+            " callsign_heard, callsign_matched, action, value, fix, confidence, issued_at,"
+            " valid_seconds, applied, report) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            _iso_for_sqlite(values, self._backend))
+        return rows[0]["id"] if rows else None
+
+    def transcription_history(self, limit: int = 100) -> list[dict]:
+        limit = max(1, min(int(limit), 1000))
+        rows = self._execute(
+            "SELECT * FROM transcriptions ORDER BY id DESC LIMIT %s",
+            "SELECT * FROM transcriptions ORDER BY id DESC LIMIT ?", (limit,))
+        for row in rows:
+            for key in ("recorded_at", "heard_at"):
+                if hasattr(row.get(key), "isoformat"):
+                    row[key] = row[key].isoformat()
+        return rows
+
+    def clearance_history(self, limit: int = 100, icao24: str | None = None) -> list[dict]:
+        limit = max(1, min(int(limit), 1000))
+        rows = self._execute(
+            "SELECT * FROM extracted_clearances" + (" WHERE matched_icao24=%s" if icao24 else '') + " ORDER BY id DESC LIMIT %s",
+            "SELECT * FROM extracted_clearances" + (" WHERE matched_icao24=?" if icao24 else '') + " ORDER BY id DESC LIMIT ?",
+            (icao24.lower(),limit) if icao24 else (limit,))
+        for row in rows:
+            for key in ("recorded_at", "issued_at"):
+                if hasattr(row.get(key), "isoformat"):
+                    row[key] = row[key].isoformat()
+            if isinstance(row.get("report"), str):
+                try:
+                    row["report"] = json.loads(row["report"])
+                except json.JSONDecodeError:
+                    pass
+            row["applied"] = bool(row.get("applied"))
         return rows
 
 

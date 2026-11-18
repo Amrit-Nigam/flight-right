@@ -185,6 +185,23 @@ FEATURE_COLUMNS = [
 ]
 
 # Recorded for analysis and for warning-time reporting. NEVER given to the model.
+# Optional classifier inputs (plan 9.0, served from 26 Sep): the level each aircraft's crew has
+# dialled into the autopilot, minus its current altitude, and the gap between the two dialled
+# levels. Not produced by this generator: joined by classifier_intent_ablation.py from adsb.lol
+# history for training, and by server/app/services/intent_service.py at run time. NaN = unknown.
+INTENT_COLUMNS = ["a_sel_alt_delta_ft", "b_sel_alt_delta_ft", "sel_level_separation_ft"]
+
+
+def intent_features(a_altitude_ft: float, b_altitude_ft: float,
+                    a_selected_ft: float | None, b_selected_ft: float | None) -> dict[str, float]:
+    """The three dialled-level inputs, exactly as the training data built them."""
+    nan = float("nan")
+    a = float(a_selected_ft) if a_selected_ft is not None else nan
+    b = float(b_selected_ft) if b_selected_ft is not None else nan
+    return {"a_sel_alt_delta_ft": a - a_altitude_ft, "b_sel_alt_delta_ft": b - b_altitude_ft,
+            "sel_level_separation_ft": abs(a - b)}
+
+
 OUTCOME_COLUMNS = [
     "actual_cpa_lateral_nm",
     "actual_cpa_vertical_ft",

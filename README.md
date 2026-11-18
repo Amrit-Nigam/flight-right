@@ -1,179 +1,847 @@
-# Flight Right
+# FlightRight
 
-**An AI-assisted air traffic control decision-support dashboard for the Indian airspace
-context.** It monitors aircraft, predicts near-term conflicts, recommends explainable
-resolution manoeuvres, and records every decision in an append-only audit log.
+**Full project documentation:** [Project handbook and development history](docs/PROJECT_HANDBOOK.md).
+It covers the architecture, data sources/flow, tech stack, major model iterations and
+their measured results, classifier confusion matrices, latest selected speech results,
+UI evolution, verification and limitations through 17 November 2026.
 
-The controller always decides. Every suggestion can be accepted, dismissed or overridden,
-and that choice is logged.
+**Run the pretrained demo after cloning (no training required):**
 
-> **Prototype — decision support, not automation.** This is a final-year engineering
-> project. It is not a certified ATC system, it does not control aircraft, and it is not
-> a replacement for a controller. OpenSky is not a certified surveillance feed;
-> production use would require certified surveillance, flight plans, weather, NOTAMs and
-> regulatory validation.
+```powershell
+git clone --branch fine-tuning https://github.com/Amrit-Nigam/flight-right.git
+cd flight-right
+py -3.13 start.py
+```
+
+On Windows you can also double-click **start_demo.bat**. Install **Python 3.13**,
+**Node.js 22 LTS or newer**, and **Git with Git LFS** first. The launcher downloads
+missing LFS model files, installs/checks pinned Python dependencies and frontend
+dependencies, then starts both servers. First setup needs internet and downloads
+about 376 MiB of demo/model assets plus dependencies. No GPU is required.
+
+Open **http://127.0.0.1:5173**. Leave the terminal open; **Ctrl+C stops both servers**.
+The default is a shareable **recorded adsb.lol replay**, with the same pretrained
+models. It is not a live feed and may show a different encounter from the older
+OpenSky recording. Samples at `/radio` are labelled synthetic and run real speech
+recognition unless you explicitly choose a cached result. No training is started.
+The offline flight-route lookup records are bundled in one `demo/context/routes.json`
+file, rather than hundreds of per-flight files.
+
+**For live aircraft:** copy `.env.example` to `.env`, enter your own
+`OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET`, then run:
+
+```powershell
+py -3.13 start.py --mode live
+```
+
+Never commit `.env`; no API keys are supplied. Provider access/availability still
+applies. Live radio additionally needs your own audio source. Map tiles need internet;
+**RADAR SWEEP** uses local drawing if the map is unavailable. The easy launcher uses
+local **SQLite**, not PostgreSQL's stronger database-enforced append-only protection.
+The speech bundle is for **non-commercial research/education**; attribution and data
+terms are in [demo/THIRD_PARTY.md](demo/THIRD_PARTY.md).
+
+Useful options: `--check` installs/verifies setup without starting servers,
+`--no-browser` leaves the browser closed, `--no-install` only uses installed files.
+An existing compatible environment can use `--use-current-python`; otherwise the
+launcher creates `.venv-demo` and does not alter your other Python environments.
+On macOS/Linux use `python3.13 start.py`; the packaged runtime is tested on Windows,
+and Python/Node/Git LFS must already be installed. `git pull` updates the code; rerun
+the launcher to check any changed dependencies and pretrained assets.
+
+Agents contributing to this repository must read [AGENTS.md](AGENTS.md) before every
+task. It is the maintained home for project-editing rules, including evaluation and
+report updates.
+
+**An AI-assisted decision-support dashboard for air traffic controllers, built around Mumbai
+airspace.** It watches real aircraft, predicts which pairs are heading for a loss of
+separation (getting closer than the legal minimum distance), explains why, suggests costed
+ways out, listens to controller radio, and records every decision in a log that cannot be
+edited through the application's journal interface. Protection depends on the store:
+PostgreSQL restricts audit updates/deletes; the easy SQLite demo is append-only by convention.
+
+The controller always decides. Accept and dismiss actions are recorded; leaving a suggestion
+untouched does not record an explicit decision to ignore it. Nothing is ever sent to an aircraft.
+
+> **Prototype: decision support, not automation.** This is a final-year engineering project
+> (KJ Somaiya). It is not a certified ATC system, it does not control aircraft, and it does not
+> replace a controller. Its data comes from free, uncertified public feeds; real use would need
+> certified surveillance, flight plans, weather, NOTAMs and regulatory approval.
+
+---
+
+**New to the demo? Start with the [controller walkthrough](#a-controllers-complete-walkthrough).**
+
+**Current workspace:** Map, Traffic, Sequence, Details, ML, Radio and Airport are separate
+tools. Traffic strips and the right inspector open/close independently, with visible
+reopen controls. Layout adapts to desktop/tablet/phone in light and dark themes.
+The header distinguishes connection status from individual report age and estimated
+runway usage. Local strips default to 50 NM; the map retains wider surveillance.
+Overdue movements have explicit close-out/history, and forecast warm-up shows report
+progress. See [the complete UI workflow](docs/frontend-workflow.md).
+
+## Contents
+
+1. [The headline result](#the-headline-result)
+2. [Why this project exists](#why-this-project-exists)
+3. [What it does, in one minute](#what-it-does-in-one-minute)
+4. [Six words you need](#six-words-you-need)
+5. [How data flows through the system](#how-data-flows-through-the-system)
+6. [Where the data comes from](#where-the-data-comes-from)
+7. [The models, and what each one is for](#the-models-and-what-each-one-is-for)
+8. [How a conflict becomes an alarm](#how-a-conflict-becomes-an-alarm)
+9. [The speech chain (radio → clearance)](#the-speech-chain-radio--clearance)
+10. [What is on the screen, and where each panel gets its data](#what-is-on-the-screen-and-where-each-panel-gets-its-data)
+11. [Live demo: controller walkthrough and backend](#the-demo-live-or-recorded-and-the-script)
+12. [Running it](#running-it)
+13. [Technology, and why each piece was chosen](#technology-and-why-each-piece-was-chosen)
+14. [How the results are checked](#how-the-results-are-checked)
+15. [Honest limitations](#honest-limitations)
+16. [Repository layout](#repository-layout)
+17. [API](#api)
+18. [Documentation map](#documentation-map)
+19. [Data sources, licences and credits](#data-sources-licences-and-credits)
 
 ---
 
 ## The headline result
 
-> **94.0% of conflicts are caught with at least three minutes of warning.**
+These are recorded historical measurements, not a new November UI benchmark.
+Served/candidate status and corpus/split details are maintained in
+[the current evaluation](docs/evaluation.md); iteration-by-iteration explanations and
+confusion matrices are in [handbook sections 11–17](docs/PROJECT_HANDBOOK.md#11-single-position-trajectory-model-evolution-and-results).
 
-Three minutes is not a round number — it is the minimum useful warning. An alert takes
-about 38 s to turn into aircraft movement (controller decision 15 s, radio call and
-readback 15 s, pilot reaction 8 s), and a 1,000 ft level change then takes ~40 s while a
-30° turn at 450 kt takes ~96 s. Below about three minutes, no manoeuvre an airliner can
-fly opens a safe gap in time — which we confirmed by simulating every option, not just by
-arithmetic.
+> **95.1% of conflicts are caught with at least three minutes of warning**
+> (270 of 284 real conflicts in held-out test data). Through the whole running system, which is
+> what a controller actually gets, the figure is **95.4%** (271 of 284).
 
-Measured on held-out test data from later dates than anything the models trained on:
+**Why three minutes.** It is the smallest warning a controller can use. After an alarm, about
+38 seconds pass before an aircraft starts to move: 15 s for the controller to decide, 15 s for
+the radio call and readback, and 8 s for the pilot to react. A 1,000 ft climb then takes about
+40 s, and a 30° turn at cruise speed about 96 s. We confirmed this by simulating every possible
+manoeuvre: with 90 seconds left, none of them works in time.
 
-| Method | Conflicts caught with at least 3 min warning |
+| Method, same held-out test data | Caught with ≥ 3 min warning |
 |---|---|
-| Rule at the legal minimum (5 NM / 1000 ft) | 81.7% |
-| Rule at the alert volume (8 NM / 1500 ft) | 87.3% |
-| **XGBoost classifier** | **94.0%** |
+| Simple rule at the legal minimum (5 NM / 1,000 ft) | 81.7% |
+| Simple rule on a wider alert zone (8 NM / 1,500 ft) | 87.3% |
+| Our classifier, position and motion only (served until 26 Sep 2026) | 94.0% |
+| **Our classifier + the altitude each crew has dialled into the autopilot** | **95.1%** |
 
-Full metrics, charts and the rejected experiments are in **[docs/evaluation.md](docs/evaluation.md)**.
+"Held-out" means the test data comes from **later days than anything the models learned
+from**, and is scored against where the real aircraft actually went. Full metrics, charts and
+the experiments that failed are in [docs/evaluation.md](docs/evaluation.md).
 
 ---
 
-## What it does
+## Why this project exists
 
+**The problem.** Indian air traffic is growing fast, and Mumbai (VABB) is one of the country's
+busiest and most constrained airports: two crossing runways, dense arrivals and departures, a
+mix of airline and other traffic, and monsoon weather. Controllers already receive radar
+tracks, flight plans and radio, but from separate systems. Deciding whether two aircraft will
+get too close in the next few minutes, and what to do about it, is still largely done in the
+controller's head.
+
+**What exists elsewhere.** European centres run two kinds of automated help, both described by
+EUROCONTROL:
+- **STCA (Short-Term Conflict Alert):** a safety net that fires about two minutes ahead.
+- **MTCD (Medium-Term Conflict Detection):** a planning aid that looks further ahead.
+
+These systems are built on certified data, including the level each aircraft has been
+*cleared* to fly at. None of this is publicly available for Indian airspace.
+
+**What we set out to show.** That a single dashboard, using only free public data, can:
+
+1. **Predict** where each aircraft will be in 1, 3, 5 and 10 minutes, including several
+   possible paths when the future is genuinely uncertain.
+2. **Detect** which pairs will lose separation, early enough to act (≥ 3 minutes).
+3. **Explain** every alert: which facts made the model worry.
+4. **Recommend** manoeuvres that have been simulated, checked against other traffic, and
+   costed in delay and fuel.
+5. **Listen** to controller radio and use a heard instruction ("descend to flight level 370")
+   to sharpen the prediction.
+6. **Record** every suggestion and decision in an audit log the system itself cannot alter.
+
+**Why these design choices.** Every learned model sits on top of a simple, predictable method
+that still works if the model fails or is removed:
+- plain straight-line physics under the trajectory model;
+- a geometric distance rule under the conflict classifier;
+- recorded data under the live feed;
+- a local database under the main one.
+
+A safety tool should get worse gracefully, not fail silently.
+
+---
+
+## What it does, in one minute
+
+1. Every **10 seconds** it reads every aircraft over the Mumbai region, either live or from a
+   recording.
+2. For each aircraft it predicts **five possible future paths** with probabilities, using its
+   recent motion, where the flight is going, and any instruction heard on the radio.
+3. For each nearby pair it asks two questions:
+   - Does the **straight-line prediction** breach the legal minimum? This is a fixed safety rule.
+   - Does the **conflict classifier** say this pair will really lose separation?
+4. A pair that stays flagged for three updates in a row becomes:
+   - an **alarm**, if closest approach is within 3 minutes, with available suggested manoeuvres.
+   - a **watch-list entry**, if it is 3 to 10 minutes away. No manoeuvre is suggested.
+5. For an alarm, it **flies every candidate manoeuvre in simulation**, rejects any that fail or
+   would cause a new conflict with a third aircraft, and ranks the rest.
+6. The controller accepts or dismisses. That decision, with the model versions that produced
+   the advice, goes into the **append-only audit log**.
+
+---
+
+## Six words you need
+
+| Word | Meaning |
+|---|---|
+| **Separation** | The minimum distance two aircraft must keep. Here: 5 nautical miles sideways **or** 1,000 ft vertically. Losing both at once is a *loss of separation*, which we call a *conflict*. |
+| **CPA** (closest point of approach) | The moment in the future when two aircraft will be nearest each other, and how near. |
+| **Flight level (FL)** | Altitude in hundreds of feet: FL370 is 37,000 ft. |
+| **Clearance** | An instruction from a controller: "climb to FL370", "turn heading 090". |
+| **Callsign** | The name an aircraft uses on the radio: IGO086 is spoken "IndiGo zero eight six" (telephony "IFLY"). |
+| **En-route** | Aircraft cruising between airports, above 10,000 ft here. Aircraft landing or taking off are spaced by different rules. |
+
+---
+
+## How data flows through the system
+
+### Live path: what happens every 10 seconds
+
+```mermaid
+flowchart TD
+    subgraph Sources["Where aircraft come from"]
+        A1["OpenSky live API<br/>(OAuth2, Mumbai box)"]
+        A2["Recorded session<br/>(real OpenSky data, 4 Sep 2026)"]
+    end
+    A1 -->|"auto / live mode"| N
+    A2 -->|"replay mode"| N
+    N["Normalise + keep airborne<br/>rolling history per aircraft"] --> F["En-route filter<br/>≥10,000 ft, >50 m/s<br/>pairs within 60 NM / 5,000 ft"]
+
+    subgraph Context["Extra context, per aircraft"]
+        C1["Dialled autopilot altitude<br/>(adsb.lol: live API or saved history)"]
+        C2["Destination and origin<br/>(adsbdb route, cached; OurAirports)"]
+        C3["Heard or typed clearance<br/>(speech chain / API)"]
+    end
+
+    F --> M1["Model 1b: five possible paths<br/>per aircraft, one batched call"]
+    C2 --> M1
+    C3 --> M1
+    F --> CV["Straight-line prediction<br/>CPA on a 15-second grid"]
+    CV --> M2["Model 2: conflict classifier<br/>(XGBoost, 27 inputs, SHAP reasons)"]
+    C1 --> M2
+    M1 --> G
+    CV --> G["Alert gate<br/>safety rule OR classifier<br/>+ 3 consecutive updates"]
+    M2 --> G
+    G -->|"0–3 min"| T1["Tier 1 ALARM"]
+    G -->|"3–10 min"| T2["Tier 2 watch list"]
+    T1 --> M3["Model 3: resolution engine<br/>fly every manoeuvre, check 5 paths<br/>+ nearby traffic, rank"]
+    M3 --> AF["Alert feed<br/>repeat suppression<br/>low-confidence grouping"]
+    T2 --> AF
+    AF --> WS["WebSocket /ws/stream<br/>aircraft + alerts in one message"]
+    WS --> UI["React dashboard"]
+    UI -->|"accept / dismiss"| AU[("PostgreSQL<br/>append-only audit log")]
+    AF --> DB[("PostgreSQL<br/>conflicts, options")]
 ```
-OpenSky live feed ─┐
-recorded replay    ├─→ normalize ─→ Model 1 / 1b: where each aircraft is going
-scenario data     ─┘                      │
-                          Model 2: is this pair going to lose separation?
-                                          │
-                    Two tiers: alarm (0–3 min) vs watch list (3–10 min)
-                                          │
-                          Model 3: three costed, explained ways out
-                                          │
-                    alert feed (repeat suppression) → dashboard
-                                          │
-             controller accepts / dismisses → append-only audit log
+
+### Offline path: how the models were built
+
+```mermaid
+flowchart LR
+    P["OpenSky polling<br/>3 accounts, 90-min sessions<br/>35 sessions, 24 Aug–5 Sep 2026"] --> PRE
+    AR["OpenSky archive (Trino)<br/>38 days, Feb 2025–Sep 2026"] --> PRE
+    PRE["Preprocess<br/>10-state windows,<br/>targets at 1/3/5/10 min,<br/>split by TIME"] --> L["Model 1<br/>residual LSTM"]
+    PRE --> MP["Model 1b<br/>multi-path"]
+    ADSB["adsb.lol traces<br/>4,090 aircraft-days"] --> ENC
+    RT["adsbdb routes<br/>+ OurAirports"] --> MP
+    PRE --> ENC["Encounters: synthetic PAIRINGS<br/>of real tracks, 40,000 pairs,<br/>labelled by where they really went"]
+    ENC --> XG["Model 2<br/>XGBoost classifier"]
+    SP["ATCOSIM + UWB-ATCC<br/>(ATC speech)"] --> W["Speech model<br/>Whisper-small + LoRA"]
+    L & MP & XG & W --> S["server/app/ml/saved_models/<br/>+ %LOCALAPPDATA%/FlightRight"]
 ```
 
-### The four models
+**Time split, never random.** Training data ends 2 Sep 2026. The test data runs 4 Sep 08:01 to
+5 Sep 09:28 IST. Mixing days would let a model "remember" the very aircraft it is tested on.
 
-| | What it does | Status |
+---
+
+## Where the data comes from
+
+| Source | What we take from it | Used for | Live or offline |
+|---|---|---|---|
+| **OpenSky Network REST API** | Position, altitude, speed, heading, climb rate and callsign of every aircraft in the Mumbai box (lat 16–23.5°, lon 68–77.5°), every 10 s | The live picture, and the 35 recorded sessions | Both |
+| **OpenSky historical archive** (Trino) | Full days of past Mumbai traffic | 400,000 extra training windows for the path model. Indian low-altitude coverage only starts in Jan 2025, which we measured | Offline |
+| **adsb.lol** | `nav_altitude_mcp`: the altitude the crew has **dialled into the autopilot** (OpenSky does not carry it) | 3 inputs to the conflict classifier | Live API in live mode; saved history in replay |
+| **adsbdb** | Each callsign's route (origin → destination) | 4 destination inputs to the path model | Looked up once per callsign, then cached |
+| **OurAirports** | Airport coordinates; Mumbai's runways (09/27, 14/32) with threshold positions | Distance and bearing to destination; the runway panel and the runways on the map | Offline file |
+| **METAR** (official half-hourly airport weather report) | Wind, visibility, cloud, temperature, QNH for VABB | Top bar, flight list, map weather overlay; runway in use when no movement is seen yet | Live: aviationweather.gov (NOAA). Replay: the Iowa Environmental Mesonet archive, cached by `scripts/fetch_metar_archive.py` |
+| **adsb.lol** (aircraft details) | Registration, type, squawk | Flight details drawer | Replay: saved trace headers (97% of 1,721 airframes have a type). Live: the same adsb.lol feed |
+| **ATCOSIM, UWB-ATCC** | Real and simulated European controller speech with transcripts | Training the speech model | Offline |
+| **ATCO2 test set** | Real radio with annotated clearances | **Testing only** (762 clips never trained on) | Offline |
+| **Svarah** (AI4Bharat) | Real Indian-accented English | **Testing only**: how the speech model handles Indian accents | Offline |
+| **Indic Parler-TTS** (AI4Bharat) | Indian-accented synthetic speech | Training/practice audio and a separately labelled generated-voice diagnostic; never evidence of real-radio performance | Offline |
+| **FAA JO 7340.2, OpenFlights** | Airline radio names (IGO → "IFLY") | Matching a heard callsign to an aircraft | Offline |
+
+**How the recordings were collected.** We polled OpenSky from three accounts, in scheduled
+90-minute sessions at 10-second intervals, within a budget of 4,000 credits per rolling 24
+hours. The scripts are in `ml_pipeline/ingestion/`. The result: **627,344 airborne position
+reports from 1,730 aircraft over 12 days**.
+
+---
+
+## The models, and what each one is for
+
+Every learned model has a simple method underneath that still works without it.
+
+| | Question it answers | How it works | Result on held-out data | Underneath it |
+|---|---|---|---|---|
+| **Model 1: trajectory** | Where will this aircraft be in 1, 3, 5, 10 min? | 2-layer LSTM (hidden 128) predicting a **correction** to straight-line extrapolation. A zero correction reproduces the physics; a learned correction can still be wrong. Loss SmoothL1 (β = 0.05), never mean-squared error | 10 min, within 5 NM: **61.3%** vs straight line 50.5% (a non-neural tree benchmark reaches 65.7%, and we say so) | Straight-line extrapolation |
+| **Model 1b: multi-path** | What are the **five** most likely futures, and how likely is each? | 40 learned route patterns (KMeans) → a classifier picks the likely patterns → per-aircraft offset regressors predict each path. Inputs: 83 motion features + destination (adsbdb). Probabilities calibrated by temperature scaling | Arrivals, 10 min: one of five paths within 5 NM **76.5%**; single best guess **47.2%**; within 5 NM **and** 1,000 ft **48.8%**; height error 889 ft (all traffic) | Straight line |
+| **Model 2: conflict classifier** | Will these two aircraft **really** lose separation? | XGBoost over 24 pair features computed from the straight-line prediction, plus 3 dialled-altitude inputs. The label comes from where the two real aircraft actually went. SHAP explains every alert | **95.1%** caught with ≥ 3 min warning; recall 0.954; 98 false alarms per 1,000 pairs | The geometric safety rule, which always runs and can raise an alarm on its own |
+| **Model 3: resolution engine** | What should the controller do? | Rules plus physics. Each candidate climb, descent, turn or speed change is **flown** second by second: nothing moves for 38 s, then real turn and climb rates. Kept only if it restores separation against the other aircraft's five predicted paths **and** all nearby traffic. Ranked by safety 0.60 / delay 0.15 / fuel 0.10 / workload 0.10 / confidence 0.05 | Offers no manoeuvre when doing nothing is already safe, or when nothing can work in time | None: rules are the method |
+| **Speech model** | What did the controller say? | Whisper-small with ATC adaptation, followed by validation-selected continuation/weight averaging (`uniform_soup3`); fixed instruction extraction and callsign matching against visible aircraft | Current selected model, measured 10 Nov 2026: **21 of 31** whole instructions; mixed corpus-level results and limitations in [the speech history](docs/evaluations/asr_small_atc_p1.md) | Typed clearances through the same API |
+
+**Why these techniques and not bigger ones.** We measured the alternatives and they did not
+help:
+- The earlier absolute-position trajectory formulation failed; local residual framing improved it.
+- A longer input window did not help.
+- The tree point-prediction reference remained stronger than the served LSTM at ten minutes; the handbook records the actual split-dependent gaps.
+
+The experiments indicate a substantial information limit; they do not prove that model
+architecture can never help. Two aircraft in similar observed situations
+end up **7.9 NM apart on average** after ten minutes, because the outcome depends on a
+controller instruction we do not see. That is why the path model offers five possibilities
+instead of one guess, and why the speech chain exists.
+
+---
+
+## How a conflict becomes an alarm
+
+```mermaid
+flowchart TD
+    P["Pair of en-route aircraft"] --> R{"Straight line breaches<br/>5 NM AND 1,000 ft?"}
+    P --> C{"Classifier says<br/>conflict?"}
+    R -->|yes| Q["Candidate alert"]
+    C -->|yes| Q
+    Q --> H{"Held for 3<br/>consecutive updates?"}
+    H -->|no| W["Keep watching"]
+    H -->|yes| T{"Closest approach in..."}
+    T -->|"≤ 3 min"| A["TIER 1 ALARM<br/>sound + manoeuvres"]
+    T -->|"3–10 min"| L["TIER 2 watch list<br/>no manoeuvre"]
+```
+
+- **The safety rule outranks the model.** If the straight line breaches the legal minimum, the
+  alarm is raised whatever the classifier says.
+- **Three consecutive updates** stop a single noisy position report from making an alarm
+  flicker.
+- **Tier 2 never suggests a manoeuvre.** A ten-minute prediction is not good enough to justify
+  turning an aircraft.
+- **The alert feed changes display prominence and repeat notifications, never what is detected.**
+  A pair already on screen does not interrupt again unless something gets worse. Low-confidence
+  watch-list entries are grouped into one counted row. Every confirmed pair stays on the active
+  list on every update: there is no code path that removes one. On replayed traffic this cut
+  interruptions by about 74%, with **zero pairs lost**.
+
+---
+
+## The speech chain (radio → clearance)
+
+```mermaid
+flowchart LR
+    A["Radio audio<br/>(≤ 30 s)"] --> B["Whisper-small + LoRA<br/>CTranslate2 int8"]
+    B --> C["Transcript<br/>'ifly zero eight six descend<br/>flight level three seven zero'"]
+    C --> D["Rule-based extractor<br/>callsign · action · value"]
+    D --> E["Match callsign against<br/>aircraft on screen<br/>IFLY 086 → IGO086"]
+    E --> F{"Valid instruction, role and match?<br/>Confidence ≥ 0.85?<br/>Live surveillance for live audio?"}
+    F -->|yes| G["Clearance applied for 10 min:<br/>that aircraft's paths capped<br/>at FL370"]
+    F -->|no| H["Recorded, not applied"]
+    G --> I[("transcriptions +<br/>extracted_clearances<br/>append-only")]
+    H --> I
+```
+
+- **Heard and typed instructions take the same route.** `POST /api/clearances` accepts a typed
+  one; the speech chain submits through the same service.
+- **An instruction reshapes that aircraft's predicted paths; it never switches an alarm off.**
+  A level instruction caps the predicted altitude, which is how EUROCONTROL STCA uses the
+  cleared level. A heading instruction removes paths that contradict it.
+- **The 0.85 floor**, historically measured on 24 real heard clearances, applied 12 correct instructions and
+  0 wrong ones. It was Archit's decision.
+- **Indian accents:** the selected continuation/weight-average model was measured on
+  10 November 2026, including everyday Indian English and generated practice radio calls.
+  Neither measures real Mumbai controller radio performance. The gains were small and mixed
+  across real-radio corpora; [the speech history](docs/evaluations/asr_small_atc_p1.md) and
+  [current comparison](docs/evaluation.md) retain the exact measurement basis and limitations.
+
+---
+
+## What is on the screen, and where each panel gets its data
+
+| Tool / region | Current behavior | Source |
+| --- | --- | --- |
+| Header and session | Source/connection, last successful traffic receipt, UTC data time, estimated runway basis, theme and notifications | `/ws/stream`, `/api/health`, `/api/airport` |
+| Traffic | Searchable strips; 25/50/100 NM or All scope; surface/VABB-arrival priority; report age and source uncertainty | Aircraft feed and `/api/workspace` |
+| Map / Radar | Reported-coordinate markers, hover/focus details, overlapping-identity chooser, observed history and most-probable forecast | Feed, `/api/aircraft/history`, `/trajectory` |
+| Details | Main reported values first, route/type/ETA provenance, old-report warning, instruction history, planning/coordination actions | Feed, `/api/clearances`, `/api/workspace` |
+| Sequence | Observed/manual ARR/DEP, drag/arrows, pins, UTC preview/save, overdue reconciliation and Completed/Cancelled history | `/api/planning` and versioned `/event` |
+| ML | Actual model status, forecast report progress, eligibility/exclusions, alerts/watch, explanation and ranked simulations | `/api/health`, conflict feed, trajectory endpoint |
+| Persistent alarm / resolution review | Qualifying gate, nominal versus alternative geometry, classifier probability, candidate weight, manoeuvre heuristic, ranking score and timing margin | Existing assessment/resolution payload and decision API |
+| Radio | Passive audio, transcript/intent review and guarded communication-to-sequence; labelled examples at `/radio` | `/api/speech/*`, planning communication/sync |
+| Airport / Weather | METAR source/time, reference runways, track-derived movements and estimated usage; not ATIS | `/api/airport` |
+| Logs / audit | Server journal or separate browser-tab log, filtering and export; actual storage protection shown | `/api/audit`, `/api/health.store` |
+| Timeline | Expandable predicted encounter times | Conflict feed |
+
+Traffic and the right inspector have independent show/hide/reopen controls. Desktop
+uses separate regions; tablet/phone layouts adapt and scroll rather than overlap.
+Only relevant task tools are shown at once; the urgent alarm stays outside optional tools.
+An individual position older than 60 seconds or without a timestamp is marked old,
+and its ETA is withheld. This display policy does not alter inference thresholds.
+
+The five candidate paths support geometry and manoeuvre checks. The selected-flight
+map draws the most probable candidate, not the entire fan. Route lookup, observed
+history and forecast are distinct from a filed flight plan.
+
+---
+
+## The demo: live or recorded, and the script
+
+**Checked against repository code: 11 November 2026.** The local backend health URL was
+unreachable during this documentation check. This describes implemented behaviour and
+configured defaults; no new running demo, physical radio capture or model evaluation was
+performed. Environment overrides and installed files can change a running session.
+
+### What does "live demo" mean?
+
+A working demonstration can use recorded or current aircraft. Both run backend calculations;
+replay does not substitute pre-written alert cards. Read the source bar before presenting.
+
+| Mode | What appears | What to expect |
 |---|---|---|
-| **Model 1** — trajectory | A 2-layer LSTM predicting a *correction* to constant-velocity extrapolation at 1/3/5/10 min. A zero output reproduces the physics exactly, so it can never do worse than plain arithmetic. | Done |
-| **Model 1b** — multi-path | Five candidate paths with calibrated probabilities, from 40 learned route patterns. Best-of-5 reaches 63.6% within 5 NM at ten minutes where a single answer reaches 38.6%. For conflict detection we never have to pick one — we check all five. | Done |
-| **Model 2** — conflict classifier | XGBoost over 24 pairwise features. Features come from the constant-velocity *prediction*; the label comes from where two real aircraft *actually went*. SHAP explains every alert. | Done |
-| **Model 3** — resolution engine | Rule-based. Simulates every candidate manoeuvre at 1-second resolution through a 38 s response delay and real turn/climb rates, checks it against the other aircraft's five predicted futures *and* all nearby traffic, then ranks by safety 0.60 / delay 0.15 / fuel 0.10 / workload 0.10 / confidence 0.05. | Done |
+| **replay** | Real recorded aircraft reports | Default for `start.py`, using the included adsb.lol recording. Within the configured replay directory the loader selects the newest local recording and seeks near an encounter. Aircraft follow the recording regardless of clicks |
+| **live** | Current Mumbai-region reports from OpenSky | Needs credentials, internet and available feed credits. Explicit live mode reports feed failure without switching to replay. A conflict might never appear during a short demo |
+| **auto** | Live when available, otherwise replay | Backend default without a mode override. Falls back when no live aircraft are obtained, including feed errors/credit limits. Read the actual source label |
 
-Every learned layer has a deterministic one underneath that still works: constant velocity
-under the LSTM, the geometric CPA rule under the classifier, recorded replay under the live
-feed, SQLite under PostgreSQL.
+In replay the top-bar clock is historical data time; the header's last successful traffic update is
+receipt time on the computer. A recording received just now is still a recording.
+Restarting the backend resets its replay clock; refreshing the browser does not. Replay
+speed/seek settings and the chosen recording can change which encounter appears and when.
 
-### Two tiers, not one alarm
+### Start and check the session
 
-- **Tier 1 (0–3 min)** — audible alarm *and* resolution options.
-- **Tier 2 (3–10 min)** — watch-list entry only. Never suggests a manoeuvre, because a
-  ten-minute prediction does not justify turning an aircraft.
-- Escalation needs all three: probability over the tier threshold, time-to-CPA inside the
-  tier's range, and the pair qualifying on **three consecutive updates**, so one noisy
-  position report cannot make an alert flicker.
+From the repository root, use the pretrained launcher:
 
-### The audit log cannot be edited
-
-The application connects to PostgreSQL as a role granted `INSERT, SELECT` on `audit_logs`
-and nothing else. The database itself refuses an UPDATE or DELETE, regardless of what the
-code asks for:
-
-```
-[PASS] UPDATE on audit_logs is refused  --  permission denied for table audit_logs
-[PASS] DELETE on audit_logs is refused  --  permission denied for table audit_logs
+```powershell
+py -3.13 start.py
 ```
 
-Run `python scripts/postgres.py verify` to see it. If Postgres is not running the backend
-falls back to SQLite and says so on `/api/health` under `store`, including
-`appendOnlyEnforced: false` — the weaker guarantee is never silently in force.
+It checks dependencies and pretrained assets, starts the backend on port 8000 and frontend
+on port 5173, and opens the dashboard. It uses the shareable replay and local SQLite.
+Restarting clears in-memory conversation and active instructions; do it before presenting.
+Use `--mode live` or `--mode auto` with your own `.env` credentials. The older
+`scripts/start_demo.ps1` is a maintainer helper for an existing PostgreSQL/private-data
+installation; it is not the fresh-clone setup command.
+
+The dashboard opens directly. This prototype has no controller login or shift-handover
+workflow. The displayed controller identity is the server's configured audit identity,
+not proof of an authenticated user. VABB means Mumbai airport.
+
+1. Check **LIVE / REPLAY / NO DATA**, connection state, data time and errors.
+2. Open <http://127.0.0.1:8000/api/health>. Inspect `aircraft.source`,
+   `models.missing_models` and `store`. `ok: true` alone does not establish that all models
+   or live surveillance are available. PostgreSQL enforces audit protection at database
+   level; SQLite fallback does not provide the same enforcement.
+3. If using speech, check <http://127.0.0.1:8000/api/speech/status> for the actual model,
+   readiness and errors. Speech warms separately; aircraft monitoring can work without it.
+
+### A controller's complete walkthrough
+
+1. **Understand the screen.** Use Map, Traffic, Sequence, Details, ML, Radio and Airport
+   tools. Traffic and the right inspector open independently; Show traffic / Show details
+   controls restore closed panes. The header shows source, connection, last update and
+   estimated runway basis. Weather is optional; the bottom timeline expands encounters.
+   "Tracked" means visible aircraft. "En-route" means aircraft passing assessment filters
+   with sufficient history. Live aircraft need ten distinct reports, roughly 90-100 seconds
+   at the default cadence; replay can load past reports to shorten that wait.
+2. **Inspect an aircraft.** Search/filter the list and click an entry or map aircraft.
+   The detail drawer shows altitude, ground speed, vertical rate (climb/descent), direction
+   and route/type/registration when available. Unknown fields remain unknown. Use
+   **Map view / Radar** to switch displays and **Weather** to see the airport weather
+   report with source/time. Neither changes monitoring decisions.
+3. **Read the lines correctly.** The selected aircraft's observed trail shows received past
+   positions. Its predicted line, when available, is the most probable candidate at 1, 3,
+   5 and 10 minutes. It is not a filed route or instruction. The engine can assess five
+   candidate futures even though the selected-flight display draws one. Short history
+   or an unavailable multi-path model can mean no predicted line.
+4. **Monitor early warnings.** A tier 2 watch entry means predicted closest approach is
+   more than three and up to ten minutes away. Read the pair/reason and keep monitoring.
+   No manoeuvre is offered for these earlier warnings. A low-confidence group counts
+   less prominent entries rather than pretending they do not exist.
+5. **Review an urgent alarm.** A confirmed tier 1 alarm is within three minutes of
+   predicted closest approach. Press **Review resolution**. Check the two callsigns, predicted
+   horizontal and vertical gaps, countdown and reasons. Closest approach means "when they
+   are expected to be nearest," not a guaranteed collision time.
+6. **Compare options.** Read **WHY THIS OPTION?**, the qualifying gate, nominal/alternative
+   geometry, classifier probability, manoeuvre heuristic, weighted score, residual risk,
+   establishment margin and approximate fuel/delay. These numbers have different meanings. The first available option can already be selected; inspect
+   it before accepting. There can be fewer than three options or none: candidates may
+   fail, time may be insufficient, or the resolution simulation may find doing nothing
+   already safe. These are estimates, not guaranteed outcomes.
+7. **Record your decision.** **ACCEPT - RECORD DECISION** records the selected option on
+   the server. **DISMISS - HANDLE MANUALLY** records dismissal. The window's X also
+   follows the dismissal path. Suggestion cards have their own accept/dismiss controls.
+   These actions do not transmit, create a clearance, move aircraft or clear the alarm.
+8. **Perform the human communication step.** A controller would verify the instruction,
+   speak over the normal external radio, hear the pilot repeat it and check compliance.
+   The prototype cannot contact a pilot. In replay, explain that step or use labelled
+   sample audio; the recorded aircraft will not react to a decision.
+9. **Optionally record an instruction for prediction.** Select the aircraft, open
+   **RECORD AIRBORNE INSTRUCTION**, choose CLIMB, DESCEND, TURN or SPEED, enter the displayed unit and
+   press **RECORD**. A clearance is a controller instruction. Enter `33000` feet for
+   FL330 (33,000 ft), not `330`. Turn value `90` means heading 090 degrees, approximately
+   east. Check the response: altitude/heading instructions can adjust candidate paths;
+   SPEED is currently recorded only. This is separate from accepting a recommendation
+   and sends nothing outside the application.
+10. **Keep monitoring.** Later received positions and fresh assessments determine whether
+    the pair remains concerning. Adjusted predictions do not prove pilot compliance.
+    Replay positions remain historical. Accepted/dismissed suggestion cards may be hidden
+    for their episode in this page session while monitoring continues. The queue's
+    **RESOLVED** counter counts accepted cards, not verified restored separation.
+11. **Inspect the record.** Open `/logs`, choose **Server journal**, refresh and
+    search/filter by callsign/action. Export JSON if needed. Decisions include details
+    and server-stamped conflict-model versions; transcription records identify the speech
+    model. **This tab** is a separate browser log; clearing it does not delete server
+    audit records. Verify the server record if a request failed or a card disappeared.
+
+12. **Manage the demonstration sequence.** Use Add observed flight or an explicit manual
+    Arrival/Departure. Drag or use arrows, review proposed UTC targets and Check & save.
+    Pins/version checks are enforced. Overdue means reconcile the target, not automatic
+    completion. Explicit Completed/Cancelled close-out retains history and other targets;
+    the 120-second scheduling gap is educational, not operational clearance.
+13. **Review communications.** Supported trusted/reviewed tower phrases can feed the scoped
+    demo sequence. Pilot requests, uncertain/conditional speech and blocked changes remain
+    for review. Nothing transmits to an aircraft or establishes a controller's authority.
+
+```mermaid
+flowchart TD
+    A["Open dashboard; check source, time and connection"] --> B["Inspect aircraft and monitor"]
+    B --> C{"Confirmed warning?"}
+    C -->|No| B
+    C -->|"Tier 2: over 3 through 10 minutes"| D["Watch pair and reassess"]
+    D --> B
+    C -->|"Tier 1: up to 3 minutes"| E["Open resolution review; inspect gate, geometry and options"]
+    E --> F{"Controller choice"}
+    F -->|Accept| G["Record selected decision"]
+    F -->|Dismiss or no usable option| H["Handle manually; record dismissal if chosen"]
+    G --> I["External human radio and pilot readback<br/>Demo does not transmit or change aircraft motion"]
+    H --> I
+    I --> J["Optional: type instruction or review captured radio<br/>Eligible intent can adjust predictions"]
+    J --> B
+    G --> K["Inspect server audit log"]
+    H --> K
+```
+
+### Integrated sequencing and map controls
+
+The left strip pane now contains the shared **Runway sequence** and observed traffic.
+Select an aircraft to see its details, recent observed path and model forecast. Use
+**Arrival** in the details panel to add it to the plan. A flight already airborne
+cannot be scheduled for another takeoff; add a future departure using the manual
+callsign field above the sequence. Manual departure readiness remains unverified.
+
+Drag a sequence handle or use **Earlier / Later**, inspect the proposed order,
+then choose **Check & save**. Click a UTC target to edit it, or pin a slot.
+**Recalculate sequence** uses an earliest-ready baseline while respecting pins and
+emergency priority; it is not a claim of global optimality. Arrival readiness may use
+the labelled distance/ground-speed estimate, not a learned landing-clearance rule.
+
+The top planning bar shows normal, emergency-plan or controller-takeover mode.
+Normal plan advisories wait for **Authorize current plan advisories**. Emergency
+priority automatically reprioritizes and records simulated advisories. **Take control**
+remains available during other requests. These actions never transmit to pilots or
+move replay aircraft. The 120-second planning gap is educational and does not
+replace operational wake, separation, surface, aircraft-performance or local rules.
+
+The default map includes an offline, coarse Natural Earth land reference. Detailed
+external imagery is optional. Both views retain real report positions and runway
+reference overlays. Use zoom, **Airport**, **Fit selected**, the nautical-mile scale
+and pinch navigation; map detail does not imply surface-surveillance accuracy.
+Selected aircraft absent from the latest feed retain a labelled snapshot with
+instruction entry disabled. Coordination is collapsible beneath flight details.
+
+### Radio: what the controller can do
+
+In **LIVE RADIO MONITOR**, also on `/radio`, select receiver/line-in/virtual cable or
+shared browser audio. A default device could be the computer microphone; confirm the
+actual source. For a shared channel use **Mixed pilot + ATCO radio**. ATCO means air
+traffic controller. Choose ATCO-only/pilot-only only if the upstream audio separates them.
+
+Press **Start listening**, allow browser capture, enable Share audio if using a tab and
+check the level meter. Adjust the transmission threshold if static triggers capture or
+quiet speech is missed. Completed transmissions are processed automatically. Read the
+text, aircraft match, extracted actions, role hint, confidence, application/rejection
+reason and readback status. A readback is the pilot repeating an instruction; mismatches
+or an "unable" response still need the controller's attention.
+
+Use **Review captured information**, correct text and speaker, then **Use reviewed
+information**. The correction links to the original record. Mixed-channel controller
+hints require review; pilot requests/readbacks never create new controller instructions.
+The confidence floor remains 0.85 alongside match, role, value and validity checks;
+high confidence does not guarantee correct text. Reviews older than two minutes cannot
+apply intent.
+
+**Live audio can change intent only with live surveillance.** Today's radio is not
+applied to yesterday's replay. For the separate offline demonstration route, `/radio`
+also offers **SAMPLE RECORDINGS** labelled recorded or synthetic. Choose the actual speaker
+role and click **Process as ...**. **Use cached transcript** skips recognition when a
+matching cached result exists; that is not fresh inference. Results vary with samples,
+active model, visible aircraft and role; old September clip results are not promises.
+
+**Stop listening** releases capture and clears queued audio. It cannot undo processing
+already begun on the server or withdraw an existing instruction. The latest 20 captured
+segments remain only in browser memory for playback after stopping. Current conversation,
+readback and active instructions are not restored after backend restart; persistent
+transcription/audit records remain. See [the radio guide](docs/live-radio.md) for limits.
+
+### How the backend works, in plain technical terms
+
+The **frontend** is the browser interface. The **backend** is the Python service reading
+data, calculating predictions and storing records. **Machine learning** uses patterns
+learned from examples; **inference** means using an already trained model to predict.
+The demo does not train models while the controller works.
+
+| Step | Simple explanation | Current technical behaviour |
+|---|---|---|
+| Receive reports | Read where aircraft were reported | OpenSky or replay, normalize units, retain recent history. The loop waits 10 seconds after each completed update; processing adds to actual update spacing |
+| Add context | Use available route, selected altitude and instructions | Cached route/aircraft services, adsb.lol dialled autopilot altitude, accepted unexpired clearances. Dialled altitude is not proof of a controller clearance |
+| Choose pairs | Focus on nearby en-route aircraft | Current airborne aircraft with ten reports, altitude at least 10,000 ft, speed over 50 m/s; pair gaps under 60 NM and 5,000 ft; nearest pairs first, at most 120 per update by default. This is not an exhaustive check of all visible traffic |
+| Predict futures | Estimate several ways each aircraft might continue | Multi-path model creates up to five weighted paths at 1/3/5/10 minutes in one batch. Accepted level/heading instructions can adjust them. The residual LSTM is a separate available single-path model, not the source of the selected-flight multi-path line |
+| Assess pairs | Work out how close aircraft may get | Straight-line physics on a 15-second grid, candidate-path combinations, and an XGBoost classifier using pair features and selected-altitude inputs. Model reasons explain its verdict |
+| Confirm/prioritize | Avoid warnings from one noisy report | Straight-line 5 NM/1,000 ft breach takes priority, otherwise the classifier's saved threshold. Without its verdict, probability fallback uses tier thresholds. Three consecutive qualifying updates confirm an entry: tier 1 up to 180 s; tier 2 over 180 through 600 s |
+| Search for actions | Try manoeuvres in a computer first | Confirmed tier 1 alarms reach a rule/physics resolution engine. It simulates a 38-second response delay, checks the other aircraft's paths and nearby eligible traffic, rejects ineffective/new-conflict candidates and ranks survivors by safety and estimated costs |
+| Deliver/store | Refresh the picture and retain decisions | Alert feed reduces repeat interruptions and groups low-confidence entries without dropping confirmed pairs from active output. Server stores conflicts and sends aircraft/alerts together over one WebSocket. Accept/dismiss/instruction calls create separate audit records |
+
+**Example with invented numbers, only for explanation:** aircraft predicted to pass 3 NM
+sideways and 600 ft vertically apart breach both of this project's 5 NM/1,000 ft limits.
+At 1,500 ft vertically apart, that same horizontal gap does not breach both. NM means
+nautical mile: 1 NM = 1.852 km. One foot is 0.3048 m; 5 NM is about 9.26 km and 1,000 ft
+about 305 m. These are prototype en-route assumptions, not all rules for all flight phases.
+A predicted loss of separation is not certainty of collision.
+
+An instruction normally expires after ten minutes or is replaced by a newer instruction
+on the same control axis. Level instructions cap candidate altitudes; turns filter paths.
+If all paths contradict a heading, the existing fallback preserves paths. SPEED and DIRECT
+(fly toward a named navigation point) can be recorded but do not currently adjust paths.
+An altitude cap can leave already-compatible paths unchanged. Measured positions and the
+straight-line safety rule remain independent of these prediction adjustments.
+
+**Speech default checked on 11 November:** `server/app/config.py` selects `uniform_soup3`
+at `checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16` if its required
+runtime files exist. Otherwise the default falls back to the previous P1 folder under
+`%LOCALAPPDATA%/FlightRight/voice/models/`. `FLIGHT_RIGHT_ASR_MODEL_ID` overrides this.
+Check `/api/speech/status` for a running server's choice. Experiments and mixed measured
+results are in [the speech history](docs/evaluations/asr_small_atc_p1.md).
+
+### Which manual tasks does the system help manage?
+
+| Controller task | Help provided now | What remains with the person or another system |
+|---|---|---|
+| Maintain traffic picture | Map, list, recent trails and flight details | Check freshness, coverage and missing facts |
+| Mentally project movement | Candidate futures and closest-approach estimates | Judge uncertainty and real operational context |
+| Scan for conflicts | Filtered pair checks, watch list and urgent alarms | Review alerts; monitor excluded/unsupported traffic |
+| Work out a response | Simulated, explained and ranked options | Choose an appropriate instruction; candidate search is not exhaustive |
+| Issue instructions and confirm them | Typed record, passive transcription and readback comparison | Speak over external radio; resolve unclear/wrong/unconfirmed messages |
+| Monitor compliance | Reassess later received positions | Verify actual compliance and restored separation |
+| Keep records | Server audit, search and JSON export | Check recording succeeded; tab logs are separate |
+| Manage airport/sector | Weather/runway observations for context | Flight-plan management, handover, runway assignment, arrival sequencing and holding control are not implemented |
+
+The **AI assist** switch currently covers the suggestions panel in this browser. It does
+not stop backend inference, disable the conflict banner, clear alerts or stop radio capture.
+The runway panel describes observations/estimates; it cannot assign runways or issue
+landing/take-off clearances. The system supports parts of a controller's work, rather than
+managing every manual duty end to end.
+
+### Missing data and failure cases
+
+| What you see | Meaning / what to check |
+|---|---|
+| No alerts | Could be quiet traffic, short history, excluded aircraft or missing models. Check source, eligible/pair counts and health; silence does not prove all visible aircraft are safe |
+| Polling | Browser requests updates every five seconds while trying to restore streaming |
+| Disconnected / service error | Cached reports can remain. Read the named service, last traffic receipt and each aircraft age; a conflict-only failure can coexist with healthy traffic updates |
+| Live failure or replay in auto | Explicit live reports missing data; auto may substitute a recording. Read the actual source |
+| Missing predicted line | Check distinct-report warm-up progress, elapsed wait or service error. Short history or unavailable multi-path model. Missing model files are reported; rule support remains where available. Corrupt/incompatible models are not guaranteed to fall back |
+| No resolution option | Read the reason: ineffective candidates, insufficient time or do-nothing already safe in simulation. Handle manually |
+| Instruction accepted, paths unchanged | Check actual effect report: already-satisfied cap, heading fallback, unsupported speed/direct action or no eligible assessment |
+| Speech unavailable/rejected | Check model, audio source, match, confidence, role, age and live/replay compatibility; surveillance can continue without speech |
+| SQLite store | Application append-only behaviour does not have PostgreSQL's database-enforced audit permissions |
+| Decision request fails | It is not a successfully recorded decision. Inspect server records; a hidden/dismissed card alone is not evidence |
+
+### A short presentation route
+
+Show source/time, inspect an aircraft, follow a watch entry into an alarm if one occurs,
+compare options, record a decision and find it in `/logs`. Demonstrate typed intent and
+labelled sample audio, including rejection reasons. For current traffic use the startup
+mode or interactive API docs: `POST /api/aircraft/mode` with `{"mode":"live"}`. Switching
+is an operator/API action, not a dashboard mode-picker; it is audited. Live radio needs
+corresponding live surveillance to apply intent.
+
+The helper's historical estimate is a watch entry around 3.5 minutes and alarm around
+four minutes; it is not a fixed schedule. IGO086/FDB1346 was a previously demonstrated
+pair. Current recording/settings determine today's encounter. No click changes replay's
+actual aircraft motion. For accuracy questions use [current evaluation](docs/evaluation.md)
+and distinguish classifier results from full-system results.
 
 ---
 
 ## Running it
 
-Full detail, including data modes and troubleshooting, is in **[docs/RUNNING.md](docs/RUNNING.md)**.
+For a fresh clone, use `py -3.13 start.py` as described at the top of this README.
+The pretrained models are tracked with Git LFS; the public demo inputs are included.
+No retraining or separate release download is required. The launcher sets all demo
+paths, installs missing dependencies, and runs CPU speech recognition.
 
-### First time
+The manual commands below are for a maintainer's existing local environment with its
+own original replay data and database. They do not configure the shared demo paths:
 
-```bash
-pip install -r server/requirements.txt
-cd client && npm install && cd ..
-
-python scripts/postgres.py install   # official PostgreSQL 17.2 binaries, ~300 MB, once
-python scripts/postgres.py init      # cluster, roles, schema, grants
-python scripts/postgres.py verify    # proves the audit log is append-only
+```powershell
+# Terminal 1: database, then backend
+venv\Scripts\python.exe scripts/postgres.py start
+$env:FLIGHT_RIGHT_DATA_MODE="replay"
+venv\Scripts\python.exe -m uvicorn server.app.main:app --port 8000
 ```
 
-`init` writes `DATABASE_URL` into the project-root `.env`.
-
-### Every time
-
-```bash
-python scripts/postgres.py start
+```powershell
+# Terminal 2: frontend
+Set-Location client
+npm.cmd run dev
 ```
 
-Terminal 1 — backend:
+Open <http://localhost:5173>. Interactive API docs are at <http://127.0.0.1:8000/docs>.
+Full training corpora and historical candidate/backup weights remain ignored. Only the
+served pretrained files and required shareable demo inputs are supplied with this branch.
 
-```bash
-python -m uvicorn server.app.main:app --port 8000
+```powershell
+# First-time dependencies, after creating venv
+venv\Scripts\python.exe -m pip install -r server/requirements.txt
+npm.cmd --prefix client install
+# If PostgreSQL is not already installed/initialized for this project
+venv\Scripts\python.exe scripts/postgres.py install
+venv\Scripts\python.exe scripts/postgres.py init
+venv\Scripts\python.exe scripts/postgres.py verify
 ```
 
-Terminal 2 — dashboard:
+`server/app/config.py` defines defaults/environment overrides. Backend models are in
+`server/app/ml/saved_models/`; the launcher selects `demo/replay/`, `demo/context/`,
+`demo/voice/` and `demo/clips/` for the included inputs. Manual backend startup defaults
+to `ml_pipeline/data/raw/` unless `FLIGHT_RIGHT_REPLAY_DIR` is set. Speech paths are described above. PostgreSQL uses
+`%LOCALAPPDATA%/FlightRight/`; SQLite defaults to `server/audit.sqlite3`.
+`server/logs/model_trace.log` records model steps and `server/logs/backend.log` service
+activity. Keep credentials out of documentation. Training is separate from demo operation;
+see [ml_pipeline/README_TRAINING.md](ml_pipeline/README_TRAINING.md).
+
+To trace the implementation behind this guide, start with
+[dashboard actions](client/src/pages/HomePage.jsx),
+[the update loop](server/app/main.py),
+[pair selection and assessment](server/app/services/conflict_service.py),
+[model inference](server/app/ml/inference.py),
+[alert gates](ml_pipeline/utils/cpa_conflict_detection.py),
+[clearance handling](server/app/services/clearance_service.py),
+[speech/review handling](server/app/services/speech_service.py) and
+[API routes](server/app/api/routes.py).
+
+---
+
+## Technology, and why each piece was chosen
+
+| Layer | Technology | Why this one |
+|---|---|---|
+| Backend | **FastAPI** (Python) | ML models, the WebSocket stream and the OpenSky client in one process and one language; automatic API docs |
+| Streaming | **One WebSocket** (`/ws/stream`) | An alert quotes a distance and a time that are only true for the positions it was computed from. One message carries both, so they cannot arrive out of order |
+| Database | **PostgreSQL 17** (SQLite fallback) | The app's role is granted `INSERT, SELECT` only on the audit tables, so the **database** refuses edits and deletions. Under SQLite that was just a promise in the code |
+| Trajectory | **PyTorch** LSTM | A residual design over physics. SmoothL1 loss, because squared error destroyed the near-perfect predictions (measured: 6.4% vs 27.7% within 1 NM) |
+| Multi-path | **scikit-learn** KMeans + HistGradientBoosting | Route patterns plus per-aircraft offsets; temperature scaling for honest probabilities |
+| Conflict | **XGBoost** + native SHAP | Explainable, fast on tabular features; per-alert reasons for the controller |
+| Speech | **Whisper-small with ATC adaptation**, selected continuation/weight average, **faster-whisper / CTranslate2**, rapidfuzz | Local speech recognition plus inspectable instruction/callsign rules. Check speech status for device/model readiness; prior latency measurements are not fresh timing for the latest runtime |
+| Frontend | **React 19**, Vite, Tailwind, Framer Motion, **MapLibre GL**, Recharts | Existing dashboard, wired to real data. No mock data remains for anything a model produces |
+| Data | OpenSky (OAuth2), adsb.lol, adsbdb, OurAirports | Free and public. Each source's coverage was **measured** before being relied on |
+
+---
+
+## How the results are checked
 
 ```bash
-cd client && npm run dev
+python ml_pipeline/utils/verify_pipeline.py      # 111 checks, loads every saved model cold
+python -m pytest ml_pipeline/tests/test_units.py # 24 unit tests
+python ml_pipeline/utils/reevaluate_models.py    # re-scores every model from its saved file
+python ml_pipeline/utils/offsets_ab_test.py      # the running system on 4,690 labelled pairs
+python scripts/consolidate_evaluations.py --verify  # verifies consolidated model histories
 ```
 
-Open <http://localhost:5173>. Interactive API docs at <http://127.0.0.1:8000/docs>.
+- **The known traps are tested on every run.** The conflict label must not be computable from
+  the model's own inputs: it once was, and the model scored a meaningless "perfect". The test
+  data must be later than the training data. Every model must beat plain physics on the same
+  data.
+- **No number is typed by hand.** Evaluation documents are generated from saved files.
+- **Decisions to change what a controller sees** were written as pass/fail rules *before* the
+  numbers were looked at. For example, the destination inputs were adopted only after passing
+  11 pre-set checks.
+- **Failures are kept.** Rejected ideas and the measurements that rejected them are in
+  [docs/evaluation.md](docs/evaluation.md) and [docs/CLAUDE.md](docs/CLAUDE.md).
 
-The backend must be up first, or the dashboard shows **BACKEND UNREACHABLE**. That is
-deliberate — it does not fall back to invented traffic.
+---
 
-### Data modes
+## Honest limitations
 
-| `FLIGHT_RIGHT_DATA_MODE` | Behaviour |
-|---|---|
-| `auto` *(default)* | Live OpenSky, falling back to replay if the feed is down or credits run low |
-| `replay` | A recorded session only. Repeatable, offline, **best for a demo** |
-| `live` | Live only; shows the error rather than falling back |
-
-For a demo use `replay`: it needs no internet, it is identical every run, and by default
-it starts three minutes before a genuine encounter in the recording — real aircraft that
-really did converge over Mumbai.
+- **En-route only, above 10,000 ft.** Applied to landing traffic, the en-route rule flags
+  something in 91–94% of snapshots, because arrivals are legitimately close together.
+  Terminal-area conflicts need their own rules.
+- **No authoritative flight-plan/clearance feed.** Dialled autopilot altitude supplies intent
+  context but is not a verified clearance. Typed or eligible heard instructions can add intent;
+  they are not a complete record of everything the aircraft was told.
+- **False alarms are real.** About 100 in every 1,000 test pairs raise a false alert. Most are silent watch-list rows. Tier 1 false alarms on test: 20, against 28 real.
+- **Best-of-5 is not accuracy.** "One of five paths within 5 NM" (76.5%) and "the single best
+  guess" (47.2%) measure different things; both are reported.
+- **Speech:** measured on European radio, simulator speech, everyday Indian English and
+  separately labelled generated voices. These checks do not establish performance on real
+  Mumbai controller radio or physically verify receiver capture.
+- **Not yet built:** scenario-simulation mode, drawing the five paths on the map, a
+  machine-learned manoeuvre ranker, and login (a single configured controller identity,
+  `FLIGHT_RIGHT_CONTROLLER_ID`, is used).
+- **Derived, not official:** the runway in use and runway movements are inferred from the tracks
+  (an aircraft low and lined up with a runway), not read from ATC. No ATIS is shown, because none
+  is published in a form we can read. Arrival times are distance ÷ ground speed.
+- **Current workflow limits and failure cases:** see the
+  [demo walkthrough](#the-demo-live-or-recorded-and-the-script) and
+  [radio guide](docs/live-radio.md). The project context retains historical issue discussions.
 
 ---
 
 ## Repository layout
 
 ```
-client/                 React 19 + Vite + Tailwind + MapLibre dashboard
-server/app/             FastAPI backend
-  api/routes.py           REST endpoints
-  main.py                 app, CORS, the ten-second ingest loop, /ws/stream
-  services/               OpenSky client, replay, normalizer, aircraft, conflicts, database
-  ml/inference.py         loads all three saved models; assess_pair() runs the full chain
+client/                          React dashboard
+  src/components/                 panels (map, lists, banner, resolve dialog, radio, audit)
+  src/lib/api.js, adapters.js     backend calls and payload mapping
+server/app/                      FastAPI backend
+  main.py                         app, 10-second ingest loop, /ws/stream
+  config.py                       every setting, overridable by environment variable
+  api/routes.py                   REST endpoints
+  services/                       OpenSky client, replay, aircraft, conflicts, intent (adsb.lol),
+                                  clearances, speech, database
+  ml/inference.py                 loads every model; assess_pair() runs the full chain
+  ml/saved_models/                served pretrained models (Git LFS); backups ignored
 ml_pipeline/
-  ingestion/              OpenSky collection scripts (credit-aware, checkpointed)
-  training/trajectory/    preprocessing, Model 1, Model 1b, evaluation, tree benchmark
-  training/conflict_classifier/   encounter generation and Model 2
-  utils/                  CPA detection, resolution engine, alert feed, verification
-  tests/                  unit tests and an end-to-end smoke test on fake data
-scripts/postgres.py     project-owned PostgreSQL: install, init, start, verify, reset
-docs/                   all project documentation, plus the figures and metrics.json
-                        backing evaluation.md
-CLAUDE.md               a pointer that imports docs/CLAUDE.md, so Claude Code loads
-                        the project instructions automatically
+  ingestion/                      OpenSky collection scripts (credit-aware, checkpointed)
+  training/trajectory/            preprocessing, Model 1, Model 1b, evaluation, tree benchmark
+  training/conflict_classifier/   encounter generation, Model 2
+  voice/                          speech: audio cache, training, extraction, callsigns, evaluation
+  utils/                          CPA detection, resolution engine, alert feed, route features,
+                                  verification, re-scoring, ablations
+  tests/                          unit tests, smoke test on fake data
+  reports/                        dated JSON of every measurement
+scripts/                         PostgreSQL manager, archive and adsb.lol downloaders
+docs/                            documentation, figures, consolidated model evaluations
 ```
-
-**Not in the repository** (all gitignored, all reproducible): raw OpenSky data, processed
-datasets, trained model files, the PostgreSQL binaries and cluster, and `.env`. Train the
-models with `python ml_pipeline/run_pipeline.py` — see
-[ml_pipeline/README_TRAINING.md](ml_pipeline/README_TRAINING.md).
 
 ---
 
@@ -181,92 +849,55 @@ models with `python ml_pipeline/run_pipeline.py` — see
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/aircraft/latest` | Current aircraft states |
-| GET | `/api/aircraft/source` | Which data mode is feeding the screen |
-| POST | `/api/aircraft/mode` | Switch data mode at runtime |
-| GET | `/api/aircraft/history` | One aircraft's recent states |
-| GET | `/api/conflicts/active` | The alert feed: `active`, `notifications`, counts |
+| GET | `/api/aircraft/latest` · `/api/aircraft/history` | Current aircraft; one aircraft's recent states |
+| GET | `/api/aircraft/trajectory` | Selected aircraft's most probable candidate path, readiness and model version |
+| GET · POST | `/api/aircraft/source` · `/api/aircraft/mode` | Which data mode is live; switch it |
+| GET | `/api/conflicts/active` | The alert feed: `active` (render all of it), `notifications`, counts |
 | GET | `/api/conflicts/history` | Conflicts raised, from the database |
 | POST | `/api/predict/conflicts` | Force a fresh assessment |
 | GET | `/api/recommend/resolution` | Model 3's options for one pair |
 | POST | `/api/actions/accept` · `/api/actions/dismiss` | Record a controller decision |
+| POST · GET · DELETE | `/api/clearances` | Typed clearances: submit, list, clear |
+| GET · POST | `/api/speech/status` · `/clips` · `/clips/{id}/audio` · `/hear` · `/transcriptions` | The speech chain |
+| GET · POST | `/api/speech/conversation` · `/api/speech/review` | Current radio conversation/readback/intent view; review captured information |
 | GET · POST | `/api/audit` | The append-only audit log |
-| GET | `/api/health` | Aircraft, conflicts, model versions, store, audit count |
-| WS | `/ws/stream` | Aircraft and conflicts pushed together |
-
-**One WebSocket, not two.** An alert states a separation and a time, which is only
-meaningful against the positions it was computed from. Two sockets give no ordering
-guarantee, so an alert could arrive before the positions it refers to and the map would
-draw it against stale data. Both are computed in the same tick and sent in the same
-message; the envelope is typed so a client can still route them separately.
-
-**On `/api/conflicts/active`:** render `active` in full. `notifications` is only the
-subset that should interrupt. Rendering `notifications` alone turns a display rule into a
-detection rule, which the alert feed exists to prevent.
+| GET | `/api/health` | Models, versions, actual store protection and feeds (with adsb.lol ODbL credit) |
+| GET | `/api/airport` | METAR, published runway geometry and inferred movement/usage |
+| GET / POST | `/api/workspace` / `/api/workspace/event` | Scoped strip coordination records |
+| GET / POST | `/api/planning` / `/api/planning/event` | Versioned movement plan, editing and explicit close-out |
+| POST | `/api/planning/radio/sync` / `/api/planning/communication` | Guarded transcript/communication sequencing |
+| WS | `/ws/stream` | Aircraft and alerts, pushed together every tick |
 
 ---
 
-## Verification
+## Documentation map
 
-```bash
-python ml_pipeline/utils/verify_pipeline.py     # 110 checks, cold start, from saved models
-python -m pytest ml_pipeline/tests/test_units.py
-python ml_pipeline/utils/reevaluate_models.py   # re-scores every model from its saved file
-```
-
-`verify_pipeline.py` loads each artifact in a fresh process with no access to the training
-scripts, and asserts on shape, physical plausibility and the known traps — including that
-the conflict label still cannot be recomputed from its own features, and that the test
-split is still strictly later than the training split.
-
-`reevaluate_models.py` re-measures everything from the saved files and writes a dated JSON.
-Re-running it reproduced the headline number and the full scorecard exactly, which is what
-makes "our results are reproducible" a command rather than a claim.
-
----
-
-## Honest limitations
-
-Stated here rather than left for a reviewer to find.
-
-- **En-route traffic only**, above 10,000 ft. The en-route 5 NM / 1000 ft rule applied to
-  approach traffic flags something in 91–94% of all snapshots, because landing aircraft
-  are legitimately close together. Terminal-area conflicts need their own thresholds
-  (~3 NM) and their own labels; out of scope here.
-- **No flight-plan data.** We receive position reports, not clearances. The standard
-  vertical nuisance-alert filter (EUROCONTROL STCA Option E) needs the *cleared* flight
-  level; using observed vertical rate as a proxy costs 21 real conflicts and drops the
-  headline from 94.0% to 86.6%. Measured, and therefore rejected.
-- **False alarms are real**, but not where the headline precision suggests: of 740 alerts,
-  only 41 are audible tier 1 alarms (precision 0.659). 96.9% of false alarms are silent
-  watch-list rows. Repeat suppression cuts interruptions by about 74% on real traffic with
-  **zero pairs removed from the active list**.
-- **The non-neural benchmark still wins at ten minutes.** A `HistGradientBoostingRegressor`
-  on identical features leads the LSTM by 2–8 points across every split measured. It stays
-  in the repo as the standing bar; the LSTM is not presented as best-available.
-- **Best-of-5 is not accuracy.** 63.6% means one of five candidates landed within 5 NM.
-  Top-1 is 38.6%. Both are true and they measure different things.
-- **Runway status, the weather overlay and the radio transcript have no data source** and
-  are labelled DEMO on screen. NLP is explicitly out of MVP scope.
-- **No authentication.** A fixed demo controller profile, per the MVP security posture.
-
----
-
-## Documentation
-
-| File | What it is |
+| File | Read it for |
 |---|---|
-| [docs/RUNNING.md](docs/RUNNING.md) | How to run everything, data modes, troubleshooting |
-| [docs/ISSUES.md](docs/ISSUES.md) | Known issues — what does not work yet, found by testing the running system |
-| [docs/evaluation.md](docs/evaluation.md) | Every metric beside the baseline it has to beat, with charts |
-| [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Plain-English status, vocabulary, file-by-file walkthrough |
-| [docs/CLAUDE.md](docs/CLAUDE.md) | The full decision log — every choice, the measurement behind it, and the experiments that failed |
+| [Complete project handbook](docs/PROJECT_HANDBOOK.md) | A-to-Z architecture, data evolution, model iteration numbers/matrices, speech and UI history |
+| [Current frontend workflow](docs/frontend-workflow.md) | Responsive panels, map, sequence, communication and latest UI verification |
+| [Demo walkthrough](#the-demo-live-or-recorded-and-the-script) / [Running it](#running-it) | Controller steps, backend, setup and troubleshooting |
+| [docs/live-radio.md](docs/live-radio.md) | Audio capture, review and live/replay isolation |
+| [docs/evaluation.md](docs/evaluation.md) | Current best supported comparisons, measurement basis and served/candidate status |
+| [Model evaluation histories](docs/evaluations/source_inventory.json) | One ledger per model; experiments, metrics and source checksums |
+| [docs/claims.md](docs/claims.md) | What may and may not be claimed, each number with its source |
+| [docs/CLAUDE.md](docs/CLAUDE.md) | The full decision log: every choice and the measurement behind it |
 | [ml_pipeline/README_TRAINING.md](ml_pipeline/README_TRAINING.md) | Training the models end to end |
 
 ---
 
-## Stack
+## Data sources, licences and credits
 
-**Backend** — FastAPI · PyTorch · XGBoost · scikit-learn · PostgreSQL 17 · pandas / NumPy
-**Frontend** — React 19 · Vite · Tailwind · Framer Motion · MapLibre GL · Recharts
-**Data** — OpenSky Network REST API (OAuth2), Mumbai bounding box
+- **OpenSky Network**: aircraft positions. M. Schäfer et al., *Bringing up OpenSky: A
+  large-scale ADS-B sensor network for research*, IPSN 2014.
+- **adsb.lol**: dialled altitudes. *Contains data from adsb.lol, made available under the
+  Open Database License (ODbL 1.0).*
+- **adsbdb**: callsign routes. **OurAirports**: airport data (public domain).
+- **ATCOSIM**, **UWB-ATCC** (CC BY-NC-SA 4.0) and the **ATCO2** test set: ATC speech. Our
+  speech model was trained on UWB-ATCC, so treat it as **non-commercial**.
+- **Svarah** (CC BY 4.0) and **Indic Parler-TTS** (Apache 2.0): AI4Bharat.
+- **OpenAI Whisper**: the base speech model.
+- **EUROCONTROL** STCA guidelines and **ICAO** Doc 4444 / Doc 9432 phraseology: design
+  references. Every other source is cited where it is used, in [docs/CLAUDE.md](docs/CLAUDE.md).
+
+The role-based dashboard and ground-data limitations are described in [Controller workspace](docs/controller-workspace.md). Tower, Ground and Clearance share the same demonstration session; select a flight strip to inspect details and record supported instructions alongside the map.

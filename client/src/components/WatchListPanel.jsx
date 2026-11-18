@@ -6,13 +6,14 @@
 // (CLAUDE.md Section 3). It is also where 97% of the false alarms live, which is why it
 // is quiet and the alarm banner is not.
 
+import AlertEvidence from '@/components/AlertEvidence';
 export default function WatchListPanel({ items = [], lowConfidence = {} }) {
   const collapsed = lowConfidence.count || 0;
 
   return (
-    <div className="flex flex-col" style={{ background: "var(--bg-panel)", border: "1px solid var(--border)" }}>
+    <div className="flex flex-col" style={{ background: "var(--bg-panel)", border: "1px solid var(--border-default)" }}>
       <div className="flex items-center justify-between px-4 py-2.5"
-           style={{ borderBottom: "1px solid var(--border)" }}>
+           style={{ borderBottom: "1px solid var(--border-default)" }}>
         <span className="font-display text-[11px] tracking-widest" style={{ color: "var(--teal)" }}>
           TIER 2 WATCH LIST
         </span>
@@ -29,7 +30,7 @@ export default function WatchListPanel({ items = [], lowConfidence = {} }) {
         <div className="flex flex-col">
           {items.map((item) => (
             <div key={item.id} className="flex flex-col gap-1 px-4 py-2.5"
-                 style={{ borderBottom: "1px solid var(--border)" }}>
+                 style={{ borderBottom: "1px solid var(--border-default)" }}>
               <div className="flex items-center justify-between">
                 <span className="font-display text-[12px]" style={{ color: "var(--text-primary)" }}>
                   {item.pair[0]} <span style={{ color: "var(--text-muted)" }}>↔</span> {item.pair[1]}
@@ -40,11 +41,12 @@ export default function WatchListPanel({ items = [], lowConfidence = {} }) {
                 </span>
               </div>
               <div className="text-[10.5px]" style={{ color: "var(--text-muted)" }}>
-                closest approach {item.cpaLateralNm?.toFixed(2)} NM /{" "}
+                Displayed closest approach {item.cpaLateralNm?.toFixed(2)} NM /{" "}
                 {Math.round(item.cpaVerticalFt)} ft in {Math.round(item.timeToCpaSeconds)} s
-                {item.probability != null && ` · model ${(item.probability * 100).toFixed(0)}%`}
+                {item.probability != null && ` · classifier ${(item.probability * 100).toFixed(0)}%`}
                 {item.display === "low_confidence" && " · low confidence"}
               </div>
+              <AlertEvidence alert={item}/>
             </div>
           ))}
         </div>

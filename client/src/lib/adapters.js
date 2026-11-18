@@ -11,14 +11,15 @@
 //   2. Anything shown carries its reason. Section 12 forbids surfacing a prediction
 //      without a rationale, so every option keeps the engine's own explanation string.
 
-export const SEPARATION_LATERAL_NM = 5;
-export const SEPARATION_VERTICAL_FT = 1000;
+// The safety numbers quoted on screen (separation minimum, response delay, ranking weights,
+// prediction grid) come from the backend's /api/health "constants", read from the modules that
+// actually use them. Until 27 Sep 2026 they were copied here by hand and could drift.
 
 const round = (value, places = 1) =>
   Number.isFinite(value) ? Number(value).toFixed(places) : "--";
 
 /** The most urgent confirmed alarm, in the shape ConflictBanner expects. */
-export function conflictFromAlerts(active = []) {
+export function conflictFromAlerts(active = [], constants = null) {
   const alarm = active.find((a) => a.tier === 1) || null;
   if (!alarm) return null;
 
@@ -32,14 +33,22 @@ export function conflictFromAlerts(active = []) {
     detail:
       `${one} vs ${two} — predicted closest approach ` +
       `${round(alarm.cpaLateralNm, 2)} NM / ${Math.round(alarm.cpaVerticalFt)} ft ` +
-      `in ${Math.round(alarm.timeToCpaSeconds)} s. ` +
-      `Separation standard is ${SEPARATION_LATERAL_NM} NM laterally or ` +
-      `${SEPARATION_VERTICAL_FT} ft vertically.`,
+      `in ${Math.round(alarm.timeToCpaSeconds)} s.` +
+      (constants ? ` Separation standard is ${constants.separationLateralNm} NM laterally or ` +
+                   `${constants.separationVerticalFt} ft vertically.` : ""),
     cpaNM: alarm.cpaLateralNm,
     cpaVerticalFt: alarm.cpaVerticalFt,
     severity: alarm.severity,
     reason: alarm.reason,
     probability: alarm.classifierProbability,
+    ruleIsConflict:alarm.ruleIsConflict,
+    triggerGate:alarm.triggerGate,
+    classifierDecision:alarm.classifierDecision,
+    confirmationUpdates:alarm.confirmationUpdates,
+    nominalCpa:alarm.nominalCpa,
+    alternativeCpa:alarm.alternativeCpa,
+    multipathProbability:alarm.multipathProbability,
+    combinationsBreaching:alarm.combinationsBreaching,
     sources: alarm.sources,
     explanation: alarm.explanation,
     resolution: alarm.resolution,
@@ -47,7 +56,7 @@ export function conflictFromAlerts(active = []) {
 }
 
 /** Model 3's ranked options, in the shape ResolveModal expects. */
-export function resolveOptionsFromAlert(alert) {
+export function resolveOptionsFromAlert(alert, constants = null) {
   const options = alert?.resolution?.options || [];
   return options.map((option, index) => {
     const kind = String(option.manoeuvre_type || "").toUpperCase();
@@ -64,6 +73,8 @@ export function resolveOptionsFromAlert(alert) {
         `${Math.round(option.resulting_vertical_separation_ft)} ft. ` +
         `Established about ${Math.round(option.seconds_to_establish)} s from now.`,
       confidence: `${Math.round((option.confidence ?? 0) * 100)}%`,
+      secondsToEstablish:option.seconds_to_establish,
+      timingMargin:Number.isFinite(option.seconds_to_establish)?(alert.nominalCpa?.seconds ?? alert.countdown)-option.seconds_to_establish:null,
       // Coarse proxies. The engine says so itself and so does the tooltip.
       fuelImpact: `${sign}${Math.round(option.fuel_equivalent_seconds ?? 0)} s equivalent burn`,
       delayImpact: `${sign}${Math.round((option.delay_seconds ?? 0) / 60)} min ${option.aircraft}`,
@@ -73,11 +84,14 @@ export function resolveOptionsFromAlert(alert) {
       residualRisk: option.residual_risk,
       newConflictRisk: option.new_conflict_risk,
       manoeuvre: { aircraft: option.aircraft, kind, magnitude, unit },
-      xaiReason:
-        `Ranked by the project's fixed weights: safety 0.60, delay 0.15, fuel 0.10, ` +
-        `workload 0.10, confidence 0.05 — total score ${round(option.score, 3)}. ` +
-        `Simulated through a ${38} s response delay before the aircraft moves, then at ` +
-        `real turn and climb rates. Delay and fuel are approximate track-mile proxies.`,
+      xaiReason: constants
+        ? `Ranked by the project's fixed weights: safety ${constants.weights.safety.toFixed(2)}, ` +
+          `delay ${constants.weights.delay.toFixed(2)}, fuel ${constants.weights.fuel.toFixed(2)}, ` +
+          `workload ${constants.weights.workload.toFixed(2)}, confidence ${constants.weights.confidence.toFixed(2)} — ` +
+          `total score ${round(option.score, 3)}. Simulated through a ${Math.round(constants.responseDelaySeconds)} s ` +
+          `response delay before the aircraft moves, then at real turn and climb rates. Delay and fuel ` +
+          `are approximate track-mile proxies.`
+        : `Total score ${round(option.score, 3)}. Delay and fuel are approximate track-mile proxies.`,
     };
   });
 }
@@ -101,6 +115,11 @@ export function suggestionsFromAlerts(active = []) {
         actionToast: `Decision recorded for ${alert.pair.join(" & ")}`,
         tier: alert.tier,
         timeToCpaSeconds: alert.timeToCpaSeconds,
+        // ISSUES.md H3 (fixed 25 Sep 2026): what a dismissal is remembered against. The
+        // pair id alone hid the pair for the rest of the session -- after it escalated, and
+        // after it separated and re-converged. A new encounter (firstSeen), a new tier or a
+        // different best manoeuvre is a new situation and is shown again.
+        episodeKey: [alert.id, alert.firstSeen, alert.tier, best.manoeuvre_type, best.magnitude].join("|"),
       };
     });
 }
@@ -118,6 +137,14 @@ export function watchListFromAlerts(active = []) {
       cpaLateralNm: alert.cpaLateralNm,
       cpaVerticalFt: alert.cpaVerticalFt,
       probability: alert.classifierProbability,
+      ruleIsConflict:alert.ruleIsConflict,
+      triggerGate:alert.triggerGate,
+      classifierDecision:alert.classifierDecision,
+      confirmationUpdates:alert.confirmationUpdates,
+      nominalCpa:alert.nominalCpa,
+      alternativeCpa:alert.alternativeCpa,
+      multipathProbability:alert.multipathProbability,
+      combinationsBreaching:alert.combinationsBreaching,
       reason: alert.reason,
     }));
 }
@@ -189,7 +216,11 @@ export function withConflictStatus(flights = [], active = []) {
  * inventing arrival times, the timeline now shows what the models actually predict:
  * when each tracked pair reaches its closest point, over the ten-minute look-ahead.
  */
-export function timelineFromAlerts(active = []) {
+export function timelineFromAlerts(active = [], constants = null) {
+  // The bar marks the predicted closest approach itself, as wide as the prediction grid's
+  // time step (15 s) -- the resolution the time is known to. It used to be an arbitrary
+  // two minutes wide.
+  const stepMin = (constants?.cpaGridStepSeconds ?? 15) / 60;
   return active
     .slice()
     .sort((a, b) => a.timeToCpaSeconds - b.timeToCpaSeconds)
@@ -201,7 +232,7 @@ export function timelineFromAlerts(active = []) {
         bars: [{
           type: alert.tier === 1 ? "conflict" : "holding",
           startMin,
-          dur: 2,
+          dur: stepMin,
           label:
             `${alert.tier === 1 ? "⚡ ALARM" : "WATCH"} · ` +
             `${alert.cpaLateralNm.toFixed(2)} NM / ${Math.round(alert.cpaVerticalFt)} ft ` +

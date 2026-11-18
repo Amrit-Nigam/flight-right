@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 
+import evaluate
 import framing
 
 
@@ -142,9 +143,23 @@ def main() -> None:
             print(f"  fitted {int(horizon) // 60:>2} min / {AXIS_NAMES[axis]:<8} on {rows.sum()} rows")
 
     predicted = framing.apply_residual(test_x, test_cv, predicted_residual)
+    # Saved so the Phase 8 ablation (ml_pipeline/utils/ablation.py) can score this row in
+    # three dimensions and per regime from a file, not from this script's stdout.
+    np.save(DATA_DIRECTORY / "tree_reference_test_predictions.npy", predicted)
     baseline_rows = summarise(test_cv, test_y, test_mask)
     model_rows = summarise(predicted, test_y, test_mask)
     print_comparison(baseline_rows, model_rows)
+
+    # Scored again through evaluate.evaluate() -- the same function the LSTM is measured
+    # by, so the two models cannot drift apart on how a metric is defined -- and written
+    # to disk at full precision. build_evaluation_figures.py used to carry these four
+    # rows as a hand-typed dict copied off this script's stdout, which is exactly the
+    # "no number is typed by hand" rule being broken inside the file that enforces it.
+    results = evaluate.evaluate(predicted, test_y, test_mask, test_x, "tree reference")
+    csv_path, markdown_path = evaluate.write_results(results)
+    print("")
+    print(f"Wrote {csv_path}")
+    print(f"Wrote {markdown_path}")
 
     passed = all(model_rows[i]["within_5"] >= baseline_rows[i]["within_5"] for i in range(4))
     print("")

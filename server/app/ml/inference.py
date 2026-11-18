@@ -58,10 +58,15 @@ for extra in (PROJECT_ROOT, PROJECT_ROOT / "ml_pipeline" / "training" / "traject
 import framing  # noqa: E402  (ml_pipeline/training/trajectory)
 from generate_synthetic_scenarios import (  # noqa: E402
     FEATURE_COLUMNS,
+    INTENT_COLUMNS,
     encounter_features,
+    intent_features,
     manoeuvre_summary,
 )
 from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
+    CLASSIFIER_ALERT_KEY,
+    CLASSIFIER_PROBABILITY_KEY,
+    RULE_GEOMETRY_KEY,
     assign_tier,
     classify_conflict,
     compute_cpa_from_paths,
@@ -71,14 +76,35 @@ from ml_pipeline.utils.cpa_conflict_detection import (  # noqa: E402
 # Model 3. Pure rules and kinematics, no saved model file, so it is imported directly
 # like the other project modules rather than loaded and version-checked.
 from ml_pipeline.utils.resolution_engine import generate_resolutions  # noqa: E402
+# Plan Phase 7: a known clearance adjusts that aircraft's candidate paths.
+from ml_pipeline.utils.clearance import apply_clearance  # noqa: E402
 
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
 SAVED_MODELS = DATA_ROOT / "server" / "app" / "ml" / "saved_models"
 TRAJECTORY_PATH = SAVED_MODELS / "trajectory_residual.pt"
 MULTIPATH_PATH = SAVED_MODELS / "trajectory_multipath.pkl"
 CONFLICT_PATH = SAVED_MODELS / "xgboost_conflict.json"
+# Which offset Model 1b applies to each candidate pattern. "table" is the per-pattern
+# average shipped on 6 Sep 2026; "per_mode" is the per-aircraft regression added in
+# Phase 3.1 (23 Sep). Default "per_mode" since 24 Sep, switched on with sign-off after
+# offsets_ab_test.py measured it on 4,690 labelled test pairs: with the rule-geometry
+# safety net, same alerts as "table" and one fewer false tier 1 alarm (17 vs 18).
+# Unset, a pickle without offset_models falls back to "table" so an old model file still
+# starts the backend; ASKING for "per_mode" on one is refused (see MultiPathPredictor).
+_OFFSETS_ENV = os.environ.get("FLIGHT_RIGHT_MULTIPATH_OFFSETS")
+MULTIPATH_OFFSETS = (_OFFSETS_ENV or "per_mode").strip().lower()
+MULTIPATH_OFFSETS_EXPLICIT = _OFFSETS_ENV is not None
 
 INPUT_STEPS = 10
+# Destination lookups for a callsign not yet in the route cache: made once, politely, when the
+# served path model uses destination features. "off" keeps the backend fully offline (unknown
+# routes are then treated as missing, as they are in training for ~13% of windows).
+ROUTE_LOOKUP_LIVE = os.environ.get("FLIGHT_RIGHT_ROUTE_LOOKUP", "on").strip().lower() != "off"
+
+
+def _callsign_of(history: Sequence[Mapping[str, Any]]) -> str | None:
+    """The latest callsign in a state history, or None (-> unknown route, NaN destination inputs)."""
+    return str(history[-1].get("callsign") or "").strip() or None
 HORIZON_LABELS = {60: "1min", 180: "3min", 300: "5min", 600: "10min"}
 METRES_TO_FEET = 3.28084
 
@@ -164,7 +190,7 @@ class TrajectoryPredictor:
 class MultiPathPredictor:
     """Top-K route patterns per aircraft, probabilities calibrated by temperature scaling."""
 
-    def __init__(self, path: Path = MULTIPATH_PATH) -> None:
+    def __init__(self, path: Path = MULTIPATH_PATH, offsets: str | None = None) -> None:
         import multipath
 
         with path.open("rb") as handle:
@@ -173,17 +199,63 @@ class MultiPathPredictor:
         self.classifier = bundle["classifier"]
         self.kmeans = bundle["kmeans"]
         self.pattern_residuals = bundle["pattern_residuals"]
+        explicit = offsets is not None or MULTIPATH_OFFSETS_EXPLICIT
+        offsets = MULTIPATH_OFFSETS if offsets is None else offsets
+        if offsets == "per_mode" and not explicit and bundle.get("offset_models") is None:
+            offsets = "table"  # the default, on a pre-Phase-3.1 pickle: run what it has
+        if offsets not in ("table", "per_mode"):
+            raise ValueError(f"FLIGHT_RIGHT_MULTIPATH_OFFSETS must be 'table' or 'per_mode', got {offsets!r}")
+        # Asking for per_mode on an old pickle is refused rather than silently served the
+        # table: a reader would otherwise believe the per-aircraft offsets were running.
+        if offsets == "per_mode" and bundle.get("offset_models") is None:
+            raise ValueError(f"{path.name} has no offset_models; retrain multipath.py or use 'table'")
+        self.offsets = offsets
+        self.offset_models = bundle.get("offset_models") if offsets == "per_mode" else None
         # Older pickles (before 6 Sep 2026) have no temperature: 1.0 reproduces them exactly.
         self.temperature = float(bundle.get("temperature", 1.0))
         self.calibration = bundle.get("calibration", {})
         self.config = bundle["config"]
         self.top_k = int(self.config.get("top_k", 5))
-        self.version = f"trajectory_multipath@{path.stat().st_mtime_ns}"
+        # Extra inputs the offset regressors were trained with (none on every model before
+        # 27 Sep; the destination features for a route-trained model). Only the route group
+        # can be computed at run time; any other group is refused rather than silently zeroed.
+        self.extra_features = list((self.offset_models or {}).get("extra_features", []))
+        if self.extra_features:
+            from ml_pipeline.utils.route_features import ROUTE_FEATURES
+            if self.extra_features != ROUTE_FEATURES:
+                raise ValueError(f"{path.name} needs extra inputs {self.extra_features}; only the route "
+                                 f"features {ROUTE_FEATURES} can be supplied at run time")
+        self.version = f"trajectory_multipath@{path.stat().st_mtime_ns}+{offsets}"
 
-    def predict(self, X: np.ndarray, top_k: int | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return (probabilities (N, k), positions (N, k, 4, 3), pattern ids (N, k))."""
+    def route_inputs(self, X: np.ndarray, callsigns: Sequence[str | None], fetch: bool = False) -> np.ndarray | None:
+        """The destination features for these windows, or None for a model without them."""
+        if not self.extra_features:
+            return None
+        from ml_pipeline.utils.route_features import route_matrix, track_from_window
+        return route_matrix(list(callsigns), X[:, -1, 0].astype(np.float64), X[:, -1, 1].astype(np.float64),
+                            track_from_window(X), fetch=fetch)
+
+    def saved_split_inputs(self, split: str = "test") -> np.ndarray | None:
+        """The extra inputs for a whole saved split, in row order (for evaluation scripts), or None.
+
+        Read from ml_pipeline/data/processed/context_<split>.npz, the values the model was scored
+        on in training; the live path computes the same features with route_inputs()."""
+        if not self.extra_features:
+            return None
+        context = np.load(PROJECT_ROOT / "ml_pipeline/data/processed" / f"context_{split}.npz", allow_pickle=True)
+        return np.column_stack([context[name].astype(np.float64) for name in self.extra_features])
+
+    def predict(self, X: np.ndarray, top_k: int | None = None,
+                extra: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return (probabilities (N, k), positions (N, k, 4, 3), pattern ids (N, k)).
+
+        extra: the route features per row when the model was trained with them. Omitted on
+        such a model, every route is treated as unknown (NaN), which the regressors handle."""
+        if self.extra_features and extra is None:
+            extra = np.full((len(X), len(self.extra_features)), np.nan)
         probabilities, positions, patterns, _ = self._multipath.candidate_paths(
-            self.classifier, self.kmeans, self.pattern_residuals, X, top_k or self.top_k, self.temperature
+            self.classifier, self.kmeans, self.pattern_residuals, X, top_k or self.top_k, self.temperature,
+            offset_models=self.offset_models, extra=extra,
         )
         return probabilities, positions, patterns
 
@@ -207,8 +279,12 @@ class ConflictClassifier:
         self.booster.load_model(str(path))
         attributes = self.booster.attributes()
         self.feature_columns = json.loads(attributes["feature_columns"])
-        if self.feature_columns != FEATURE_COLUMNS:
-            raise RuntimeError("Saved model's feature list differs from generate_synthetic_scenarios.FEATURE_COLUMNS.")
+        # The 24 encounter features, optionally followed by the three dialled-level inputs
+        # (served from 26 Sep). Anything else means the file and this code have drifted apart.
+        if self.feature_columns not in (FEATURE_COLUMNS, FEATURE_COLUMNS + INTENT_COLUMNS):
+            raise RuntimeError("Saved model's feature list is neither generate_synthetic_scenarios.FEATURE_COLUMNS "
+                               "nor FEATURE_COLUMNS + INTENT_COLUMNS.")
+        self.uses_dialled_levels = self.feature_columns != FEATURE_COLUMNS
         self.threshold = float(json.loads(attributes["decision_threshold"]))
         self.platt_a = float(json.loads(attributes.get("platt_a", "1.0")))
         self.platt_b = float(json.loads(attributes.get("platt_b", "0.0")))
@@ -224,7 +300,9 @@ class ConflictClassifier:
 
     def predict(self, features: Sequence[Mapping[str, float]]) -> list[dict[str, Any]]:
         """One result per pair: raw and calibrated probability, alert flag, top SHAP reasons."""
-        matrix = np.array([[float(row[column]) for column in self.feature_columns] for row in features])
+        # A dialled level that was not broadcast is NaN, which XGBoost treats as "unknown".
+        matrix = np.array([[float(row.get(column, float("nan"))) for column in self.feature_columns]
+                           for row in features])
         dmatrix = self._xgboost.DMatrix(matrix, feature_names=self.feature_columns)
         raw = self.booster.predict(dmatrix)
         calibrated = self._calibrate(raw)
@@ -291,8 +369,8 @@ class ConflictEngine:
         return {key: float(state[key]) for key in
                 ("latitude", "longitude", "altitude_m", "velocity_ms", "heading_deg", "vertical_rate_ms")}
 
-    def multipath_candidates(self, histories: Mapping[str, Sequence[Mapping[str, float]]]
-                             ) -> dict[str, Any]:
+    def multipath_candidates(self, histories: Mapping[str, Sequence[Mapping[str, float]]],
+                             clearances: Mapping[str, Any] | None = None) -> dict[str, Any]:
         """Candidate paths for many aircraft in ONE model call.
 
         This exists purely for speed, and the speed matters. sklearn's
@@ -308,6 +386,12 @@ class ConflictEngine:
         The output is identical either way - the model is deterministic and each row is
         independent of the others, so this changes when the arithmetic happens, not what
         it produces.
+
+        clearances maps the same keys to a `Clearance` (ml_pipeline/utils/clearance.py) for
+        aircraft whose instruction is known -- typed in now, heard by the speech chain
+        later (plan Phase 7). A level clearance caps each candidate's altitude at the
+        cleared level; a heading clearance eliminates candidates that contradict it. The
+        report of what was done rides along under "clearance", so nothing changes silently.
         """
         if self.multipath is None:
             return {}
@@ -316,28 +400,50 @@ class ConflictEngine:
             return {}
         keys = list(usable)
         X = np.concatenate([window_from_states(usable[key]) for key in keys])
-        probabilities, positions, patterns = self.multipath.predict(X)
-        return {
-            key: {
-                "paths": self.multipath.paths_for_cpa(X, index, probabilities, positions),
-                "probabilities": probabilities[index],
-                "positions": positions[index],
-                "patterns": patterns[index],
-            }
-            for index, key in enumerate(keys)
-        }
+        # Destination features, when the served model uses them: the route comes from each
+        # aircraft's callsign (adsbdb, cached; a callsign never seen before is looked up once).
+        extra = self.multipath.route_inputs(X, [_callsign_of(usable[key]) for key in keys],
+                                            fetch=ROUTE_LOOKUP_LIVE)
+        probabilities, positions, patterns = self.multipath.predict(X, extra=extra)
+        out: dict[str, Any] = {}
+        for index, key in enumerate(keys):
+            entry = {"paths": self.multipath.paths_for_cpa(X, index, probabilities, positions),
+                     "probabilities": probabilities[index], "positions": positions[index],
+                     "patterns": patterns[index]}
+            given = (clearances or {}).get(key)
+            if given:
+                # An aircraft can hold a level and a heading clearance at once; each is
+                # applied in turn to what the previous one left.
+                altitude = float(usable[key][-1]["altitude_m"])
+                reports = []
+                for clearance in (given if isinstance(given, (list, tuple)) else [given]):
+                    kept_p, kept_pos, kept, report = apply_clearance(
+                        entry["probabilities"], entry["positions"], altitude, clearance)
+                    entry.update(probabilities=kept_p, positions=kept_pos, patterns=entry["patterns"][kept])
+                    reports.append(report)
+                entry["paths"] = [(float(p), _horizon_dict(pos))
+                                  for p, pos in zip(entry["probabilities"], entry["positions"])]
+                entry["clearance"] = reports
+            out[key] = entry
+        return out
 
     def assess_pair(self, history_a: Sequence[Mapping[str, float]], history_b: Sequence[Mapping[str, float]],
                     pair_history: Sequence[Mapping[str, Any]] = (),
                     traffic: Sequence[Mapping[str, Any]] = (),
                     candidates_a: Mapping[str, Any] | None = None,
-                    candidates_b: Mapping[str, Any] | None = None) -> dict[str, Any]:
+                    candidates_b: Mapping[str, Any] | None = None,
+                    selected_a_ft: float | None = None,
+                    selected_b_ft: float | None = None) -> dict[str, Any]:
         """Everything the dashboard needs for one pair, with a reason for each number.
 
         history_* are each aircraft's recent states, oldest first, at least ten. The
         rule path needs only the latest state; the models need the window.
         pair_history is the list of previous results for this pair (for the
         3-consecutive-updates rule).
+
+        selected_*_ft are the levels each crew has dialled into the autopilot (adsb.lol,
+        intent_service), or None when not broadcast. Used by the classifier when its saved
+        file declares the dialled-level inputs; otherwise ignored.
 
         traffic is every OTHER aircraft nearby, each {"callsign", "history"}. Supplied,
         a suggested manoeuvre is also checked against those aircraft and rejected if it
@@ -364,12 +470,16 @@ class ConflictEngine:
                 # Already computed for the whole airspace in one call this tick; see
                 # multipath_candidates() for why that matters.
                 paths_a, paths_b = candidates_a["paths"], candidates_b["paths"]
-                probabilities = np.stack([candidates_a["probabilities"], candidates_b["probabilities"]])
-                positions = np.stack([candidates_a["positions"], candidates_b["positions"]])
-                patterns = np.stack([candidates_a["patterns"], candidates_b["patterns"]])
+                # Per aircraft, not stacked: a heading clearance can leave the two aircraft
+                # with different numbers of candidates.
+                probabilities = [candidates_a["probabilities"], candidates_b["probabilities"]]
+                positions = [candidates_a["positions"], candidates_b["positions"]]
+                patterns = [candidates_a["patterns"], candidates_b["patterns"]]
             else:
                 X = np.concatenate([window_from_states(history_a), window_from_states(history_b)])
-                probabilities, positions, patterns = self.multipath.predict(X)
+                extra = self.multipath.route_inputs(X, [_callsign_of(history_a), _callsign_of(history_b)],
+                                                    fetch=ROUTE_LOOKUP_LIVE)
+                probabilities, positions, patterns = self.multipath.predict(X, extra=extra)
                 paths_a = self.multipath.paths_for_cpa(X, 0, probabilities, positions)
                 paths_b = self.multipath.paths_for_cpa(X, 1, probabilities, positions)
             current_a = (state_a["latitude"], state_a["longitude"], state_a["altitude_m"])
@@ -382,10 +492,13 @@ class ConflictEngine:
                 "cpa_lateral_distance_nm": multipath_cpa["cpa_lateral_distance_nm"],
                 "cpa_vertical_separation_ft": multipath_cpa["cpa_vertical_separation_ft"],
                 "time_to_cpa_seconds": multipath_cpa["time_to_cpa_seconds"],
-                "candidates_a": [{"probability": p, "pattern": int(patterns[0, i]), "positions": _horizon_dict(positions[0, i])}
+                "candidates_a": [{"probability": p, "pattern": int(patterns[0][i]), "positions": _horizon_dict(positions[0][i])}
                                  for i, p in enumerate(probabilities[0])],
-                "candidates_b": [{"probability": p, "pattern": int(patterns[1, i]), "positions": _horizon_dict(positions[1, i])}
+                "candidates_b": [{"probability": p, "pattern": int(patterns[1][i]), "positions": _horizon_dict(positions[1][i])}
                                  for i, p in enumerate(probabilities[1])],
+                # What a known clearance did to each aircraft's fan (plan Phase 7), if any.
+                "clearance_a": (candidates_a or {}).get("clearance"),
+                "clearance_b": (candidates_b or {}).get("clearance"),
                 "model_version": self.multipath.version,
                 "probabilities_calibrated": self.multipath.temperature != 1.0,
             }
@@ -396,15 +509,36 @@ class ConflictEngine:
             # Tier 1 (<= 180 s) stays on the rule path by decision (CLAUDE.md Section 3);
             # the multi-path probability drives tier 2, where constant velocity degrades.
             if assign_tier(rule_cpa)["tier"] != 1:
-                cpa_for_tiering = multipath_cpa
+                # The model supplies the tier and the displayed geometry; the safety net
+                # still judges the straight line (RULE_GEOMETRY_KEY, alert_gate).
+                cpa_for_tiering = {**multipath_cpa, RULE_GEOMETRY_KEY: {
+                    key: float(rule_cpa[key]) for key in
+                    ("cpa_lateral_distance_nm", "cpa_vertical_separation_ft", "time_to_cpa_seconds")}}
 
         # 3. XGBoost: will these two ACTUALLY lose separation, given the prediction?
         if self.classifier is not None:
             manoeuvre_a = _manoeuvre_from_history(history_a)
             manoeuvre_b = _manoeuvre_from_history(history_b)
             features = encounter_features(state_a, state_b, manoeuvre_a, manoeuvre_b, rule_cpa)
+            if self.classifier.uses_dialled_levels:
+                features.update(intent_features(features["a_altitude_ft"], features["b_altitude_ft"],
+                                                selected_a_ft, selected_b_ft))
             result["classifier"] = self.classifier.predict([features])[0]
+            result["classifier"]["dialled_levels_ft"] = {"a": selected_a_ft, "b": selected_b_ft,
+                                                         "used": self.classifier.uses_dialled_levels}
             result["sources"].append("XGBoost conflict classifier (calibrated, SHAP-explained)")
+            # The classifier GATES escalation (see alert_gate in cpa_conflict_detection).
+            # It rides on the CPA result rather than being passed as an argument so that
+            # the three-consecutive-updates walk over pair_history sees the same verdict
+            # for each past update that it saw when that update was current -- the
+            # history entries are stored from cpa_for_tiering at the end of this method.
+            # Copied rather than mutated: rule_cpa is also handed to Model 3 and returned
+            # to the dashboard, and neither should acquire classifier fields.
+            cpa_for_tiering = {
+                **cpa_for_tiering,
+                CLASSIFIER_ALERT_KEY: bool(result["classifier"]["alert"]),
+                CLASSIFIER_PROBABILITY_KEY: float(result["classifier"]["conflict_probability"]),
+            }
 
         # 4. Tiering and escalation with the anti-flicker rule.
         escalation = escalate_pair(cpa_for_tiering, [h.get("_cpa_for_tiering", h) for h in pair_history])
@@ -425,15 +559,28 @@ class ConflictEngine:
         callsign_b = str(history_b[-1].get("callsign") or "AIRCRAFT B").strip()
         # Every OTHER aircraft nearby, with its own predicted paths where the model can
         # supply them, so a manoeuvre is tested against the whole picture.
+        #
+        # Only assembled when a manoeuvre will actually be proposed. generate_resolutions
+        # obeys escalation["suggest_resolution"] and ignores traffic entirely for a tier 2
+        # advisory or an unconfirmed tier 1 pair, so building neighbours for those pairs
+        # is pure cost -- and on a quiet update that is every pair.
         neighbours = []
-        for entry in traffic:
+        for entry in (traffic if escalation.get("suggest_resolution") else ()):
             neighbour_history = entry.get("history") or ()
             if not neighbour_history:
                 continue
             neighbour_paths = None
-            if self.multipath is not None and len(neighbour_history) >= INPUT_STEPS:
+            supplied = entry.get("candidates")
+            if supplied is not None:
+                # Computed for the whole airspace in one call this tick. Asking the
+                # model per neighbour instead costs ~3 s a time and is what made a
+                # 30-pair update take 46 s before 8 Sep; doing it per neighbour per
+                # pair is that same mistake multiplied by the neighbour count.
+                neighbour_paths = supplied["paths"]
+            elif self.multipath is not None and len(neighbour_history) >= INPUT_STEPS:
                 nx = window_from_states(neighbour_history)
-                np_prob, np_pos, _ = self.multipath.predict(nx)
+                np_prob, np_pos, _ = self.multipath.predict(nx, extra=self.multipath.route_inputs(
+                    nx, [_callsign_of(neighbour_history)], fetch=ROUTE_LOOKUP_LIVE))
                 neighbour_paths = self.multipath.paths_for_cpa(nx, 0, np_prob, np_pos)
             neighbours.append({
                 "callsign": str(entry.get("callsign")
@@ -491,7 +638,8 @@ class ConflictEngine:
             out["residual_lstm"] = _horizon_dict(predicted[0])
             out["residual_lstm_version"] = self.trajectory.version
         if self.multipath is not None:
-            probabilities, positions, patterns = self.multipath.predict(X)
+            probabilities, positions, patterns = self.multipath.predict(
+                X, extra=self.multipath.route_inputs(X, [_callsign_of(history)], fetch=ROUTE_LOOKUP_LIVE))
             out["multipath"] = [{"probability": float(p), "pattern": int(patterns[0, i]),
                                  "positions": _horizon_dict(positions[0, i])} for i, p in enumerate(probabilities[0])]
             out["multipath_version"] = self.multipath.version

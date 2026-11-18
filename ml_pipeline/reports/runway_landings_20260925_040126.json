@@ -1,0 +1,117 @@
+{
+  "states": 91554,
+  "aircraft": 905,
+  "landings": 753,
+  "by_runway": {
+    "27": 751,
+    "32": 2
+  },
+  "by_session": {
+    "session_20260824_163903_combined": {
+      "27": 39
+    },
+    "session_20260829_080700_combined": {
+      "27": 40
+    },
+    "session_20260829_172503_combined": {
+      "27": 31
+    },
+    "session_20260830_003001_combined": {
+      "27": 22
+    },
+    "session_20260830_123007_combined": {
+      "27": 36
+    },
+    "session_20260831_003012_combined": {
+      "27": 19
+    },
+    "session_20260831_123010_combined": {
+      "27": 10
+    },
+    "session_20260901_003019_partial": {
+      "27": 16
+    },
+    "session_20260902_003007_combined": {
+      "27": 21
+    },
+    "session_20260902_063002_partial": {
+      "27": 8
+    },
+    "session_20260903_003002_combined": {
+      "27": 16
+    },
+    "session_20260904_003002_combined": {
+      "27": 18
+    },
+    "session_20260904_063002_partial": {
+      "27": 13
+    },
+    "session_20260905_003006_combined": {
+      "27": 21
+    },
+    "session_b_20260830_023001_combined": {
+      "27": 30
+    },
+    "session_b_20260830_093006_combined": {
+      "27": 36
+    },
+    "session_b_20260830_143001_combined": {
+      "27": 34
+    },
+    "session_b_20260831_023002_combined": {
+      "27": 41
+    },
+    "session_b_20260831_093002_partial": {
+      "32": 2
+    },
+    "session_b_20260831_143003_partial": {
+      "27": 10
+    },
+    "session_b_20260902_023007_combined": {
+      "27": 37
+    },
+    "session_b_20260903_023002_partial": {
+      "27": 21
+    },
+    "session_b_20260904_023002_combined": {
+      "27": 11
+    },
+    "session_b_20260905_023002_combined": {
+      "27": 29
+    },
+    "session_c_20260829_190001_combined": {
+      "27": 21
+    },
+    "session_c_20260829_204506_combined": {
+      "27": 13
+    },
+    "session_c_20260830_163001_combined": {
+      "27": 38
+    },
+    "session_c_20260831_204507_combined": {
+      "27": 12
+    },
+    "session_c_20260901_163009_combined": {
+      "27": 38
+    },
+    "session_c_20260901_204502_combined": {
+      "27": 7
+    },
+    "session_c_20260902_163006_partial": {
+      "27": 26
+    },
+    "session_c_20260902_204502_combined": {
+      "27": 11
+    },
+    "session_c_20260903_204503_combined": {
+      "27": 10
+    },
+    "session_c_20260904_163006_partial": {
+      "27": 4
+    },
+    "session_c_20260904_204503_combined": {
+      "27": 12
+    }
+  },
+  "spot_check": "docs/figures/runway_spotcheck.png -- NOT YET CHECKED BY A PERSON"
+}

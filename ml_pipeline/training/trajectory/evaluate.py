@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -19,6 +20,8 @@ import framing
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PROJECT_ROOT))
+from ml_pipeline.artifact_paths import resolve_artifact
 # FLIGHT_RIGHT_DATA_ROOT relocates data and saved models (used by the smoke test so
 # it can never touch real data). Unset, everything lives under the project root.
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
@@ -33,7 +36,7 @@ DISTANCE_BUCKETS = [("terminal", 0.0, 40.0), ("intermediate", 40.0, 100.0), ("en
 
 
 def load_split(name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    path = DATA_DIRECTORY / f"trajectory_{name}.npz"
+    path = resolve_artifact(DATA_DIRECTORY / f"trajectory_{name}.npz")
     if not path.exists():
         raise FileNotFoundError(f"Missing {path}. Run preprocess_sequences.py first.")
     with np.load(path) as data:

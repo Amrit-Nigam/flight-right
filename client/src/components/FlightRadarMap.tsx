@@ -1,3 +1,9 @@
+import { ScaleControl } from "maplibre-gl";
+import { REFERENCE_LIGHT, REFERENCE_DARK } from "@/lib/referenceMap";
+import { STREET_LIGHT, STREET_DARK } from "@/lib/trackerMap";
+import MapGestures from '@/components/MapGestures';
+import MapTrackChoices from '@/components/MapTrackChoices';
+import {ageLabel} from '@/lib/trafficPresentation';
 import { useEffect, useMemo, useState } from "react";
 import type { GeoJSON } from "geojson";
 import type { GeoJSONSourceRaw } from "maplibre-gl";
@@ -43,36 +49,23 @@ const STATUS_COLORS_LIGHT: Record<string, string> = {
   conflict: "#b91c1c",
 };
 
-const WAYPOINTS = [
-  { name: "DEGAN", lat: 19.45, lng: 72.7 },
-  { name: "ARSIN", lat: 18.6, lng: 73.2 },
-  { name: "OKLOV", lat: 20.1, lng: 72.4 },
-  { name: "DISHA", lat: 19.2, lng: 73.5 },
-  { name: "LUCKY", lat: 18.2, lng: 72.9 },
+// Removed 27 Sep 2026: five named "waypoints" (DEGAN, ARSIN, OKLOV, DISHA, LUCKY) we could not
+// verify against any published source, an invented FIR outline, and approach lines labelled
+// 27L/27R and 09L/09R (Mumbai has 09/27 and 14/32). In their place: the OpenSky query box our
+// data is actually collected from (server/app/config.py BOUNDS), a 50 NM range ring, and the real
+// runways from OurAirports (via /api/airport) with a 10 NM extended centreline on the runway in use.
+const DATA_BOX_LNGLAT: [number, number][] = [
+  [68.0, 16.0], [77.5, 16.0], [77.5, 23.5], [68.0, 23.5], [68.0, 16.0],
 ];
+const RANGE_RING_M = 50 * 1852;
 
-/** Leaflet-style [lat, lng] vertices → GeoJSON ring [lng, lat] */
-const FIR_RING_LNGLAT: [number, number][] = [
-  [68.0, 23.5],
-  [77.0, 23.5],
-  [80.0, 18.0],
-  [77.0, 13.0],
-  [70.0, 13.0],
-  [67.0, 18.0],
-  [68.0, 23.5],
-];
+/** A point `nm` nautical miles from (lat, lng) along `bearingDeg`, as [lng, lat] (flat-earth, fine at these ranges). */
+function offsetNm(lat: number, lng: number, bearingDeg: number, nm: number): [number, number] {
+  const h = (bearingDeg * Math.PI) / 180;
+  return [lng + (nm * Math.sin(h)) / (60 * Math.cos((lat * Math.PI) / 180)), lat + (nm * Math.cos(h)) / 60];
+}
 
-const APPROACH_PATHS = [
-  { name: "27L/27R", lnglats: [
-    [73.5, 19.09],
-    [72.86, 19.09],
-  ] as [number, number][] },
-  { name: "09L/09R", lnglats: [
-    [72.2, 19.09],
-    [72.86, 19.09],
-  ] as [number, number][] },
-];
-
+type Runway = { end: string; runway: string; headingDeg: number; threshold: [number, number]; far: [number, number] };
 
 // Built from the live conflict prop. Nothing here is hardcoded to a callsign any more.
 const EMPTY_PLAN = {
@@ -80,7 +73,7 @@ const EMPTY_PLAN = {
   secondary: null as string | null,
   cpa: null as [number, number] | null,
   cpaLabel: "",
-  minimum: "MIN SEP 5 NM / 1000 FT (en-route)",
+  minimum: "",
   actions: [] as string[],
 };
 
@@ -168,7 +161,7 @@ function AircraftIcon({
         width: size,
         height: size,
         transform: `rotate(${heading}deg)`,
-        filter: `drop-shadow(0 0 5px ${color})`,
+        filter: 'drop-shadow(0 1px 1px rgba(0,0,0,.75))',
       }}
     >
       {pulse ? (
@@ -185,7 +178,7 @@ function AircraftIcon({
           }}
         />
       ) : null}
-      <svg viewBox="0 0 24 24" width={size} height={size} fill={color}>
+      <svg viewBox="0 0 24 24" width={size} height={size} fill={color} stroke="#453b26" strokeWidth="0.65">
         <path d="M21,16v-2l-8-5V3.5c0-0.83-0.67-1.5-1.5-1.5S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z" />
       </svg>
     </div>
@@ -193,7 +186,9 @@ function AircraftIcon({
 }
 
 /** GeoJSON overlays: FIR line, TMA fill, approaches, optional CPA rings */
-function FlightRadarGeoLayers({ isLight, hasActiveConflict }: { isLight: boolean; hasActiveConflict: boolean }) {
+function FlightRadarGeoLayers({ isLight, hasActiveConflict, runways, inUseEnd, cpa, ringNm }:
+  { isLight: boolean; hasActiveConflict: boolean; runways: Runway[]; inUseEnd: string | null;
+    cpa: [number, number] | null; ringNm: number }) {
   const { map, isLoaded } = useMap();
 
   const strokeAmber = isLight ? "#b45309" : "#f5a623";
@@ -221,12 +216,12 @@ function FlightRadarGeoLayers({ isLight, hasActiveConflict }: { isLight: boolean
         {
           type: "Feature",
           properties: {},
-          geometry: { type: "LineString", coordinates: FIR_RING_LNGLAT },
+          geometry: { type: "LineString", coordinates: DATA_BOX_LNGLAT },
         },
       ],
     };
 
-    const tmaRing = circleRingLngLat(VABB_LNG, VABB_LAT, 80_000);
+    const tmaRing = circleRingLngLat(VABB_LNG, VABB_LAT, RANGE_RING_M);
     const tmaFc: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: [
@@ -246,18 +241,24 @@ function FlightRadarGeoLayers({ isLight, hasActiveConflict }: { isLight: boolean
       addSrc("frm-fir", firFc);
       addSrc("frm-tma", tmaFc);
 
-      APPROACH_PATHS.forEach((ap, i) => {
-        const id = `frm-approach-${i}`;
-        addSrc(id, {
+      // Real runways, plus a 10 NM extended centreline for the runway end in use.
+      const runwayLines: [number, number][][] = [];
+      const seen = new Set<string>();
+      for (const r of runways) {
+        if (!seen.has(r.runway)) {
+          seen.add(r.runway);
+          runwayLines.push([[r.threshold[1], r.threshold[0]], [r.far[1], r.far[0]]]);
+        }
+      }
+      const inUse = runways.find((r) => r.end === inUseEnd);
+      const approachLines: [number, number][][] = inUse
+        ? [[offsetNm(inUse.threshold[0], inUse.threshold[1], (inUse.headingDeg + 180) % 360, 10), [inUse.threshold[1], inUse.threshold[0]]]]
+        : [];
+      [runwayLines, approachLines].forEach((lines, i) => {
+        addSrc(`frm-approach-${i}`, {
           type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {},
-              geometry: { type: "LineString", coordinates: ap.lnglats },
-            },
-          ],
-        });
+          features: lines.map((coordinates) => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } })),
+        } as GeoJSON.FeatureCollection);
       });
 
       map.addLayer({
@@ -293,25 +294,23 @@ function FlightRadarGeoLayers({ isLight, hasActiveConflict }: { isLight: boolean
         },
       });
 
-      APPROACH_PATHS.forEach((_, i) => {
+      [0, 1].forEach((i) => {
         map.addLayer({
           id: `frm-approach-${i}`,
           type: "line",
           source: `frm-approach-${i}`,
-          paint: {
-            "line-color": strokeAmber,
-            "line-width": 1.5,
-            "line-opacity": isLight ? 0.55 : 0.3,
-            "line-dasharray": [1, 2],
-          },
+          paint: i === 0
+            ? { "line-color": isLight ? "#44403c" : "#e7e5e4", "line-width": 4, "line-opacity": 0.85 }
+            : { "line-color": strokeAmber, "line-width": 1.5, "line-opacity": isLight ? 0.7 : 0.5, "line-dasharray": [1, 2] },
         });
       });
 
       if (hasActiveConflict) {
-        if (!CONFLICT_PLAN.cpa) return;
-        const [cpaLat, cpaLng] = CONFLICT_PLAN.cpa;
-        const outerRing = circleRingLngLat(cpaLng, cpaLat, 5556);
-        const innerRing = circleRingLngLat(cpaLng, cpaLat, 3889);
+        if (!cpa) return;
+        const [cpaLat, cpaLng] = cpa;
+        // The separation standard drawn to scale around the predicted closest approach.
+        const outerRing = circleRingLngLat(cpaLng, cpaLat, ringNm * 1852);
+        const innerRing = circleRingLngLat(cpaLng, cpaLat, (ringNm * 1852) / 2);
         addSrc("frm-cpa-outer", {
           type: "FeatureCollection",
           features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [outerRing] } }],
@@ -361,9 +360,33 @@ function FlightRadarGeoLayers({ isLight, hasActiveConflict }: { isLight: boolean
         }
       }
     };
-  }, [map, isLoaded, isLight, hasActiveConflict, strokeAmber, strokeTeal, red]);
+  }, [map, isLoaded, isLight, hasActiveConflict, strokeAmber, strokeTeal, red, runways, inUseEnd, cpa, ringNm]);
 
   return null;
+}
+
+function NavigationTools({points, alertPoints}: {points: [number,number][]; alertPoints: [number,number][]}) {
+  const { map } = useMap();
+  useEffect(() => {
+    if (!map) return;
+    map.touchZoomRotate.disableRotation();
+    const scale=new ScaleControl({unit:'nautical'});
+    map.addControl(scale,'bottom-left');
+    return () => {if(map.hasControl(scale)) map.removeControl(scale);};
+  }, [map]);
+  return <div data-map-panel aria-label="Map navigation" style={{position:"absolute",right:12,bottom:24,zIndex:30,display:"flex",flexWrap:'wrap',justifyContent:'flex-end',maxWidth:'calc(100% - 24px)',gap:4,background:'var(--bg-panel)',color:'var(--text-primary)',padding:4,borderRadius:4,border:'1px solid var(--border-default)'}}>
+    <button aria-label="Zoom in" className="px-3 py-2" onClick={() => map?.zoomIn()}>+</button>
+    <button aria-label="Zoom out" className="px-3 py-2" onClick={() => map?.zoomOut()}>-</button>
+    {points.length>0 && <button className="px-3 py-2 text-xs" onClick={()=>{
+      const lngs=points.map(p=>p[0]),lats=points.map(p=>p[1]);
+      map?.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:80,maxZoom:13});
+    }}>Fit selected</button>}
+    {alertPoints.length >= 2 && <button className="px-3 py-2 text-xs" onClick={() => {
+      const lngs=alertPoints.map(p=>p[0]),lats=alertPoints.map(p=>p[1]);
+      map?.fitBounds([[Math.min(...lngs),Math.min(...lats)],[Math.max(...lngs),Math.max(...lats)]],{padding:80,maxZoom:10});
+    }}>Locate alert</button>}
+    <button className="px-3 py-2 text-xs" onClick={() => map?.jumpTo({center:[VABB_LNG,VABB_LAT],zoom:8,bearing:0,pitch:0})}>Airport</button>
+  </div>;
 }
 
 type LiveFlight = (typeof INITIAL_FLIGHTS)[number];
@@ -381,45 +404,66 @@ export default function FlightRadarMap({
   flights: propFlights,
   conflict,
   selectedFlight,
+  selectedTrack = { segments: [], status: "empty" },
   onSelectFlight,
   theme,
+  airport = null,
+  constants = null,
+  source = null,
+  instructionSummaries = {},
 }: {
   flights?: PropFlight[];
   conflict?: any;
   selectedFlight: string | null;
+  selectedTrack?: { segments: [number, number][][]; status: string;
+    prediction?: { status: string; probability: number; coordinates: [number, number][] } | null;
+    predictionStatus?: string };
   onSelectFlight?: (callsign: string, meta?: { surface?: string }) => void;
   theme: string;
+  airport?: any;
+  constants?: any;
+  source?: string | null;
+  instructionSummaries?: Record<string, {level?: string; direction?: string; at?: string}>;
 }) {
-  const [liveFlights, setLiveFlights] = useState<LiveFlight[]>(INITIAL_FLIGHTS);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [labels, setLabels] = useState(false);
+  const [showConflictDetails,setShowConflictDetails]=useState(false);
 
   // The conflict overlay comes from the detection chain, not from a fixed scenario.
   const CONFLICT_PLAN = useMemo(() => {
     if (!conflict) return EMPTY_PLAN;
     const primary = propFlights?.find((f) => f.callsign === conflict.flight1) as any;
     const secondary = propFlights?.find((f) => f.callsign === conflict.flight2) as any;
-    const cpa: [number, number] | null =
-      primary?.lat != null && secondary?.lat != null
-        ? [(primary.lat + secondary.lat) / 2, (primary.lng + secondary.lng) / 2]
-        : null;
+    // Each aircraft's straight-line position at the predicted time of closest approach -- the
+    // prediction the alarm is computed from. The CPA mark sits between those two positions.
+    // (It used to be the midpoint of where the aircraft are NOW, with each line then bent to a
+    // fixed map point.)
+    const t = Math.max(0, Number(conflict.countdown) || 0);
+    const at = (f: any): [number, number] | null => {
+      if (f?.lat == null) return null;
+      const nm = ((Number(f.speedKt) || 0) * t) / 3600;
+      return offsetNm(f.lat, f.lng, Number(f.heading) || 0, nm);
+    };
+    const endA = at(primary), endB = at(secondary);
+    const cpa: [number, number] | null = endA && endB ? [(endA[1] + endB[1]) / 2, (endA[0] + endB[0]) / 2] : null;
     return {
       primary: conflict.flight1,
       secondary: conflict.flight2,
       cpa,
-      cpaLabel: `CPA ${Number(conflict.cpaNM).toFixed(2)} NM / T-${Math.round(conflict.countdown)}s`,
-      minimum: EMPTY_PLAN.minimum,
+      endA,
+      endB,
+      cpaLabel: `CPA ${Number(conflict.cpaNM).toFixed(2)} NM / ${Math.round(conflict.cpaVerticalFt)} ft · T-${Math.round(conflict.countdown)}s`,
+      minimum: constants ? `MIN SEP ${constants.separationLateralNm} NM / ${constants.separationVerticalFt} FT (en-route)` : "",
       actions: (conflict.resolution?.options || []).map((o: any) => o.explanation).slice(0, 3),
     };
-  }, [conflict, propFlights]);
+  }, [conflict, propFlights, constants]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [altFilter, setAltFilter] = useState("ALL ALT");
 
   // The backend is the source of truth. The old version matched incoming flights
   // against a fixed list by callsign and silently dropped everything that did not
   // match, which meant real traffic never appeared on the map at all.
-  useEffect(() => {
-    if (!propFlights) return;
-    setLiveFlights(
-      propFlights
+  const liveFlights = useMemo(() => (propFlights || [])
         .filter((p: any) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
         .map((p: any) => ({
           callsign: p.callsign,
@@ -430,9 +474,10 @@ export default function FlightRadarMap({
           altitude: p.altitude || "GND",
           status: String(p.status || "cruise").toLowerCase(),
           cpaPair: p.cpaPair ?? null,
-        })),
-    );
-  }, [propFlights]);
+          timePosition: p.timePosition,
+          staleTrack:p.staleTrack,
+          reportAgeSeconds:p.reportAgeSeconds,
+        })), [propFlights]);
 
   // No dead-reckoning between updates: positions come from the feed, and moving them
   // ourselves would put the icon somewhere the aircraft is not.
@@ -466,9 +511,9 @@ export default function FlightRadarMap({
     return set;
   }, [liveFlights, statusFilter, altFilter, conflictCallsigns]);
 
-  const statusColors = useMemo(() => (isLight ? STATUS_COLORS_LIGHT : STATUS_COLORS_DARK), [isLight]);
 
   const mapTheme = isLight ? "light" : "dark";
+  const [detailedMap, setDetailedMap] = useState(true);
   const tealAccent = isLight ? "#0f766e" : "#00e5cc";
   const bgColor = isLight ? "var(--bg-base)" : "#060608";
 
@@ -476,7 +521,7 @@ export default function FlightRadarMap({
   const red = isLight ? "#b91c1c" : "#ff2d2d";
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: bgColor }}>
+    <div aria-label="Traffic map" style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: bgColor }}>
       <style>{`
         @keyframes frm-pulse {
           0% { transform: scale(1); opacity: 0.9; }
@@ -500,22 +545,43 @@ export default function FlightRadarMap({
         className="absolute inset-0"
         center={[VABB_LNG, VABB_LAT]}
         zoom={8}
-        minZoom={7}
-        maxZoom={11}
-        maxBounds={[
-          [66, 10],
-          [82, 25],
-        ]}
-        attributionControl={false}
+        minZoom={2}
+        maxZoom={20}
+        attributionControl={{compact:false}}
         dragRotate={false}
         pitchWithRotate={false}
         touchPitch={false}
+        touchZoomRotate={true}
+        scrollZoom={false}
         styles={{
-          light: "https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json",
-          dark: "https://basemaps.cartocdn.com/gl/dark-matter-nolabels-gl-style/style.json",
+          light: detailedMap ? STREET_LIGHT : REFERENCE_LIGHT,
+          dark: detailedMap ? STREET_DARK : REFERENCE_DARK,
         }}
       >
-        <FlightRadarGeoLayers isLight={isLight} hasActiveConflict={hasActiveConflict} />
+        <MapGestures />
+        <MapTrackChoices flights={liveFlights.filter(f=>visibleCallsigns.has(f.callsign))} onSelectFlight={onSelectFlight} selectedFlight={selectedFlight}/>
+        <NavigationTools points={[...selectedTrack.segments.flat(), ...(selectedTrack.prediction?.coordinates || [])]}
+                     alertPoints={conflict ? [
+                       ...[CONFLICT_PLAN.primary, CONFLICT_PLAN.secondary]
+                         .map((c) => liveFlights.find((f) => f.callsign === c))
+                         .filter(Boolean)
+                         .map((f: any) => [f.lng, f.lat] as [number, number]),
+                       ...(((CONFLICT_PLAN as any).endA && (CONFLICT_PLAN as any).endB) ? [(CONFLICT_PLAN as any).endA, (CONFLICT_PLAN as any).endB] : []),
+                     ] : []} />
+        <FlightRadarGeoLayers isLight={isLight} hasActiveConflict={hasActiveConflict}
+                              runways={airport?.runways || []} inUseEnd={airport?.inUse?.end || null}
+                              cpa={CONFLICT_PLAN.cpa} ringNm={constants?.separationLateralNm ?? 5} />
+
+        {selectedFlight && selectedTrack.prediction?.status === "ready" && (
+          <MapRoute key={`prediction-${selectedFlight}`} id="frm-selected-prediction"
+                    coordinates={selectedTrack.prediction.coordinates} color={tealAccent}
+                    width={2} opacity={0.55} dashArray={[4, 3]} interactive={false} />
+        )}
+        {selectedFlight && selectedTrack.segments.map((coordinates, index) => (
+          <MapRoute key={`${selectedFlight}-${index}`} id={`frm-history-${index}`}
+                    coordinates={coordinates} color={tealAccent} width={3}
+                    opacity={0.95} interactive={false} />
+        ))}
 
         {hasActiveConflict
           ? (() => {
@@ -530,11 +596,7 @@ export default function FlightRadarMap({
                 <>
                   <MapRoute
                     id="frm-conflict-a"
-                    coordinates={[
-                      [f1.lng, f1.lat],
-                      cpaPt,
-                      [73.06, 19.34],
-                    ]}
+                    coordinates={[[f1.lng, f1.lat], (CONFLICT_PLAN as any).endA || cpaPt]}
                     color={red}
                     width={3}
                     opacity={0.72}
@@ -543,11 +605,7 @@ export default function FlightRadarMap({
                   />
                   <MapRoute
                     id="frm-conflict-b"
-                    coordinates={[
-                      [f2.lng, f2.lat],
-                      cpaPt,
-                      [72.66, 19.42],
-                    ]}
+                    coordinates={[[f2.lng, f2.lat], (CONFLICT_PLAN as any).endB || cpaPt]}
                     color={isLight ? "#b45309" : "#f5a623"}
                     width={3}
                     opacity={0.72}
@@ -596,31 +654,6 @@ export default function FlightRadarMap({
           </MarkerContent>
         </MapMarker>
 
-        {WAYPOINTS.map((wp) => (
-          <MapMarker key={wp.name} longitude={wp.lng} latitude={wp.lat} anchor="center">
-            <MarkerContent>
-              <div className="relative flex flex-col items-center">
-                <svg viewBox="0 0 10 10" width={10} height={10} fill={isLight ? "#0f766e" : "#00e5cc"}>
-                  <polygon points="5,0 10,5 5,10 0,5" />
-                </svg>
-                <span
-                  className="absolute whitespace-nowrap font-semibold"
-                  style={{
-                    top: 14,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    fontFamily: "'Geist Variable', system-ui, sans-serif",
-                    fontSize: 10,
-                    color: isLight ? "#115e59" : "#00e5cc",
-                    textShadow: isLight ? "none" : "0 0 6px #00e5cc",
-                  }}
-                >
-                  {wp.name}
-                </span>
-              </div>
-            </MarkerContent>
-          </MapMarker>
-        ))}
 
         {hasActiveConflict ? (
           <MapMarker longitude={cpaLng} latitude={cpaLat} anchor="center">
@@ -657,7 +690,7 @@ export default function FlightRadarMap({
                     boxShadow: "0 2px 10px rgba(0,0,0,.18)",
                   }}
                 >
-                  CPA 2.1 NM
+                  {conflict ? `CPA ${Number(conflict.cpaNM).toFixed(2)} NM / ${Math.round(conflict.cpaVerticalFt)} ft` : ""}
                 </div>
               </div>
             </MarkerContent>
@@ -668,17 +701,19 @@ export default function FlightRadarMap({
           const isSelected = selectedFlight === f.callsign;
           const isDimmed = !visibleCallsigns.has(f.callsign);
           const isConflictTrack = hasActiveConflict && conflictCallsigns.has(f.callsign);
-          const selectedColor = isLight ? "#0c0a09" : "#ffffff";
+          const selectedColor = '#ef4444';
           const amber = isLight ? "#b45309" : "#f5a623";
           const color =
-            isSelected
+            hovered === f.callsign && !isSelected ? '#38bdf8' : isSelected
               ? selectedColor
               : f.callsign === CONFLICT_PLAN.primary
                 ? red
                 : isConflictTrack
                   ? amber
-                  : statusColors[f.status] || amber;
+                  : f.staleTrack ? (isLight?'#64748b':'#94a3b8') : '#fbbf24';
           const size = isConflictTrack ? 36 : 28;
+          const instructions=instructionSummaries[f.callsign];
+          const info=<div className="tracker-tooltip"><strong>{f.callsign} · {f.staleTrack?'OLD REPORT · ':''}{ageLabel(f.reportAgeSeconds)}</strong><span>Reported {f.altitude} · {Math.round(f.speed)} kt · track {Math.round(f.heading)}°</span><span>Position report: {Number.isFinite(f.timePosition)?new Date(f.timePosition*1000).toISOString().slice(11,19)+'Z':'time unavailable'}</span><span>Last recorded ALT: {instructions?.level || 'not recorded'}</span><span>Last recorded direction: {instructions?.direction || 'not recorded'}</span>{instructions?.at && <small>{instructions.at} · recorded instruction, not surveillance</small>}</div>;
 
           return (
             <MapMarker
@@ -686,6 +721,8 @@ export default function FlightRadarMap({
               longitude={f.lng}
               latitude={f.lat}
               anchor="center"
+              onMouseEnter={() => setHovered(f.callsign)}
+              onMouseLeave={() => setHovered(null)}
               onClick={() => {
                 if (!onSelectFlight) return;
                 logAudit("map:marker", "Aircraft marker clicked on map", { callsign: f.callsign });
@@ -693,32 +730,33 @@ export default function FlightRadarMap({
               }}
             >
               <MarkerContent>
-                <div style={{ opacity: isDimmed ? 0.15 : 1, cursor: "pointer" }}>
+                <button type="button" aria-label={`Select aircraft ${f.callsign}`} aria-pressed={isSelected} data-aircraft={f.callsign} data-lng={f.lng} data-lat={f.lat} data-track={f.heading} data-color={color} onFocus={()=>setHovered(f.callsign)} onBlur={()=>setHovered(null)} className="tracker-aircraft" style={{ opacity: isDimmed ? 0.15 : 1, cursor: "pointer",background:isSelected?'rgba(239,68,68,.15)':hovered===f.callsign?'rgba(56,189,248,.18)':'transparent' }}>
                   <AircraftIcon color={color} heading={f.heading} size={size} pulse={isConflictTrack} />
-                </div>
+                </button>
                 {isSelected ? (
                   <MarkerLabel position="top" className="frm-tooltip-mapcn border border-[var(--amber)] bg-[var(--bg-panel)] text-[var(--text-primary)] shadow-md">
-                    {f.callsign} | {f.altitude} · {f.speed}kt
+                    {f.callsign} · {f.altitude}{f.staleTrack?' · OLD REPORT':''}
                   </MarkerLabel>
                 ) : (
                   <MarkerTooltip
                     offset={12}
                     className="frm-tooltip-mapcn border border-[var(--amber)] !bg-[var(--bg-panel)] !text-[var(--text-primary)] shadow-md"
                   >
-                    {f.callsign} | {f.altitude} · {f.speed}kt
+                    {info}
                   </MarkerTooltip>
                 )}
+                {!isSelected && labels && <MarkerLabel position="bottom" className="tracker-callsign">{f.callsign}</MarkerLabel>}
+                {isSelected && hovered===f.callsign && <MarkerTooltip offset={18}>{info}</MarkerTooltip>}
               </MarkerContent>
             </MapMarker>
           );
         })}
       </Map>
 
+      <details data-map-panel className="tracker-map-options">
+        <summary>Map layers &amp; filters</summary>
       <div
         style={{
-          position: "absolute",
-          top: 12,
-          left: 12,
           zIndex: 10,
           display: "flex",
           flexDirection: "column",
@@ -736,12 +774,39 @@ export default function FlightRadarMap({
             background: isLight ? "var(--overlay-strong)" : "rgba(6,6,8,0.75)",
             border: isLight ? "1px solid var(--border-default)" : "1px solid transparent",
             borderRadius: 2,
+            display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
           }}
         >
-          MODE: APP/DEP &nbsp;|&nbsp; RANGE: TMA 80NM &nbsp;|&nbsp; SECTOR: 7B-ALPHA
+          <div style={{flex:'1 1 160px'}}>{source === "live" ? "LIVE OpenSky" : source === "replay" ? "RECORDED SESSION" : "NO SOURCE"}
+          {airport?.inUse ? <>&nbsp;|&nbsp; RWY {airport.inUse.end}</> : null}
+          <div>{detailedMap?'OpenStreetMap requested · offline reference if unavailable':'Natural Earth offline reference · not an airport surface chart'}</div></div>
+          <button type="button" onClick={()=>setDetailedMap(v=>!v)} style={{pointerEvents:'auto',background:'var(--bg-panel)',color:'var(--text-primary)',padding:'6px 10px',fontSize:11,border:'1px solid var(--border-default)',borderRadius:4}}>{detailedMap?'Use offline map':'Load detailed basemap'}</button>
+          <label style={{pointerEvents:'auto'}}><input type="checkbox" checked={labels} onChange={e=>setLabels(e.target.checked)} /> Callsigns</label>
+          <label style={{pointerEvents:'auto'}}><input type="checkbox" checked={showConflictDetails} onChange={e=>setShowConflictDetails(e.target.checked)} /> Conflict detail card</label>
         </div>
 
-        <div style={{ display: "flex", pointerEvents: "all" }}>
+        {selectedFlight && (
+          <div role="status" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
+            padding: "7px 11px", background: "var(--bg-panel)", color: "var(--text-primary)",
+            border: "1px solid var(--border-default)", fontSize: 11, alignSelf: "flex-start" }}>
+            <span style={{ width: 25, borderTop: `3px solid ${tealAccent}` }} />
+            {selectedFlight} · {selectedTrack.status === "loading" ? "Loading recent track…"
+              : selectedTrack.status === "stale" ? "Last observed track - absent from current feed"
+              : selectedTrack.status === "error" ? "Track unavailable"
+              : selectedTrack.status === "empty" ? "Waiting for position history"
+              : "Recent recorded track"}
+            <span style={{ width: 25, borderTop: `2px dashed ${tealAccent}`, opacity: 0.55 }} />
+            <span title="Highest-probability model candidate, with active clearances applied. Probability is not a guarantee the aircraft will follow this path.">
+              {selectedTrack.prediction?.status === "ready"
+                ? `Predicted · ${Math.round(selectedTrack.prediction.probability * 100)}% candidate weight · 10 min`
+                : selectedTrack.predictionStatus === "loading" ? "Loading prediction…"
+                : selectedTrack.predictionStatus === "warming" ? "Prediction needs more reports"
+                : "Prediction unavailable"}
+            </span>
+          </div>
+        )}
+
+        <details data-map-panel style={{pointerEvents:'auto',background:'var(--overlay-strong)',color:'var(--text-primary)',border:'1px solid var(--border-default)',padding:'6px 10px',alignSelf:'flex-start',maxWidth:'100%',fontSize:11}}><summary>Traffic filters / map key{statusFilter!=='ALL'||altFilter!=='ALL ALT'?` · ${statusFilter} · ${altFilter}`:''}</summary><p style={{margin:'5px 0'}}>Ring: 50 NM from VABB. Dashed box: surveillance query area.</p><div style={{ display: "flex", flexWrap: "wrap", rowGap:4, pointerEvents: "all" }}>
           {FILTER_OPTS.map((opt) => (
             <Pill
               key={opt}
@@ -751,14 +816,14 @@ export default function FlightRadarMap({
               isLight={isLight}
               onClick={() => {
                 logAudit("map:filter", "Map status filter pill activated", { value: opt });
-                logActivity("map:filter", `Mock map status filter → ${opt}`, { kind: "status", value: opt });
+                logActivity("map:filter", `Map status filter → ${opt}`, { kind: "status", value: opt });
                 setStatusFilter(opt);
               }}
             />
           ))}
         </div>
 
-        <div style={{ display: "flex", pointerEvents: "all" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", rowGap:4, pointerEvents: "all" }}>
           {ALT_OPTS.map((opt) => (
             <Pill
               key={opt}
@@ -768,22 +833,27 @@ export default function FlightRadarMap({
               isLight={isLight}
               onClick={() => {
                 logAudit("map:filter", "Map altitude filter pill activated", { value: opt });
-                logActivity("map:filter", `Mock map altitude band → ${opt}`, { kind: "altitude", value: opt });
+                logActivity("map:filter", `Map altitude band → ${opt}`, { kind: "altitude", value: opt });
                 setAltFilter(opt);
               }}
             />
           ))}
         </div>
+        </details>
       </div>
+      </details>
 
-      {hasActiveConflict ? (
+      {hasActiveConflict && showConflictDetails ? (
         <div
+          role="region"
+          aria-label="Conflict pair details"
           style={{
             position: "absolute",
             right: 12,
-            bottom: 12,
+            bottom: 68,
             zIndex: 11,
             width: 300,
+            maxWidth: "calc(100% - 24px)",
             background: isLight ? "rgba(255,255,255,0.95)" : "rgba(10,11,14,0.9)",
             border: `1px solid ${isLight ? "#b91c1c" : "#ff2d2d"}`,
             boxShadow: isLight ? "0 8px 20px rgba(0,0,0,0.12)" : "0 10px 24px rgba(0,0,0,0.35)",

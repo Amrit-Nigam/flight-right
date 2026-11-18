@@ -1,0 +1,241 @@
+{
+  "id": "controller_workflow_integration_20261116",
+  "checked_utc": "2026-11-15T21:11:58.911572+00:00",
+  "source_version": "bac0cab20f953b53a98d308da85d72e8166e6aac plus uncommitted controller integration changes",
+  "purpose": "Display and downstream planning integration; not an ML benchmark",
+  "baseline": "Existing served ASR, extractor, trajectory, conflict and resolution chain. No weights, preprocessing, features, decoder, calibration or alert thresholds changed.",
+  "change": "Correlate speech and clearance records to traffic session/server run; consume existing accepted role/callsign/confidence for bounded planning; practical map, instruction, queue and ML review UI.",
+  "models": {
+    "trajectory_residual": "trajectory_residual@1788683545119468100",
+    "trajectory_multipath": "trajectory_multipath@1790456560238406300+per_mode",
+    "xgboost_conflict": "xgboost_conflict@1790423446996347700",
+    "multipath_temperature": 1.0645782538192603,
+    "missing_models": [],
+    "rule_path": "always on"
+  },
+  "speech_runtime": {
+    "modelId": "C:\\Users\\singh\\OneDrive\\Desktop\\Archit\\KJ Somaiya\\LY Project\\Flight_Right\\checkpoints\\voice_20261110\\ct2\\local__uniform_soup3__int8_float16",
+    "loaded": true,
+    "device": "cpu",
+    "asrVersion": "fw1-beam5-v1"
+  },
+  "artifact_sha256": {
+    "server/app/ml/saved_models/trajectory_residual.pt": "cd5e1c14d789a3010a8806b41265deef6806d0e9166cb1e1cc7f2212ab4c7442",
+    "server/app/ml/saved_models/trajectory_multipath.pkl": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589",
+    "server/app/ml/saved_models/xgboost_conflict.json": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/config.json": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/preprocessor_config.json": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/tokenizer.json": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/vocabulary.json": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55"
+  },
+  "code_sha256": {
+    "server/app/services/planning_radio.py": "01f4a4499c3969eeeb0ac872bf9ba8ec5c52f4b3b59133812a71832fdfbe21c0",
+    "server/app/services/planning_service.py": "38b235117b141f987e490045824368afee166b0917b7be2934a92d114b92c9a4",
+    "server/app/api/planning.py": "efd171fea5c763d3ef8c57056846db59bc0a9db33bab35688c3e297e5dcd6df2",
+    "server/app/api/routes.py": "ae77a117954ba3a38848af50ba1e6bc8eafa835d0ad97fcb04634c98fd6460a4",
+    "server/app/services/traffic_context.py": "0399072b9bb3cf23f2ac36038dc38200038f09d4ff93aa9762ea241c77408a40",
+    "server/app/services/speech_service.py": "c88292e208536c8755d051bbe8c2586c2b4029e857e4eefbd9646cba39a70ad8",
+    "server/app/services/clearance_service.py": "f6028318c052bd2cfa77196ff22feb1d59199f4e7ffa152dfac5462c7f6e221e",
+    "server/app/services/database.py": "587a379d5eaf5d44dba55ffb92bb90510c57dc5d485dbb0c9d326f7088618aa3",
+    "ml_pipeline/tests/test_planning_radio.py": "c5b41d16f6627721426ab366c72d78f2789b62fd2a29a923a887ce48bebc0861",
+    "ml_pipeline/tests/test_speech_workflow.py": "4ac431ff39be25b57732aee3d733874b5d1ffaf701aa4affba1962b0bdb9ebf3",
+    "ml_pipeline/tests/test_api_contracts.py": "37a6adb60734544e1d7ef20d1f054a8c183b5c5a563ed499ff53d4a493818d94",
+    "client/src/pages/HomePage.jsx": "36de0b6d5bbf01811cab1d21572d02470def892b9f506b48f115678653fac6b0",
+    "client/src/components/FlightRadarMap.tsx": "253437eeca901725e8a79fde3025de10092e70636b50166c936fd5e081930dab",
+    "client/src/components/MapGestures.tsx": "bbeaa79da0150eef688eb1074d6cb4e7b1b665722cb8dcaf6cb00e975b1404bd",
+    "client/src/components/FlightInstructions.jsx": "4874d667492a05bd8cd7ed2605934e3a471399393107d76ab2901126c30fb00d",
+    "client/src/components/SequencePanel.jsx": "d7a2bec36f4407e705a3bbed3bb6ceb34da30d95d7eee99a04276d498219241a",
+    "client/src/components/SequenceCommunications.jsx": "09cb0591c071aecf6c379f7211252a4101f5316112a33675a48833535ee9c5a8",
+    "client/src/components/ModelOverview.jsx": "d7ea20770019cb35ac83362e9953c629ad3b2240af578f19d13afee4dbe9dfb5",
+    "client/src/components/AISuggestionsPanel.jsx": "b69ed8697ce3aea5bdac74561746e13ff6f5b8bc2929d7024fcda3862ad66c24",
+    "client/src/components/ResolveModal.jsx": "219d73069dfc40fa43c15b00f1da53a1426006b550110c7a4cea99926bdb1ced",
+    "client/src/hooks/useFlightTrack.js": "346947c1de1a6f265dfdd9513552c9dd93fbabae8f6b0d399f1f12eea16f0c57",
+    "client/src/hooks/usePlanning.js": "24169da7ad78183e972c30c31e9a50960d2ff7039a4a1cfabd923640c903c108",
+    "client/src/lib/requestCache.js": "6c84103a45aa86f8ff3c36faa4376b435b99c2f7f60987b0ea9b7cd1474029d0",
+    "client/src/lib/instructionContext.js": "1a5d6188028570cc7f09cdcf24d4647e9a313241d095298282256b060f475fc3",
+    "client/src/lib/controllerWorkflow.test.mjs": "2b09f969ddcf0ede255d7eaa7b487c06cf1be139b8e48270d34a7d237854c74a",
+    "client/src/lib/trackerMap.ts": "195a3a83dd0f06b9b14ca124b405378ba650929f9176645439732629347868be",
+    "client/src/components/ui/map.tsx": "8db65a86f076a24ab82e236a6411333cc5826b6e32c1b0f5e50a2045cecc9ac2",
+    "client/src/index.css": "50d3792d66f7220f43452dbbbdd7f6ea246c0ae0b4342aadea9bdbf4650cc5b7",
+    "checkpoints/ui_review_20261116/verify.cjs": "6cd9f11f90458a2b5ddd50afae0c1f42551baf8a7beea9405707d23725a04e7f"
+  },
+  "test_data": {
+    "basis": "Deterministic scripted unit/API cases plus actual bundled historical replay for rendered checks; labelled intercepted instruction and conflict UI fixtures.",
+    "training_validation_test_split": "not applicable; no training or held-out model evaluation",
+    "seeds_hyperparameters": "not applicable; unchanged served models",
+    "sample_counts": "66 backend tests; 14 JavaScript tests; 11 browser scenarios plus focused resolution-dialog desktop/phone recheck. These are tests, not labelled accuracy denominators.",
+    "repeated_data": "Existing replay reused for development. Browser fault fixtures are not real model detections."
+  },
+  "checks": {
+    "backend_passed": 66,
+    "javascript_passed": 14,
+    "browser": {
+      "at": "2026-11-15T21:02:48.774Z",
+      "browser": "isolated installed Chromium 1234",
+      "results": [
+        {
+          "name": "Street tiles, worker, attribution and actual model identities render",
+          "status": "passed",
+          "tilesLoaded": 12
+        },
+        {
+          "name": "Hover identifies a real flight, shows instructions and uses distinct states",
+          "status": "passed",
+          "callsign": "IGO018"
+        },
+        {
+          "name": "Trackpad pan, Ctrl-wheel zoom and map-only wheel capture work",
+          "status": "passed"
+        },
+        {
+          "name": "Reported marker positions and orientation match a frozen actual backend snapshot",
+          "status": "passed",
+          "aircraftCompared": 11,
+          "basis": "frozen response from actual recorded feed; Mercator pixel projection tolerance 2px"
+        },
+        {
+          "name": "Flight details appear without waiting for delayed track and forecast APIs",
+          "status": "passed",
+          "detailVisibleMs": 104,
+          "historyAndForecastDelayMs": 2200,
+          "basis": "single warm local Chromium UI measurement, not inference latency"
+        },
+        {
+          "name": "Observed picker adds and removes without typing; undo restores the movement",
+          "status": "passed"
+        },
+        {
+          "name": "Manual movements, arrow/drag reorder and UTC impact previews work",
+          "status": "passed"
+        },
+        {
+          "name": "Tower transcript updates sequence; pilot proposal waits for explicit review",
+          "status": "passed"
+        },
+        {
+          "name": "Aircraft instruction history separates accepted current-session and unlinked records (labelled UI fixture)",
+          "status": "passed"
+        },
+        {
+          "name": "Map fallback, dark theme and small-screen layouts remain readable",
+          "status": "passed"
+        },
+        {
+          "name": "ML suggestion selection, resolution details and failed-decision feedback remain integrated (labelled UI fixture)",
+          "status": "passed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": []
+    },
+    "focused_model_dialog": {
+      "at": "2026-11-15T21:10:42.192Z",
+      "browser": "isolated installed Chromium 1234",
+      "results": [
+        {
+          "name": "ML suggestion selection, resolution details and failed-decision feedback remain integrated (labelled UI fixture)",
+          "status": "passed"
+        }
+      ],
+      "errors": [],
+      "consoleErrors": []
+    },
+    "build": "passed; existing large bundle warning",
+    "changed_js_lint": {
+      "errors": 0,
+      "warnings": 1,
+      "warning": "Existing ControllerWorkspace Fast Refresh export warning"
+    },
+    "real_marker_data": "Snapshot coordinates/track and Mercator screen position checked within 2px",
+    "plan_cleanup": "Temporary QA rows and picker-added observed movement removed; test-only undo cleared; simulated journals retained",
+    "servers": "Local replay API/frontend running; all three core models and configured speech model loaded"
+  },
+  "failed_or_revised_attempts": [
+    "Vite startup and initial tile access blocked by sandbox; authorized local launcher/isolated browser access resolved this.",
+    "Initial screen exposed duplicate React keys and fallback/gesture overlap; corrected.",
+    "Pinned-slot fixture initially described a feasible insertion as blocked; advanced its clock to test a genuine blocker.",
+    "Display-context test initially assumed a nested report; corrected to existing flattened response shape.",
+    "Phone screen exposed crowded map controls; increased map space and collapsed secondary filters.",
+    "Model dialog inspection led to immediate entry, viewport scrolling, a compact phone header and stacked actions.",
+    "Changed-scope lint exposed existing HomePage and ResolveModal effect-state errors; corrected without suppression."
+  ],
+  "accuracy": "not measured",
+  "new_asr_inference_accuracy": "not measured",
+  "model_latency": "not measured",
+  "ui_latency": "Final full suite 104ms with 2200ms delayed track/forecast APIs; previous local checks 364ms and 265ms. Single warm UI checks, not ML latency or a benchmark improvement claim.",
+  "selection": "Integration pass/fail only; no model/threshold/seed selection",
+  "deployment": "Local implementation; no weights changed, no operational pilot link, no hosted deployment, no commit/push",
+  "limits": [
+    "No physical trackpad/touchscreen or live receiver/microphone check",
+    "No new ASR or model-quality evaluation",
+    "Best-effort online map with coarse offline reference",
+    "Educational 120-second planning gap; no operational readiness/separation proof",
+    "Production build passed; full production hosting was not tested"
+  ],
+  "screenshots": {
+    "aircraft-tooltip.png": {
+      "path": "checkpoints/ui_review_20261116/aircraft-tooltip.png",
+      "sha256": "f2dbe3aa9fd4f5ad16bbe26132258540580e7ca88de299150fce43f8f5ea57c7"
+    },
+    "communications-sequencing.png": {
+      "path": "checkpoints/ui_review_20261116/communications-sequencing.png",
+      "sha256": "2704d389b80524607b9d85e764c00872b42323e5ed59db7655135ff8cd758b3c"
+    },
+    "dark-offline.png": {
+      "path": "checkpoints/ui_review_20261116/dark-offline.png",
+      "sha256": "ce36f4d3ea52f27f1214d6716b2ddcda124527b71c2cd34eccb44a3d582148ec"
+    },
+    "delayed-track-selection.png": {
+      "path": "checkpoints/ui_review_20261116/delayed-track-selection.png",
+      "sha256": "3705e52f744111d3ca5c81abb8679a745ef4057a598fef376e8471d56be63f27"
+    },
+    "desktop.png": {
+      "path": "checkpoints/ui_review_20261116/desktop.png",
+      "sha256": "ce0b9d580454d7d4a797f365a89a7ab2be72729d3a16c8c56fbd48511d5990fe"
+    },
+    "initial-desktop.png": {
+      "path": "checkpoints/ui_review_20261116/initial-desktop.png",
+      "sha256": "7ec38621b752f76980dce182c8c379e9bfb1b2052f34562c9119f35571af9112"
+    },
+    "instruction-history-fixture.png": {
+      "path": "checkpoints/ui_review_20261116/instruction-history-fixture.png",
+      "sha256": "3f775c85a570e7d434cd5cbc2cede7ed923f61e05591d538c5224fc909f19880"
+    },
+    "layout-1024.png": {
+      "path": "checkpoints/ui_review_20261116/layout-1024.png",
+      "sha256": "eff0caf1d1b2c369bf2480794e5c50b65caa932c347297b5a2b07d8c096385bf"
+    },
+    "layout-1366.png": {
+      "path": "checkpoints/ui_review_20261116/layout-1366.png",
+      "sha256": "2f25cec1bbf1299588288cfb191c9a642512548ebecf0e77b5ab817a2e85b598"
+    },
+    "layout-390.png": {
+      "path": "checkpoints/ui_review_20261116/layout-390.png",
+      "sha256": "77a362c765f523cc4a07dff0c16066c31f1d95dc2270404d6446aaed9a64a30f"
+    },
+    "model-resolution-fixture.png": {
+      "path": "checkpoints/ui_review_20261116/model-resolution-fixture.png",
+      "sha256": "614c0692e7444a787db0077f2dd2f7b7123759e372862a868bb3022a31c69bd7"
+    },
+    "model-resolution-phone-fixture.png": {
+      "path": "checkpoints/ui_review_20261116/model-resolution-phone-fixture.png",
+      "sha256": "2499fd3261d514521b16edd7083de05c2a7f945276d39d7e5a590025bc39a29a"
+    },
+    "phone-map-scrolled.png": {
+      "path": "checkpoints/ui_review_20261116/phone-map-scrolled.png",
+      "sha256": "7b1f00ea0c7b6cec07d52c680becce9d60b496ef158df75c9a5bd411267bd470"
+    },
+    "selected-flight-hover.png": {
+      "path": "checkpoints/ui_review_20261116/selected-flight-hover.png",
+      "sha256": "84aa3c4a32b61af98f4476918449ff3abc70f79376690289b8602a2b22e6d590"
+    },
+    "sequence-edited.png": {
+      "path": "checkpoints/ui_review_20261116/sequence-edited.png",
+      "sha256": "84603e8a92527ddd6f1e576d45e5f4ab7ad45400bdad58fb3434af544602da3b"
+    }
+  },
+  "report": "docs/frontend-workflow.md",
+  "comparison_changed": false
+}

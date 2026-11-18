@@ -124,6 +124,25 @@ def verify_trajectory_data() -> dict | None:
     check("test starts after validation ends (time-based split)",
           test_start > val_end, f"gap {int(test_start - val_end)} s")
 
+    # The icao24 join key must belong to its window. Until 25 Sep 2026 it did not: the keys
+    # were saved in pre-sort order while every other array was time-sorted, so 99.9% of
+    # windows carried another aircraft's id. Check a spread sample against the raw data:
+    # the named aircraft must be at the window's last position at the window's time.
+    with np.load(DATA_DIRECTORY / "trajectory_test.npz", allow_pickle=True) as data:
+        if "icao24" in data.files:
+            rows = sample(np.arange(len(data["X"])), 200)
+            keys = pd.DataFrame({"icao24": data["icao24"][rows].astype(str),
+                                 "time_position": data["timestamps"][rows].astype(np.int64),
+                                 "lat": data["X"][rows, -1, 0].astype(np.float64),
+                                 "lon": data["X"][rows, -1, 1].astype(np.float64)})
+            raw = pd.concat([pd.read_parquet(p, columns=["icao24", "time_position", "latitude", "longitude"])
+                             for p in sorted((DATA_DIRECTORY.parent / "raw").glob("*.parquet"))]).dropna()
+            raw["time_position"] = raw["time_position"].astype(np.int64)
+            joined = keys.merge(raw.drop_duplicates(["icao24", "time_position"]), on=["icao24", "time_position"], how="left")
+            ok = ((joined["latitude"] - joined["lat"]).abs() < 1e-3) & ((joined["longitude"] - joined["lon"]).abs() < 1e-3)
+            check("join keys belong to their windows (icao24 is at that position at that time)",
+                  float(ok.mean()) >= 0.99, f"{int(ok.sum())} of {len(ok)} sampled windows match the raw data")
+
     spans = {name: pd.to_datetime(split["timestamps"][[0, -1]], unit="s", utc=True)
              + pd.Timedelta(hours=5, minutes=30) for name, split in splits.items()}
     for name, span in spans.items():
@@ -291,10 +310,11 @@ def verify_conflict_classifier() -> None:
     print(f"         threshold {threshold:.4f}, {len(saved_features)} features, "
           f"trained on {booster.attr('training_dataset')}")
 
-    from generate_synthetic_scenarios import FEATURE_COLUMNS, OUTCOME_COLUMNS
-    check("saved feature list matches the generator that produces the data",
-          saved_features == FEATURE_COLUMNS,
-          "identical" if saved_features == FEATURE_COLUMNS else "MISMATCH -- retrain required")
+    from generate_synthetic_scenarios import FEATURE_COLUMNS, INTENT_COLUMNS, OUTCOME_COLUMNS
+    known = saved_features in (FEATURE_COLUMNS, FEATURE_COLUMNS + INTENT_COLUMNS)
+    check("saved feature list matches the generator (the 24 features, optionally + 3 dialled-level inputs)",
+          known, ("identical" if saved_features == FEATURE_COLUMNS else "24 + dialled levels")
+          if known else "MISMATCH -- retrain required")
     overlap = sorted(set(saved_features).intersection(OUTCOME_COLUMNS))
     check("no outcome column is being used as a feature (the circular-label defect)",
           not overlap, f"overlap {overlap}" if overlap else "features and outcomes are disjoint")
@@ -306,7 +326,8 @@ def verify_conflict_classifier() -> None:
     from train_xgboost import rule_predictions, split_by_session
     splits = split_by_session(dataset)
     test = splits["test"]
-    probabilities = booster.inplace_predict(test[saved_features].to_numpy(dtype=np.float32))
+    from train_xgboost import classifier_raw_scores
+    probabilities = classifier_raw_scores(booster, test)
     check("probabilities are in [0, 1]",
           bool((probabilities >= 0).all() and (probabilities <= 1).all()),
           f"range {probabilities.min():.4f} to {probabilities.max():.4f}")

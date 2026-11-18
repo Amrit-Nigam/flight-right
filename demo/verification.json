@@ -1,0 +1,410 @@
+{
+  "id": "pretrained_demo_portability_20261111",
+  "checked_utc": "2026-11-11T17:25:18.771122+00:00",
+  "purpose": "CPU-only cold-environment installation and runtime smoke check, no training or accuracy benchmark",
+  "platform": "Windows x64, Python 3.13.2, CPU-only torch 2.13.0+cpu",
+  "source_version": "67a236d plus the demo bootstrap changes in this checkpoint",
+  "dataset_provenance": "demo/provenance.json",
+  "artifact_manifest": "demo/manifest.json",
+  "baseline": "same existing served model files; no model changes",
+  "selection": "not applicable; packaging pass/fail only",
+  "seeds": "not applicable",
+  "thresholds": "unchanged",
+  "accuracy": "not measured",
+  "latency": "not measured",
+  "counts": {
+    "recorded_reports": 5548,
+    "aircraft_over_recording": 98,
+    "current_aircraft": 12,
+    "pairs_assessed": 1,
+    "eligible_aircraft": 7
+  },
+  "models": {
+    "trajectory_residual": "trajectory_residual@1788683545119468100",
+    "trajectory_multipath": "trajectory_multipath@1790456560238406300+per_mode",
+    "xgboost_conflict": "xgboost_conflict@1790423446996347700",
+    "multipath_temperature": 1.0645782538192603,
+    "missing_models": [],
+    "rule_path": "always on"
+  },
+  "speech": {
+    "model": "uniform_soup3",
+    "device": "cpu",
+    "loaded": true,
+    "error": null
+  },
+  "trajectory": {
+    "aircraft": "IGO1402",
+    "status": "ready",
+    "points": 5
+  },
+  "synthetic_speech_check": {
+    "ok": true,
+    "transcriptionId": null,
+    "transcript": "sky do bye one three four six turn right heading three one zero",
+    "asrConfidence": 0.877760190224463,
+    "extracted": {
+      "callsign_spoken": "sky do",
+      "callsign_code": null,
+      "action": "TURN",
+      "value": 310.0,
+      "fix": null,
+      "confidence": 0.878,
+      "text": "sky do bye one three four six turn right heading three one zero",
+      "all_actions": [
+        {
+          "action": "TURN",
+          "value": 310.0,
+          "fix": null
+        }
+      ]
+    },
+    "callsignMatch": {
+      "code": null,
+      "score": 65.0,
+      "margin": 0.0,
+      "heard": "sky do",
+      "listSize": 9
+    },
+    "clearance": null,
+    "seconds": 1.638,
+    "modelId": "C:\\Users\\singh\\OneDrive\\Desktop\\Archit\\KJ Somaiya\\LY Project\\Flight_Right\\checkpoints\\voice_20261110\\ct2\\local__uniform_soup3__int8_float16",
+    "quantisation": "int8_float16",
+    "role": "unknown",
+    "clearances": [],
+    "readback": null,
+    "recordedAt": 1794417499.6351402,
+    "roleSource": "unresolved",
+    "roleReason": "speaker role supplied by channel or review",
+    "reviewOf": null,
+    "heardAt": null,
+    "liveRadio": false,
+    "reason": "speaker role uncertain: review the transmission before applying extracted intent"
+  },
+  "checks": {
+    "fresh_cpu_environment_installed": true,
+    "pip_check": true,
+    "frontend_http_200": true,
+    "all_core_models_loaded": true,
+    "replay_has_real_reports": true,
+    "unit_tests": 115,
+    "frontend_build": true,
+    "trajectory_ready": true,
+    "live_replay_pair_inference": true,
+    "clean_checkout": true
+  },
+  "limitations": [
+    "Not an accuracy evaluation; counts describe only this replay snapshot.",
+    "Public adsb.lol replay differs from the earlier restricted OpenSky recording.",
+    "Speech check uses one generated practice clip, not real radio.",
+    "Receiver input and macOS/Linux not tested."
+  ],
+  "clean_checkout": {
+    "checked_utc": "2026-11-11T17:25:18.771091+00:00",
+    "all_131_asset_hashes_verified": true,
+    "no_env_file": true,
+    "no_original_venv": true,
+    "no_original_opensky_recording": true,
+    "frontend_dependency_install": "npm ci passed, 415 packages",
+    "frontend_http_200": true,
+    "aircraft": 9,
+    "missing_models": [],
+    "speech_loaded": true,
+    "speech_device": "cpu",
+    "speech_uses_checkout_model": true,
+    "fresh_synthetic_transcript": "sky do bye one three four six turn right heading three one zero",
+    "runway_ends": 4,
+    "weather_error": null,
+    "npm_audit_reported": {
+      "total": 20,
+      "low": 1,
+      "moderate": 4,
+      "high": 14,
+      "critical": 1
+    },
+    "npm_audit_note": "Existing package-lock dependencies; not upgraded as part of runtime packaging."
+  },
+  "installed_packages": [
+    {
+      "name": "annotated-doc",
+      "version": "0.0.6"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0"
+    },
+    {
+      "name": "anyio",
+      "version": "4.16.0"
+    },
+    {
+      "name": "av",
+      "version": "19.0.2"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.23"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2"
+    },
+    {
+      "name": "click",
+      "version": "8.5.1"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6"
+    },
+    {
+      "name": "ctranslate2",
+      "version": "4.8.2"
+    },
+    {
+      "name": "fastapi",
+      "version": "0.141.1"
+    },
+    {
+      "name": "faster-whisper",
+      "version": "1.2.1"
+    },
+    {
+      "name": "filelock",
+      "version": "4.2.4"
+    },
+    {
+      "name": "flatbuffers",
+      "version": "25.12.19"
+    },
+    {
+      "name": "fsspec",
+      "version": "2026.9.0"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0"
+    },
+    {
+      "name": "hf-xet",
+      "version": "1.8.0"
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.16.0"
+    },
+    {
+      "name": "httpx2",
+      "version": "2.16.0"
+    },
+    {
+      "name": "huggingface_hub",
+      "version": "2.4.0"
+    },
+    {
+      "name": "idna",
+      "version": "3.20"
+    },
+    {
+      "name": "Jinja2",
+      "version": "3.1.6"
+    },
+    {
+      "name": "joblib",
+      "version": "1.5.3"
+    },
+    {
+      "name": "MarkupSafe",
+      "version": "3.0.3"
+    },
+    {
+      "name": "mpmath",
+      "version": "1.3.0"
+    },
+    {
+      "name": "narwhals",
+      "version": "2.28.0"
+    },
+    {
+      "name": "networkx",
+      "version": "3.7"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.2"
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.31.1"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pandas",
+      "version": "3.0.5"
+    },
+    {
+      "name": "pip",
+      "version": "26.3"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2"
+    },
+    {
+      "name": "psycopg",
+      "version": "3.3.5"
+    },
+    {
+      "name": "psycopg-binary",
+      "version": "3.3.5"
+    },
+    {
+      "name": "pyarrow",
+      "version": "25.0.1"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.14.3"
+    },
+    {
+      "name": "pydantic_core",
+      "version": "2.50.4"
+    },
+    {
+      "name": "python-dateutil",
+      "version": "4.0.0"
+    },
+    {
+      "name": "python-dotenv",
+      "version": "1.2.3"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3"
+    },
+    {
+      "name": "RapidFuzz",
+      "version": "3.14.6"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2"
+    },
+    {
+      "name": "scikit-learn",
+      "version": "1.9.0"
+    },
+    {
+      "name": "scipy",
+      "version": "1.18.1"
+    },
+    {
+      "name": "setuptools",
+      "version": "78.1.0"
+    },
+    {
+      "name": "soundfile",
+      "version": "0.14.0"
+    },
+    {
+      "name": "starlette",
+      "version": "1.10.0"
+    },
+    {
+      "name": "sympy",
+      "version": "1.14.0"
+    },
+    {
+      "name": "threadpoolctl",
+      "version": "3.8.0"
+    },
+    {
+      "name": "tokenizers",
+      "version": "0.23.3"
+    },
+    {
+      "name": "torch",
+      "version": "2.13.0+cpu"
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1"
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.5"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.5"
+    },
+    {
+      "name": "tzdata",
+      "version": "2026.6"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0"
+    },
+    {
+      "name": "uvicorn",
+      "version": "0.52.4"
+    },
+    {
+      "name": "websockets",
+      "version": "17.1"
+    },
+    {
+      "name": "xgboost",
+      "version": "3.4.1"
+    }
+  ],
+  "code_sha256": {
+    "start.py": "ad05a8f1bd1533f572694b8f07e993db1e275708706357a1466efff83fe4b9e7",
+    "server/requirements-demo.txt": "b869e05afb43e2b2a2838cea907e9a54a0b05745670de7e54f25574735fd1802",
+    "server/app/config.py": "193f81dec7a3132dd348af3a20d714c116508b56e3a4cdd0665fafbb468f08ae",
+    "server/app/services/intent_service.py": "4639ce60f6e6b68b514fd0d1cbf915b9c9d0da3bb7d075abaa4b6889bc28ea7d",
+    "server/app/services/aircraft_info.py": "7ff9c33663d2b2e46e5e0a20fe9af748b7c69bec05ab93ee02ef4872d6bd04ee",
+    "ml_pipeline/voice/runtime_paths.py": "1e87a067d32d50e69977b14ae9a874ace3a77a0242b0bc49c8c93b70249ebfea",
+    "ml_pipeline/voice/transcribe.py": "9d9a7565f81532e0c26ed1b34e11ecf49dd231b656fd0b8d2b99498eaa839e07",
+    "scripts/prepare_shareable_demo.py": "ddbdd6db5ee6ea18b73cb5d11b4968199fbeaac291129d84910499217bac5eba"
+  },
+  "attempts": [
+    {
+      "check": "initial launcher unit tests",
+      "result": "one missing temporary package-lock fixture; fixture corrected; all 115 tests then passed"
+    },
+    {
+      "check": "initial existing-runtime server launch",
+      "result": "sandbox denied Vite config access; retried outside sandbox"
+    },
+    {
+      "check": "initial temporary-environment download",
+      "result": "sandbox socket permission blocked pip; authorized network retry installed CPU dependencies"
+    },
+    {
+      "check": "first clean-checkout asset check",
+      "result": "model-card line-ending mismatch; original bytes retained and Git index renormalized; all 131 asset hashes then passed"
+    },
+    {
+      "check": "initial replay trajectory request",
+      "result": "warming with short history; later returned ready and pair assessment ran without changing models or thresholds"
+    }
+  ],
+  "publication_status": "Prepared locally; user explicitly requires approval before any commit or push. No GitHub Release created."
+}

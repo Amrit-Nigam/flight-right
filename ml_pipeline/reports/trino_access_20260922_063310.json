@@ -1,0 +1,40 @@
+{
+  "measured_at_utc": "2026-09-22T06:33:10.872564+00:00",
+  "question_2_1": {
+    "authentication": {
+      "configured": true,
+      "authenticated": true,
+      "expires_in": 7200
+    },
+    "authorisation": {
+      "probes": {
+        "trivial (no table)": "PERMISSION_DENIED",
+        "metadata": "PERMISSION_DENIED"
+      },
+      "authorised": false
+    }
+  },
+  "question_2_2": {
+    "known_tables": [
+      "state_vectors_data4",
+      "flights_data4",
+      "flights_data5",
+      "acas_data4",
+      "allcall_replies_data4",
+      "identification_data4",
+      "operational_status_data4",
+      "position_data4",
+      "rollcall_replies_data4",
+      "velocity_data4",
+      "flarm_raw"
+    ],
+    "target_state_table_present": false,
+    "capability_flag_only": "operational_status_data4.supportstargetstatereport",
+    "conclusion": "The archive records WHICH aircraft are capable of broadcasting a Target State report, and does not record WHAT they broadcast. There is no selected-altitude table.",
+    "verified_directly": false
+  },
+  "question_2_3": {
+    "ran": false,
+    "reason": "Trino authorisation denied; see question 2.1."
+  }
+}

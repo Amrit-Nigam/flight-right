@@ -33,6 +33,8 @@ from pathlib import Path
 from ..config import (CONFLICT_MIN_ALTITUDE_FT, CONFLICT_MIN_VELOCITY_MS,
                       MAX_PAIRS_PER_UPDATE, PAIR_PREFILTER_FT, PAIR_PREFILTER_NM,
                       PROJECT_ROOT)
+from .clearance_service import clearance_service
+from .intent_service import intent_service
 from .normalizer import to_engine_state
 
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -59,6 +61,7 @@ class ConflictService:
     pair_histories: dict[tuple, list] = field(default_factory=dict)
     last_result: dict = field(default_factory=dict)
     last_duration_ms: float = 0.0
+    last_assessments: dict = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def load(self) -> None:
@@ -94,7 +97,7 @@ class ConflictService:
         return pairs[:MAX_PAIRS_PER_UPDATE]
 
     # ------------------------------------------------------------------ assessment
-    def assess(self, histories: dict[str, list[dict]]) -> dict:
+    def assess(self, histories: dict[str, list[dict]], coverage_histories=None) -> dict:
         """One full pass: every candidate pair through the chain, then the alert feed."""
         self.load()
         started = time.perf_counter()
@@ -108,9 +111,20 @@ class ConflictService:
         # 3.0 s per pair here - over 45 s for a 30-pair update, against a ten-second
         # budget. One batched call produces the identical result.
         needed = {key for _, a, b in pairs for key in (a, b)}
+        # Model 3's secondary-conflict ("domino") check needs every OTHER aircraft near
+        # the pair, not just the two in it, so the eligible traffic is converted too.
+        # Until 21 Sep this was never passed and the check ran on an empty list in
+        # production -- it worked only inside verify_pipeline.py.
+        eligible_keys = {key for key, window in histories.items()
+                         if window and self.eligible(window[-1]) and len(window) >= 10}
         engine_histories = {key: [to_engine_state(state) for state in histories[key]]
-                            for key in needed}
-        candidates = self.engine.multipath_candidates(engine_histories)
+                            for key in needed | eligible_keys}
+        # Known clearances (manual today, heard by the speech chain later) adjust the
+        # candidate paths of the aircraft they apply to. Keys are icao24, as here.
+        in_force = {key: value for key, value in clearance_service.in_force().items() if key in engine_histories}
+        candidates = self.engine.multipath_candidates(engine_histories, clearances=in_force)
+        current_states = {key: window[-1] for key, window in histories.items()
+                          if key in eligible_keys}
 
         for _, key_a, key_b in pairs:
             history_a = engine_histories[key_a]
@@ -122,10 +136,26 @@ class ConflictService:
             callsign_b = histories[key_b][-1]["callsign"]
             pair_key = tuple(sorted((callsign_a, callsign_b)))
             previous = self.pair_histories.get(pair_key, [])
+            # Everything else eligible and near enough to either aircraft to be put at
+            # risk by a manoeuvre aimed at resolving this pair.
+            traffic = []
+            for key in eligible_keys:
+                if key in (key_a, key_b):
+                    continue
+                other = current_states[key]
+                near = (_separation_nm(current_states.get(key_a, other), other) < PAIR_PREFILTER_NM
+                        or _separation_nm(current_states.get(key_b, other), other) < PAIR_PREFILTER_NM)
+                if near:
+                    traffic.append({"callsign": histories[key][-1]["callsign"],
+                                    "history": engine_histories[key],
+                                    "candidates": candidates.get(key)})
             try:
+                state_a, state_b = histories[key_a][-1], histories[key_b][-1]
                 result = self.engine.assess_pair(
-                    history_a, history_b, previous,
-                    candidates_a=candidates.get(key_a), candidates_b=candidates.get(key_b))
+                    history_a, history_b, previous, traffic=traffic,
+                    candidates_a=candidates.get(key_a), candidates_b=candidates.get(key_b),
+                    selected_a_ft=intent_service.selected_altitude_ft(key_a, state_a.get("timePosition")),
+                    selected_b_ft=intent_service.selected_altitude_ft(key_b, state_b.get("timePosition")))
             except Exception as failure:                     # noqa: BLE001
                 log.exception("assess_pair failed for %s: %s", pair_key, failure)
                 continue
@@ -140,6 +170,7 @@ class ConflictService:
             if not self.pair_histories[key]:
                 del self.pair_histories[key]
 
+        self.last_assessments = assessments          # full per-model detail, for model_trace.log
         feed_output = self.feed.update(assessments, now=time.time())
         self.last_duration_ms = (time.perf_counter() - started) * 1000.0
 
@@ -148,8 +179,14 @@ class ConflictService:
                 "ok": True,
                 "pairsConsidered": len(pairs),
                 "pairsAssessed": len(assessments),
+                "assessedAt": time.time(),
+                "clearancesInForce": {key: [c.to_dict() for c in value] for key, value in in_force.items()},
+                "clearanceEffects": {key: entry.get("clearance", []) for key, entry in candidates.items()
+                                     if entry.get("clearance")},
                 "pairsSkippedShortHistory": skipped,
                 "eligibleAircraft": sum(1 for w in histories.values() if w and self.eligible(w[-1])),
+                "coverage": self.coverage(coverage_histories if coverage_histories is not None else histories,
+                                          len(pairs), len(assessments), skipped),
                 "durationMs": round(self.last_duration_ms, 1),
                 "modelVersions": self.engine.status(),
                 "counts": feed_output["counts"],
@@ -164,6 +201,33 @@ class ConflictService:
         return self.last_result
 
     # ------------------------------------------------------------------ presentation
+    @staticmethod
+    def coverage(histories, considered, assessed, short_history):
+        """Read-only accounting of the existing selection; does not alter eligibility."""
+        counts = dict(ground=0, belowFloor=0, lowSpeed=0, eligible=0, warming=0)
+        for window in histories.values():
+            if not window:
+                continue
+            current = window[-1]
+            if current.get('onGround'):
+                counts['ground'] += 1
+            elif current.get('altitudeFt', 0) < CONFLICT_MIN_ALTITUDE_FT:
+                counts['belowFloor'] += 1
+            elif current.get('velocityMs', 0) <= CONFLICT_MIN_VELOCITY_MS:
+                counts['lowSpeed'] += 1
+            else:
+                counts['eligible'] += 1
+                counts['warming'] += int(len(window) < 10)
+        ready = counts['eligible'] - counts['warming']
+        total_pairs = ready * (ready - 1) // 2
+        return {**counts, 'reportedAircraft': sum(counts[k] for k in ('ground', 'belowFloor', 'lowSpeed', 'eligible')),
+                'readyAircraft': ready, 'pairsNotShortlisted': max(0, total_pairs-considered),
+                'pairsFailed': max(0, considered-assessed-short_history),
+                'minimumAltitudeFt': CONFLICT_MIN_ALTITUDE_FT,
+                'minimumSpeedMs': CONFLICT_MIN_VELOCITY_MS,
+                'pairLimit': MAX_PAIRS_PER_UPDATE,
+                'pairFilterNm': PAIR_PREFILTER_NM, 'pairFilterFt': PAIR_PREFILTER_FT}
+
     @staticmethod
     def _present(entry: dict) -> dict:
         """One alert row, flattened into plain JSON the dashboard can render.
@@ -193,12 +257,25 @@ class ConflictService:
             "cpaVerticalFt": entry["cpa_vertical_separation_ft"],
             "probability": entry["probability"],
             "classifierProbability": entry.get("classifier_conflict_probability"),
+            "classifierDecision": {"alert": classifier.get("alert"),
+                                   "calibratedThreshold": classifier.get("calibrated_decision_threshold"),
+                                   "rawProbability": classifier.get("raw_probability"),
+                                   "rawThreshold": classifier.get("decision_threshold")},
             "ruleIsConflict": entry["rule_is_conflict"],
+            "triggerGate": assessment.get("escalation", {}).get("gate"),
+            "confirmationUpdates": assessment.get("escalation", {}).get("consecutive_updates"),
+            "nominalCpa": {"lateralNm": rule.get("cpa_lateral_distance_nm"),
+                           "verticalFt": rule.get("cpa_vertical_separation_ft"),
+                           "seconds": rule.get("time_to_cpa_seconds")},
+            "alternativeCpa": {"lateralNm": multipath.get("cpa_lateral_distance_nm"),
+                               "verticalFt": multipath.get("cpa_vertical_separation_ft"),
+                               "seconds": multipath.get("time_to_cpa_seconds")},
             "isConverging": rule.get("is_converging"),
             "firstSeen": entry["first_seen"],
             "notificationsSoFar": entry["notifications_so_far"],
             "sources": assessment.get("sources", []),
             "multipathProbability": multipath.get("conflict_probability"),
+            "clearanceEffect": [c for c in (multipath.get("clearance_a"), multipath.get("clearance_b")) if c],
             "combinationsBreaching": multipath.get("combinations_breaching"),
             "explanation": classifier.get("explanation", []),
             "resolution": {

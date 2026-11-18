@@ -1,4 +1,4 @@
-"""Flight Right backend.
+"""FlightRight backend.
 
     python -m uvicorn server.app.main:app --reload --port 8000
 
@@ -22,24 +22,32 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .api.routes import router
-from .config import CORS_ORIGINS, DATA_MODE, POLL_SECONDS
+from .api.workspace import router as workspace_router
+from .config import CORS_ORIGINS, DATA_MODE, INTENT_FEED, POLL_SECONDS
 from .services.aircraft_service import aircraft_service
 from .services.database import database
 from .services.conflict_service import conflict_service
+from .services.intent_service import intent_service
+from .services.speech_service import speech_service
+from .services.model_trace import setup_file_logging, write_tick
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s  %(levelname)-7s %(name)-24s %(message)s",
                     datefmt="%H:%M:%S")
 log = logging.getLogger("flightright")
+setup_file_logging()      # server/logs/backend.log and server/logs/model_trace.log
 
 app = FastAPI(
-    title="Flight Right",
+    title="FlightRight",
     version="0.1.0",
     description="AI-assisted ATC decision support. Prototype, human always in the loop.",
 )
 app.add_middleware(CORSMiddleware, allow_origins=CORS_ORIGINS, allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(router)
+from .api.planning import router as planning_router
+app.include_router(planning_router)
+app.include_router(workspace_router)
 
 _subscribers: set[WebSocket] = set()
 
@@ -50,10 +58,11 @@ async def _ingest_loop() -> None:
         try:
             await asyncio.to_thread(aircraft_service.refresh)
             assessment = await asyncio.to_thread(
-                conflict_service.assess, aircraft_service.histories_for_models())
+                conflict_service.assess, aircraft_service.histories_for_models(), aircraft_service.histories_for_coverage())
             # Persist what was raised. The audit log stays the append-only record of
             # decisions; this is the working state behind /api/conflicts/history.
             await asyncio.to_thread(database.record_conflicts, assessment.get("active", []))
+            await asyncio.to_thread(write_tick, aircraft_service, conflict_service)
             await _broadcast()
         except Exception as failure:                          # noqa: BLE001
             log.exception("Ingestion tick failed: %s", failure)
@@ -115,6 +124,10 @@ async def startup() -> None:
     backend = database.initialise()
     log.info("Data mode: %s | audit store: %s", DATA_MODE, backend)
     await asyncio.to_thread(conflict_service.load)
+    # The dialled level each crew has set, for the conflict classifier. Live and auto poll
+    # adsb.lol; replay reads the recorded history, so no network is needed for a demo.
+    if DATA_MODE in ("live", "auto") and INTENT_FEED != "off":
+        intent_service.start_live()
     await asyncio.to_thread(aircraft_service.refresh)
     # Model loading and the first refresh take time; start the replay clock now so the
     # encounter it seeked to has not already gone past by the time anyone is watching.
@@ -123,7 +136,7 @@ async def startup() -> None:
     # Replay carries its own past, so the models can start assessing immediately rather
     # than waiting a hundred seconds for ten updates to accumulate.
     await asyncio.to_thread(aircraft_service.warm_up)
-    await asyncio.to_thread(conflict_service.assess, aircraft_service.histories_for_models())
+    await asyncio.to_thread(conflict_service.assess, aircraft_service.histories_for_models(), aircraft_service.histories_for_coverage())
     database.record({"level": "system", "source": "server",
                           "action": "Backend started",
                           "detail": {"mode": aircraft_service.mode,
@@ -132,11 +145,14 @@ async def startup() -> None:
                                      "models": conflict_service.engine.status()
                                      if conflict_service.engine else {}}})
     app.state.ingest = asyncio.create_task(_ingest_loop())
+    # Speech model loads and warms up in the background, so the first live transcription is quick.
+    app.state.speech_warmup = asyncio.create_task(asyncio.to_thread(speech_service.warm_up))
     log.info("Ready. %d aircraft from %s.", len(aircraft_service.flights), aircraft_service.source)
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
+    intent_service.stop_live()
     task = getattr(app.state, "ingest", None)
     if task:
         task.cancel()
@@ -146,4 +162,4 @@ async def shutdown() -> None:
 
 @app.get("/")
 def root():
-    return {"service": "Flight Right backend", "docs": "/docs", "health": "/api/health"}
+    return {"service": "FlightRight backend", "docs": "/docs", "health": "/api/health"}

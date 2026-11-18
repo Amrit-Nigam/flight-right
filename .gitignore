@@ -10,6 +10,8 @@ secrets/*
 # Python environments and bytecode
 venv/
 .venv/
+.venv-demo/
+demo/.runtime/
 __pycache__/
 *.pyc
 *.py[cod]
@@ -24,6 +26,10 @@ ml_pipeline/data/synthetic/*
 !ml_pipeline/data/synthetic/.gitkeep
 ml_pipeline/data/replay/*
 !ml_pipeline/data/replay/.gitkeep
+ml_pipeline/data/archive/*
+!ml_pipeline/data/archive/.gitkeep
+ml_pipeline/data/adsblol/*
+ml_pipeline/data/routes/*
 
 # Locally trained model artifacts: retain directory placeholder only
 server/app/ml/saved_models/*
@@ -67,3 +73,10 @@ server/*.sqlite3
 # Both are reproducible from scripts/postgres.py (which downloads and initialises
 # them), so neither belongs in the repository.
 .postgres/
+ml_pipeline/data/weather/*
+
+# Backend and per-update model trace logs (server/app/services/model_trace.py)
+server/logs/
+
+# Local restore checkpoints; code and selected model artifacts, never committed.
+/checkpoints/

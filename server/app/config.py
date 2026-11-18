@@ -1,4 +1,4 @@
-"""Settings for the Flight Right backend, all overridable from the environment.
+"""Settings for the FlightRight backend, all overridable from the environment.
 
 Defaults match the decisions recorded in CLAUDE.md so that running the server with no
 configuration at all reproduces the documented behaviour.
@@ -15,7 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(PROJECT_ROOT / ".env")
 
 DATA_ROOT = Path(os.environ.get("FLIGHT_RIGHT_DATA_ROOT", PROJECT_ROOT))
-RAW_DIRECTORY = DATA_ROOT / "ml_pipeline" / "data" / "raw"
+RAW_DIRECTORY = Path(os.environ.get("FLIGHT_RIGHT_REPLAY_DIR", DATA_ROOT / "ml_pipeline" / "data" / "raw"))
 AUDIT_DATABASE = Path(os.environ.get("FLIGHT_RIGHT_AUDIT_DB", DATA_ROOT / "server" / "audit.sqlite3"))
 
 # PostgreSQL connection string, written into .env by scripts/postgres.py. When it is set
@@ -83,3 +83,52 @@ HISTORY_LENGTH = 24
 
 CORS_ORIGINS = [o.strip() for o in os.environ.get(
     "FLIGHT_RIGHT_CORS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o.strip()]
+
+# --- Clearances and the (future) voice chain: plan Phases 4-7 -------------------------
+# A clearance -- "descend FL130", "turn heading 090" -- adjusts that aircraft's candidate
+# paths (ml_pipeline/utils/clearance.py). Today a clearance comes from the manual API
+# (POST /api/clearances). The speech chain, when built, produces the same object and
+# posts it through the same service, so nothing downstream changes when voice arrives.
+#
+# ASR_MODEL_ID is the ONE place the speech model will be named (plan 4.3). Empty means no
+# speech model is installed: transcription endpoints report that, rather than failing.
+# Default: validation-selected uniform_soup3, activated at Archit's request on 11 Nov.
+# Exact experiments, mixed test results and deployment fingerprints:
+# docs/evaluations/asr_small_atc_p1.md. Retain P1 as the fallback on machines without
+# the new local weights; an explicit environment override still takes precedence.
+PREVIOUS_ASR_MODEL = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "FlightRight/voice/models/flightright-whisper-small-atc-p1"
+LATEST_ASR_MODEL = PROJECT_ROOT / "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16"
+
+
+def _default_speech_model(latest: Path, previous: Path) -> Path:
+    required = ("model.bin", "config.json", "tokenizer.json", "preprocessor_config.json")
+    return latest if all((latest / name).is_file() for name in required) else previous
+
+
+OWN_ASR_MODEL = _default_speech_model(LATEST_ASR_MODEL, PREVIOUS_ASR_MODEL)
+ASR_MODEL_ID = os.environ.get("FLIGHT_RIGHT_ASR_MODEL_ID",
+                              str(OWN_ASR_MODEL) if OWN_ASR_MODEL.exists() else "").strip()
+ASR_QUANTISATION = os.environ.get("FLIGHT_RIGHT_ASR_QUANTISATION", "int8_float16").strip()
+# "auto" uses the GPU when CTranslate2 can see one and the CPU otherwise (int8 on CPU); set "cpu"
+# to prove the demo runs without a GPU.
+ASR_DEVICE = os.environ.get("FLIGHT_RIGHT_ASR_DEVICE", "auto").strip().lower()
+# Demo clips for the dashboard's radio panel: <id>.wav plus index.json. Outside OneDrive,
+# beside the speech cache. Every clip there is labelled with where its audio came from.
+SPEECH_DEMO_DIR = Path(os.environ.get(
+    "FLIGHT_RIGHT_SPEECH_DEMO_DIR",
+    Path(os.environ.get("LOCALAPPDATA", Path.home())) / "FlightRight" / "voice" / "demo_clips"))
+# A clearance below this confidence is recorded but not applied. Manual entries carry
+# 1.0; a heard one carries extractor confidence x callsign-match score. Set 26 Sep by
+# Archit ("good for numbers and good for safety") from the measurement on our own model and
+# real ATCO2 radio, 24 heard clearances with a known truth: 0.90 applied 10 of 20 correct and
+# 0 wrong; 0.85 applied 12 of 20 correct and 0 wrong; 0.60 applied 18 of 20 and 1 wrong.
+# Our own design, not from a standard; small sample, so re-measure on Mumbai-accent audio.
+# A heard clearance only reshapes predicted paths -- it cannot switch an alarm off.
+# Live dialled (selected) altitude from adsb.lol for the conflict classifier (plan 9.0, served
+# 26 Sep). Polled every 30 s in live and auto mode; replay uses the recorded history instead.
+# "off" disables the poller; the classifier then sees "unknown", as for aircraft that do not
+# broadcast it.
+INTENT_FEED = os.environ.get("FLIGHT_RIGHT_INTENT_FEED", "on").strip().lower()
+CLEARANCE_MIN_CONFIDENCE = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_MIN_CONFIDENCE", 0.85))
+# How long a clearance stays in force without a newer one for the same aircraft.
+CLEARANCE_VALID_SECONDS = float(os.environ.get("FLIGHT_RIGHT_CLEARANCE_VALID_SECONDS", 600.0))

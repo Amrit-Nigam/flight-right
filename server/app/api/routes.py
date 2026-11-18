@@ -6,13 +6,28 @@ returned, so `client/src/lib/api.js` keeps working with only its base URL change
 
 from __future__ import annotations
 
+import json
 import logging
+import re
+import time
+import math
+from typing import Literal
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, Body, HTTPException, Query, Request
+from starlette.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse
 
 from ..services.aircraft_service import aircraft_service
-from ..services.database import database
+from ..services.database import DEFAULT_USER, database
 from ..services.conflict_service import conflict_service
+from ..services.clearance_service import clearance_service
+from ..services.speech_service import decode_wav, speech_service
+from ..services.intent_service import intent_service
+from ..services.aircraft_info import aircraft_info
+from ..services.airport_service import airport_service
+from ..services.trajectory_service import trajectory_service
+from ..services.traffic_context import display_context
+from ..config import SPEECH_DEMO_DIR
 
 log = logging.getLogger("flightright.api")
 router = APIRouter(prefix="/api")
@@ -43,6 +58,8 @@ def aircraft_source():
 def set_mode(mode: str = Body(..., embed=True)):
     try:
         aircraft_service.set_mode(mode)
+        if mode in ("live", "auto"):
+            intent_service.start_live()      # dialled levels, types and squawks come from this feed
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     database.record({"level": "audit", "source": "api:aircraft",
@@ -59,8 +76,48 @@ def refresh_aircraft():
 
 @router.get("/aircraft/history")
 def aircraft_history(icao24: str = Query(..., description="ICAO24 address or callsign")):
-    states = aircraft_service.history(icao24)
-    return {"ok": True, "icao24": icao24, "count": len(states), "states": states}
+    from ..services.track_store import track_store
+    snapshot = aircraft_service.snapshot()
+    current = next((f for f in snapshot['flights'] if icao24.lower() in
+                   (str(f.get('icao24', '')).lower(), str(f.get('callsign', '')).lower())), None)
+    if not current:
+        return {"ok": True, "states": [], "count": 0}
+    until = current.get('timePosition') or aircraft_service.data_time()
+    key = current.get('icao24') or current['callsign']
+    try:
+        scope = snapshot.get('provider', '') + ':' + snapshot['source']
+        if snapshot['source'] == 'replay':
+            scope += ':' + str((snapshot.get('replay') or {}).get('session', ''))
+        states = track_store.history(scope, key, until)
+        storage = 'persistent observed visit (maximum 2000 reports)'
+    except Exception:
+        states, storage = [], 'persistent store unavailable; rolling buffer only'
+    if not states:
+        states = aircraft_service.history(icao24)
+        storage = 'rolling buffer'
+    return {"ok": True, "icao24": icao24, "count": len(states), "states": states, "storage": storage}
+
+
+@router.get("/aircraft/trajectory")
+def aircraft_trajectory(icao24: str = Query(..., description="ICAO24 address or callsign")):
+    snapshot = aircraft_service.snapshot()
+    current = next((f for f in snapshot["flights"] if icao24.lower() in
+                    (str(f.get("icao24", "")).lower(), str(f.get("callsign", "")).lower())), None)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Aircraft is no longer tracked")
+    key = current.get("icao24") or current["callsign"]
+    # Never predict from another source or a previous replay cycle's future reports.
+    states = [s for s in aircraft_service.history(key)
+              if s.get("source") == current.get("source")
+              and (s.get("timePosition") or 0) <= (current.get("timePosition") or 0)]
+    try:
+        prediction = trajectory_service.predict(conflict_service.engine, states,
+                                                clearance_service.in_force().get(key, []))
+    except Exception:
+        log.exception("Selected-aircraft trajectory unavailable for %s", key)
+        prediction = {"status": "unavailable", "reason": "Prediction temporarily unavailable"}
+    return {"ok": True, "icao24": key, "source": snapshot["source"],
+            "timePosition": current.get("timePosition"), **prediction}
 
 
 # ---------------------------------------------------------------------- conflicts
@@ -92,6 +149,23 @@ def resolution_for(pair: str = Query(..., description="Two callsigns joined by a
 
 
 # ---------------------------------------------------------------------- actions
+def _served_model_versions() -> dict | None:
+    """The versions of the models actually running, from the server, never the client.
+
+    ISSUES.md H2 (fixed 25 Sep 2026): modelVersion was null on every audit row. The
+    resolve modal sent `conflict.sources` (names, not versions) and the suggestions panel
+    sent nothing. Section 12 requires the model version on every entry, and the server is
+    the only party that knows it for certain, so it stamps it here. Whatever the client
+    sent is kept in the detail.
+    """
+    engine = conflict_service.engine
+    if engine is None:
+        return None
+    status = engine.status()
+    return {k: v for k, v in status.items() if k in ("trajectory_residual", "trajectory_multipath",
+                                                      "xgboost_conflict", "rule_path")}
+
+
 @router.post("/actions/accept")
 def accept_suggestion(payload: dict = Body(...)):
     """The controller accepted a suggestion. Nothing is transmitted to any aircraft.
@@ -107,9 +181,9 @@ def accept_suggestion(payload: dict = Body(...)):
         "callsign": payload.get("callsign"),
         "conflictId": payload.get("conflictId"),
         "confidence": payload.get("confidence"),
-        "modelVersion": payload.get("modelVersion"),
-        "userId": payload.get("userId", "demo-controller"),
-        "detail": payload.get("detail", payload),
+        "modelVersion": _served_model_versions() or payload.get("modelVersion"),
+        "userId": payload.get("userId", DEFAULT_USER),
+        "detail": {**(payload.get("detail") or payload), "clientModelVersion": payload.get("modelVersion")},
     })}
 
 
@@ -121,14 +195,150 @@ def dismiss_suggestion(payload: dict = Body(...)):
         "decision": "dismissed",
         "callsign": payload.get("callsign"),
         "conflictId": payload.get("conflictId"),
-        "userId": payload.get("userId", "demo-controller"),
+        "modelVersion": _served_model_versions() or payload.get("modelVersion"),
+        "userId": payload.get("userId", DEFAULT_USER),
         "detail": payload.get("detail", payload),
     })}
 
 
 # ---------------------------------------------------------------------- audit
+# ---------------------------------------------------------------------- clearances
+@router.post("/clearances")
+def submit_clearance(payload: dict = Body(...)):
+    """A known instruction to one aircraft: {"callsign" or "icao24", "action", "value"}.
+
+    Actions: CLIMB / DESCEND (value in feet), TURN (heading in degrees), DIRECT (fix), SPEED
+    (knots). A level caps that aircraft's predicted altitude; a heading removes candidate
+    paths that contradict it; the others are recorded only. Source is always "manual"
+    here; the speech chain submits through the same service with its own source. The
+    result says whether it was applied and why, and is recorded either way.
+    """
+    feed = aircraft_service.snapshot()
+    result = clearance_service.submit(payload, feed["flights"], source="manual", display_context=display_context(feed))
+    if not result["ok"]:
+        raise HTTPException(status_code=422, detail=result)
+    return result
+
+
+@router.get("/clearances")
+def list_clearances(limit: int = Query(100, ge=1, le=1000), icao24: str | None = Query(None, max_length=16)):
+    return {"ok": True, "supported": clearance_service.supported(),
+            "inForce": {k: [c.to_dict() for c in v] for k, v in clearance_service.in_force().items()},
+            "context": display_context(aircraft_service.snapshot()),
+            "history": database.clearance_history(limit, icao24) if icao24 else database.clearance_history(limit)}
+
+
+@router.delete("/clearances")
+def withdraw_clearances(icao24: str | None = None):
+    """Withdraw clearances from the model chain. The records in the database remain."""
+    return {"ok": True, "withdrawn": clearance_service.clear(icao24)}
+
+
+# ---------------------------------------------------------------------- speech
+_CLIP_ID = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
+
+
+def _demo_clips() -> list[dict]:
+    index = SPEECH_DEMO_DIR / "index.json"
+    return json.loads(index.read_text(encoding="utf8")) if index.exists() else []
+
+
+@router.get("/speech/status")
+def speech_status():
+    """Which speech model is installed (ASR_MODEL_ID), whether it is loaded, and the demo clips."""
+    return {"ok": True, **speech_service.status(), "demoClips": len(_demo_clips())}
+
+
+@router.get("/speech/clips")
+def speech_clips():
+    """Demo transmissions for the radio panel. Each says where its audio came from."""
+    return {"ok": True, "clips": _demo_clips()}
+
+
+@router.get("/speech/clips/{clip_id}/audio")
+def speech_clip_audio(clip_id: str):
+    if not _CLIP_ID.match(clip_id) or not (SPEECH_DEMO_DIR / f"{clip_id}.wav").exists():
+        raise HTTPException(status_code=404, detail="no such clip")
+    return FileResponse(SPEECH_DEMO_DIR / f"{clip_id}.wav", media_type="audio/wav")
+
+
+@router.post("/speech/hear")
+async def speech_hear(request: Request, clip: str | None = None, cached: bool = True,
+                      role: Literal["auto", "pilot", "atco", "unknown"] = "auto", live: bool = False,
+                      heard_at: float | None = None):
+    """Transcribe one radio transmission and conditionally use its extracted intent.
+
+    Either ``?clip=<id>`` (a demo clip) or a raw audio body (Content-Type audio/*, any format
+    soundfile reads). With a demo clip and ``cached=true`` the transcript pre-computed for the
+    installed model is used (plan 7.3: zero inference at demo time); otherwise the model runs.
+    The result shows every step: transcript, extraction, callsign match, and what the
+    clearance door did with it.
+    Live capture uses ``live=true`` and a capture timestamp. Mixed channels default to
+    ``role=auto``; role hints alone cannot issue a clearance. Pilot speech is a request,
+    report or readback. Live radio never adjusts aircraft sourced from replay.
+    """
+    snapshot = aircraft_service.snapshot()
+    flights = snapshot["flights"]
+    if heard_at is not None and (not math.isfinite(heard_at) or not 0 <= time.time() - heard_at <= 60):
+        raise HTTPException(status_code=422, detail="radio transmission timestamp must be within the last 60 seconds")
+    allow_apply = not live or snapshot.get("source") == "live"
+    if clip:
+        entry = next((c for c in _demo_clips() if c.get("id") == clip), None)
+        if entry is None or not _CLIP_ID.match(clip):
+            raise HTTPException(status_code=404, detail="no such clip")
+        transcript = (entry.get("transcripts") or {}).get(speech_service.status()["modelId"] or "") if cached else None
+        audio = None if transcript is not None else decode_wav((SPEECH_DEMO_DIR / f"{clip}.wav").read_bytes())
+        return await run_in_threadpool(speech_service.hear, audio, f"demo:{clip}", flights,
+                                       transcript=transcript, role=role, allow_apply=allow_apply, display_context=display_context(snapshot))
+    body = await request.body()
+    if not body or len(body) > 10_000_000:
+        raise HTTPException(status_code=422, detail="send a clip id or up to 10 MB of audio")
+    try:
+        audio = decode_wav(body)
+    except Exception as failure:                                            # noqa: BLE001
+        raise HTTPException(status_code=422, detail=f"could not read audio: {type(failure).__name__}")
+    if not 0 < len(audio) <= 30 * 16_000:
+        raise HTTPException(status_code=422, detail="one nonempty transmission at a time: 30 s at most")
+    try:
+        return await run_in_threadpool(speech_service.hear, audio, "live-radio" if live else "upload", flights,
+                                       role=role, heard_at=heard_at, allow_apply=allow_apply, display_context=display_context(snapshot))
+    except ValueError as failure:
+        raise HTTPException(status_code=422, detail=str(failure)) from failure
+    except Exception as failure:
+        log.exception("Speech recognition failed")
+        raise HTTPException(status_code=503, detail="speech recognition unavailable; check speech status or use text input") from failure
+
+
+@router.post("/speech/review")
+def speech_review(payload: dict = Body(...)):
+    """Correct a captured transmission; the system does not originate radio messages."""
+    try:
+        snapshot = aircraft_service.snapshot()
+        return speech_service.review(int(payload["transcriptionId"]), str(payload.get("text") or ""),
+                                     str(payload.get("role") or ""), snapshot["flights"],
+                                     allow_apply=snapshot.get("source") == "live")
+    except (KeyError, TypeError, ValueError) as failure:
+        raise HTTPException(status_code=422, detail=str(failure)) from failure
+
+
+@router.get("/speech/conversation")
+def speech_conversation():
+    assessment = conflict_service.snapshot()
+    return {**speech_service.conversation(), "prediction": {
+        "assessedAt": assessment.get("assessedAt"), "pairsAssessed": assessment.get("pairsAssessed", 0),
+        "effects": assessment.get("clearanceEffects", {})},
+        "surveillanceSource": aircraft_service.snapshot().get("source")}
+
+
+@router.get("/speech/transcriptions")
+def speech_transcriptions(limit: int = Query(50, ge=1, le=1000)):
+    return {"ok": True, "transcriptions": database.transcription_history(limit)}
+
+
 @router.post("/audit")
 def write_audit(entry: dict = Body(...)):
+    if not entry.get("modelVersion"):
+        entry = {**entry, "modelVersion": _served_model_versions()}
     return {"ok": True, "entry": database.record(entry)}
 
 
@@ -145,6 +355,35 @@ def read_audit(limit: int = Query(200, ge=1, le=2000), level: str | None = None,
     return {"ok": True, "count": len(entries), "total": database.count(), "entries": entries}
 
 
+# ---------------------------------------------------------------------- airport
+@router.get("/airport")
+def airport():
+    """VABB: real runways (OurAirports), the METAR for the time the picture describes (live:
+    aviationweather.gov; replay: the archived report), runway in use and movements derived
+    from the tracks, and upcoming arrivals with estimated times. See airport_service.py."""
+    snapshot = aircraft_service.snapshot()
+    # Surveillance outages must not change explicitly live weather into archived
+    # weather. Auto mode still follows a real replay fallback when one is active.
+    weather_source = ("live" if snapshot["source"] == "none"
+                      and snapshot.get("mode") in ("live", "auto") else snapshot["source"])
+    return {"ok": True, **airport_service.summary(snapshot["flights"], weather_source,
+                                                  aircraft_service.data_time(), aircraft_info.destination)}
+
+
+def _constants() -> dict:
+    """The numbers the dashboard quotes, served from the modules that use them, so the UI can
+    never drift from the backend (ISSUES.md: adapters.js used to hard-code 38 s and the weights)."""
+    from ml_pipeline.utils import cpa_conflict_detection as cpa
+    from ml_pipeline.utils import resolution_engine as re_
+    return {"separationLateralNm": cpa.SEPARATION_LATERAL_NM, "separationVerticalFt": cpa.SEPARATION_VERTICAL_FT,
+            "alertLateralNm": cpa.ALERT_LATERAL_NM, "alertVerticalFt": cpa.ALERT_VERTICAL_FT,
+            "cpaGridStepSeconds": cpa.CPA_GRID_STEP_SECONDS, "lookAheadSeconds": cpa.CPA_GRID_END_SECONDS,
+            "consecutiveUpdates": cpa.CONSECUTIVE_UPDATES_TO_NOTIFY,
+            "responseDelaySeconds": re_.RESPONSE_DELAY_SECONDS,
+            "weights": {"safety": re_.WEIGHT_SAFETY, "delay": re_.WEIGHT_DELAY, "fuel": re_.WEIGHT_FUEL,
+                        "workload": re_.WEIGHT_WORKLOAD, "confidence": re_.WEIGHT_CONFIDENCE}}
+
+
 # ---------------------------------------------------------------------- health
 @router.get("/health")
 def health():
@@ -154,7 +393,10 @@ def health():
         "ok": True,
         "aircraft": {"count": snapshot["count"], "source": snapshot["source"],
                      "mode": snapshot["mode"], "updatedAt": snapshot["updatedAt"],
-                     "error": snapshot["error"]},
+                     "dataTimeUtc": snapshot.get("dataTimeUtc"), "error": snapshot["error"]},
+        # The identity every audit row is written under (no login: MVP security posture).
+        "controller": DEFAULT_USER,
+        "constants": _constants(),
         "conflicts": {"active": len(conflicts.get("active", [])),
                       "assessed": conflicts.get("pairsAssessed", 0),
                       "durationMs": conflicts.get("durationMs")},
@@ -164,4 +406,6 @@ def health():
         # enforced by the database or is only a convention of this code. The connection
         # string is deliberately not included: it carries a password.
         "store": database.backend(),
+        # Where the classifier's dialled-level inputs come from, and the ODbL credit adsb.lol requires.
+        "dialledLevels": intent_service.status(),
     }

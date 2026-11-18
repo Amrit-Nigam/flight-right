@@ -182,6 +182,11 @@ class ResolutionOption:
     # pair becomes a conflict for another.
     new_conflict_risk: float = 0.0
     creates_conflict_with: str | None = None
+    # Probability weight of the other aircraft's futures in which THIS aircraft, doing
+    # nothing, loses separation. ISSUES.md C2: if that is already within the limit there
+    # is no violation to prevent, "resolves" is trivially true for every candidate, and a
+    # manoeuvre would be offered that achieves nothing. None = not computed (old callers).
+    baseline_risk: float | None = None
     detail: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -190,9 +195,13 @@ class ResolutionOption:
 
         There is no separate 'in time' test. The simulation already contains the 38 s
         response delay and the real turn and climb rates, so a manoeuvre that is too
-        slow simply fails to prevent the violation and resolves is False.
+        slow simply fails to prevent the violation and resolves is False -- PROVIDED
+        there is a violation to prevent. ISSUES.md C2 (fixed 25 Sep 2026): when doing
+        nothing already keeps separation, every candidate "resolves" trivially, so an
+        option is offerable only if the do-nothing case loses separation.
         """
-        return (self.blocked_reason is None and self.resolves
+        needed = self.baseline_risk is None or self.baseline_risk > RESIDUAL_RISK_LIMIT
+        return (self.blocked_reason is None and self.resolves and needed
                 and self.new_conflict_risk <= RESIDUAL_RISK_LIMIT)
 
 
@@ -285,6 +294,7 @@ def simulate_manoeuvre(
 def _pair_geometry(
     grid_a: Mapping[int, tuple[float, float, float]],
     grid_b: Mapping[int, tuple[float, float, float]],
+    report_from_seconds: float = 0.0,
 ) -> tuple[float | None, float, float, float]:
     """Walk the whole simulated window and report what actually happens.
 
@@ -296,6 +306,11 @@ def _pair_geometry(
     their tightest laterally while comfortably stacked vertically, and lose separation
     at a different instant entirely -- so the violation test has to look at every step,
     not at one summary point.
+
+    report_from_seconds limits only the REPORTED closest point, never the violation test.
+    ISSUES.md C1 (fixed 25 Sep 2026): a manoeuvre cannot change anything before the
+    aircraft starts to move, so the separation quoted as "what this manoeuvre achieves"
+    is measured from the end of the response delay, not from t = 0.
     """
     from ml_pipeline.utils.cpa_conflict_detection import haversine_distance_nm
 
@@ -311,7 +326,7 @@ def _pair_geometry(
         if lateral < SEPARATION_LATERAL_NM and vertical < SEPARATION_VERTICAL_FT:
             if first_violation is None:
                 first_violation = float(seconds)
-        if lateral < worst_lateral:
+        if seconds >= report_from_seconds and lateral < worst_lateral:
             worst_lateral, vertical_there, at_seconds = lateral, vertical, float(seconds)
     return first_violation, worst_lateral, vertical_there, at_seconds
 
@@ -350,7 +365,7 @@ def path_grids(paths, state, times_seconds):
             for probability, predictions in paths]
 
 
-def _risk_against(grid, candidates):
+def _risk_against(grid, candidates, report_from_seconds: float = 0.0):
     """Weight of the candidate futures in which this path still loses separation.
 
     Returns (risk, worst lateral NM, vertical at that moment, earliest violation).
@@ -360,7 +375,7 @@ def _risk_against(grid, candidates):
     risk = 0.0
     worst_lateral, vertical_there, earliest = float("inf"), float("inf"), None
     for probability, other in candidates:
-        first, lateral, vertical, _ = _pair_geometry(grid, other)
+        first, lateral, vertical, _ = _pair_geometry(grid, other, report_from_seconds)
         if first is not None:
             risk += probability
             earliest = first if earliest is None else min(earliest, first)
@@ -503,6 +518,7 @@ def evaluate_manoeuvre(
     candidates_a=None,
     candidates_b=None,
     traffic=(),
+    baseline_risks=None,
 ):
     """Simulate one instruction, cost it, and check it against everything nearby.
 
@@ -534,7 +550,9 @@ def evaluate_manoeuvre(
         others = path_grids(None, state_b if manoeuvred_is_a else state_a, fine_times)
 
     # Does it still lose separation against the OTHER aircraft's plausible futures?
-    residual, lateral, vertical, first_violation = _risk_against(moved, others)
+    # Reported geometry starts when the aircraft can first move (C1); the violation
+    # test still covers the whole window.
+    residual, lateral, vertical, first_violation = _risk_against(moved, others, RESPONSE_DELAY_SECONDS)
     resolves = residual <= RESIDUAL_RISK_LIMIT
     establish = _seconds_to_establish(manoeuvre, subject)
     established_before_cpa = establish <= max(time_to_cpa_seconds, 0.0)
@@ -611,6 +629,7 @@ def evaluate_manoeuvre(
         score=round(score, 4), components=components, explanation=explanation,
         residual_risk=round(residual, 4), new_conflict_risk=round(new_risk, 4),
         creates_conflict_with=culprit if creates_conflict else None,
+        baseline_risk=(baseline_risks or {}).get(manoeuvre.aircraft),
     )
 
 
@@ -680,8 +699,15 @@ def generate_resolutions(
         manoeuvres += [Manoeuvre(callsign, "heading", value, "deg") for value in HEADING_CHANGES_DEG]
         manoeuvres += [Manoeuvre(callsign, "speed", value, "kt") for value in SPEED_CHANGES_KT]
 
+    # The do-nothing case, once per aircraft: that aircraft flies straight on, against
+    # the other's plausible futures. If neither loses separation, there is nothing to
+    # resolve and no manoeuvre may be offered (ISSUES.md C2).
+    baseline_risks = {
+        callsign_a: _risk_against(simulate_manoeuvre(named_a, None, fine_times), candidates_b)[0],
+        callsign_b: _risk_against(simulate_manoeuvre(named_b, None, fine_times), candidates_a)[0],
+    }
     evaluated = [evaluate_manoeuvre(m, named_a, named_b, time_to_cpa, times,
-                                    candidates_a, candidates_b, neighbours)
+                                    candidates_a, candidates_b, neighbours, baseline_risks)
                  for m in manoeuvres]
 
     blocked = [o for o in evaluated if o.blocked_reason is not None]
@@ -705,14 +731,23 @@ def generate_resolutions(
     if neighbours:
         checked_against += " and " + str(len(neighbours)) + " other aircraft nearby"
 
+    nothing_to_resolve = all(risk <= RESIDUAL_RISK_LIMIT for risk in baseline_risks.values())
+    if options:
+        reason = ("Tier 1 alarm confirmed; options ranked by safety 0.60, delay 0.15, "
+                  "fuel 0.10, workload 0.10, confidence 0.05. Checked against "
+                  + checked_against + ".")
+    elif nothing_to_resolve:
+        reason = ("No manoeuvre offered: flown forward with the 38 s response delay, neither "
+                  "aircraft loses separation against the other's plausible paths if nothing "
+                  "is done, so there is no loss of separation for a manoeuvre to prevent. The "
+                  "alert itself stands; monitor the pair.")
+    else:
+        reason = ("No manoeuvre in the candidate set restores separation in the time "
+                  "available without creating a new conflict.")
     return {
         "offered": bool(options),
-        "reason": ("Tier 1 alarm confirmed; options ranked by safety 0.60, delay 0.15, "
-                   "fuel 0.10, workload 0.10, confidence 0.05. Checked against "
-                   + checked_against + "."
-                   if options else
-                   "No manoeuvre in the candidate set restores separation in the time "
-                   "available without creating a new conflict."),
+        "reason": reason,
+        "baseline_risk": baseline_risks,
         "time_to_cpa_seconds": time_to_cpa,
         "checked_against": checked_against,
         "options": options,

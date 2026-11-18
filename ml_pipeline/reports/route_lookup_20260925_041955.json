@@ -1,0 +1,27 @@
+{
+  "checked_utc": "2026-09-24T22:49:55.717126+00:00",
+  "flights": 1923,
+  "truth": "OpenSky flights_data4 estdepartureairport / estarrivalairport",
+  "truth_crosscheck": {
+    "flights_we_saw_land_at_vabb": 434,
+    "of_which_opensky_says_arrival_vabb": 418
+  },
+  "adsbdb": {
+    "answered": 1767,
+    "answered_share": 0.9188767550702028,
+    "route_exactly_right_of_all": 0.4903796151846074,
+    "route_exactly_right_of_answered": 0.5336728919071874,
+    "destination_right_of_all": 0.7436297451898076,
+    "mumbai_flights": 540,
+    "mumbai_route_exactly_right": 0.6907407407407408
+  },
+  "hexdb": {
+    "answered": 654,
+    "answered_share": 0.34009360374414976,
+    "route_exactly_right_of_all": 0.19032761310452417,
+    "route_exactly_right_of_answered": 0.5596330275229358,
+    "destination_right_of_all": 0.24700988039521582,
+    "mumbai_flights": 540,
+    "mumbai_route_exactly_right": 0.16111111111111112
+  }
+}

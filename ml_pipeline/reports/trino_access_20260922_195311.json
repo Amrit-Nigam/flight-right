@@ -1,0 +1,350 @@
+{
+  "measured_at_utc": "2026-09-22T19:53:11.603490+00:00",
+  "question_2_1": {
+    "authentication": {
+      "configured": true,
+      "authenticated": true,
+      "expires_in": 7200
+    },
+    "authorisation": {
+      "probes": {
+        "trivial (no table)": "OK",
+        "metadata": "OK"
+      },
+      "authorised": true
+    }
+  },
+  "question_2_2": {
+    "known_tables": [
+      "state_vectors_data4",
+      "flights_data4",
+      "flights_data5",
+      "acas_data4",
+      "allcall_replies_data4",
+      "identification_data4",
+      "operational_status_data4",
+      "position_data4",
+      "rollcall_replies_data4",
+      "velocity_data4",
+      "flarm_raw"
+    ],
+    "target_state_table_present": false,
+    "capability_flag_only": "operational_status_data4.supportstargetstatereport",
+    "conclusion": "The archive records WHICH aircraft are capable of broadcasting a Target State report, and does not record WHAT they broadcast. There is no selected-altitude table.",
+    "verified_directly": true,
+    "server_tables": [
+      "acas_data4",
+      "allcall_replies_data4",
+      "flarm_decoded",
+      "flarm_raw",
+      "flights_data4",
+      "flights_data5",
+      "identification_data4",
+      "operational_status_data4",
+      "position_data4",
+      "readsb_adsc_sv",
+      "readsb_mlat_sv",
+      "rollcall_replies_data4",
+      "state_vectors_data4",
+      "velocity_data4"
+    ]
+  },
+  "question_2_3": {
+    "ran": true,
+    "sampling": "the 15th of each month at 00, 08 and 16 UTC",
+    "months_queried": 36,
+    "months_with_box_data": 29,
+    "months_with_low_data": 20,
+    "earliest_month_with_low_data": "2025-01",
+    "per_month": [
+      {
+        "month": "2026-09",
+        "hours_sampled": 3,
+        "box_rows": 234632,
+        "box_aircraft": 227,
+        "low_rows": 42547,
+        "low_aircraft": 96
+      },
+      {
+        "month": "2026-08",
+        "hours_sampled": 3,
+        "box_rows": 426496,
+        "box_aircraft": 336,
+        "low_rows": 78254,
+        "low_aircraft": 127
+      },
+      {
+        "month": "2026-07",
+        "hours_sampled": 3,
+        "box_rows": 429246,
+        "box_aircraft": 333,
+        "low_rows": 70175,
+        "low_aircraft": 127
+      },
+      {
+        "month": "2026-06",
+        "hours_sampled": 3,
+        "box_rows": 421175,
+        "box_aircraft": 314,
+        "low_rows": 80066,
+        "low_aircraft": 134
+      },
+      {
+        "month": "2026-05",
+        "hours_sampled": 3,
+        "box_rows": 267783,
+        "box_aircraft": 238,
+        "low_rows": 38775,
+        "low_aircraft": 67
+      },
+      {
+        "month": "2026-04",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2026-03",
+        "hours_sampled": 3,
+        "box_rows": 434744,
+        "box_aircraft": 271,
+        "low_rows": 76224,
+        "low_aircraft": 139
+      },
+      {
+        "month": "2026-02",
+        "hours_sampled": 3,
+        "box_rows": 481512,
+        "box_aircraft": 305,
+        "low_rows": 72276,
+        "low_aircraft": 149
+      },
+      {
+        "month": "2026-01",
+        "hours_sampled": 3,
+        "box_rows": 488419,
+        "box_aircraft": 302,
+        "low_rows": 62978,
+        "low_aircraft": 129
+      },
+      {
+        "month": "2025-12",
+        "hours_sampled": 3,
+        "box_rows": 415635,
+        "box_aircraft": 278,
+        "low_rows": 61486,
+        "low_aircraft": 129
+      },
+      {
+        "month": "2025-11",
+        "hours_sampled": 3,
+        "box_rows": 410791,
+        "box_aircraft": 300,
+        "low_rows": 71746,
+        "low_aircraft": 128
+      },
+      {
+        "month": "2025-10",
+        "hours_sampled": 3,
+        "box_rows": 501240,
+        "box_aircraft": 308,
+        "low_rows": 79744,
+        "low_aircraft": 130
+      },
+      {
+        "month": "2025-09",
+        "hours_sampled": 3,
+        "box_rows": 500575,
+        "box_aircraft": 285,
+        "low_rows": 69731,
+        "low_aircraft": 114
+      },
+      {
+        "month": "2025-08",
+        "hours_sampled": 3,
+        "box_rows": 571130,
+        "box_aircraft": 318,
+        "low_rows": 69393,
+        "low_aircraft": 130
+      },
+      {
+        "month": "2025-07",
+        "hours_sampled": 3,
+        "box_rows": 519967,
+        "box_aircraft": 288,
+        "low_rows": 74434,
+        "low_aircraft": 121
+      },
+      {
+        "month": "2025-06",
+        "hours_sampled": 3,
+        "box_rows": 585573,
+        "box_aircraft": 315,
+        "low_rows": 67709,
+        "low_aircraft": 127
+      },
+      {
+        "month": "2025-05",
+        "hours_sampled": 3,
+        "box_rows": 661750,
+        "box_aircraft": 379,
+        "low_rows": 74332,
+        "low_aircraft": 132
+      },
+      {
+        "month": "2025-04",
+        "hours_sampled": 3,
+        "box_rows": 530360,
+        "box_aircraft": 291,
+        "low_rows": 70404,
+        "low_aircraft": 128
+      },
+      {
+        "month": "2025-03",
+        "hours_sampled": 3,
+        "box_rows": 599660,
+        "box_aircraft": 318,
+        "low_rows": 85145,
+        "low_aircraft": 128
+      },
+      {
+        "month": "2025-02",
+        "hours_sampled": 3,
+        "box_rows": 625226,
+        "box_aircraft": 330,
+        "low_rows": 94929,
+        "low_aircraft": 144
+      },
+      {
+        "month": "2025-01",
+        "hours_sampled": 3,
+        "box_rows": 15752,
+        "box_aircraft": 35,
+        "low_rows": 461,
+        "low_aircraft": 4
+      },
+      {
+        "month": "2024-12",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-11",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-10",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-09",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-08",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-07",
+        "hours_sampled": 3,
+        "box_rows": 88059,
+        "box_aircraft": 101,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-06",
+        "hours_sampled": 3,
+        "box_rows": 0,
+        "box_aircraft": 0,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-05",
+        "hours_sampled": 3,
+        "box_rows": 63,
+        "box_aircraft": 1,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-04",
+        "hours_sampled": 3,
+        "box_rows": 326,
+        "box_aircraft": 1,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-03",
+        "hours_sampled": 3,
+        "box_rows": 188407,
+        "box_aircraft": 196,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-02",
+        "hours_sampled": 3,
+        "box_rows": 214122,
+        "box_aircraft": 201,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2024-01",
+        "hours_sampled": 3,
+        "box_rows": 164312,
+        "box_aircraft": 164,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2023-12",
+        "hours_sampled": 3,
+        "box_rows": 209941,
+        "box_aircraft": 203,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2023-11",
+        "hours_sampled": 3,
+        "box_rows": 132643,
+        "box_aircraft": 158,
+        "low_rows": 0,
+        "low_aircraft": 0
+      },
+      {
+        "month": "2023-10",
+        "hours_sampled": 3,
+        "box_rows": 163178,
+        "box_aircraft": 177,
+        "low_rows": 0,
+        "low_aircraft": 0
+      }
+    ]
+  }
+}
