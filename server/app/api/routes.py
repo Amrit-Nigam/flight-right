@@ -364,6 +364,25 @@ def airport():
     snapshot = aircraft_service.snapshot()
     # Surveillance outages must not change explicitly live weather into archived
     # weather. Auto mode still follows a real replay fallback when one is active.
+    if snapshot['source'] == 'synthetic':
+        from ..services.examiner_service import examiner_service as demo
+        from ..services.airport_service import parse_metar
+        from ..services.planning_service import planning_service
+        from ..services.traffic_context import traffic_scope
+        movement_plan=planning_service.snapshot(traffic_scope(snapshot),aircraft_service.data_time())
+        weather_text='VABB 181200Z 27008KT 8000 SCT020 30/24 Q1012 NOSIG'
+        return dict(ok=True,airport='VABB',dataTimeUtc=snapshot['dataTimeUtc'],
+                    runways=[dict(end=e['end'],runway=e['runway'],headingDeg=round(e['heading']),
+                                  threshold=e['threshold'],far=e['far'],lengthFt=e['lengthFt']) for e in airport_service.ends],
+                    runwaySource='OurAirports runway geometry',
+                    inUse=dict(end='27',basis='Occupied by DEMO01' if demo.chapter==3 else 'Runway assignment',derived='synthetic scenario'),
+                    recentMovements=[],upcomingArrivals=[],
+                    plannedMovements=[dict(callsign=r['callsign'],runway='09/27',end='27',kind=r['kind'],
+                        time=movement_plan['baseTime']+r['target']) for r in movement_plan['rows']],
+                    metar=dict(raw=weather_text,
+                        issuedUtc=snapshot['dataTimeUtc'],ageSeconds=0,stale=False,
+                        source='Session weather',**parse_metar(weather_text)),metarError=None,
+                    notes='Runway 27. Review traffic and sequence for current occupancy.')
     weather_source = ("live" if snapshot["source"] == "none"
                       and snapshot.get("mode") in ("live", "auto") else snapshot["source"])
     return {"ok": True, **airport_service.summary(snapshot["flights"], weather_source,

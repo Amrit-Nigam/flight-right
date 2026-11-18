@@ -189,6 +189,16 @@ class PlanningService:
                 rows = [r for r in rows if r['id'] != ident]
                 if action == 'remove':
                     self.sequence(rows)
+            elif action == 'goaround':
+                if not flight or flight['kind'] != 'arrival':
+                    raise ValueError('Go-around requires a scheduled arrival')
+                if flight['pinned']:
+                    raise ValueError('Unpin the missed approach before changing readiness')
+                flight['earliest'] = max(flight['earliest'], int(args['ready_at'] - state['baseTime']))
+                flight['latest'] = max(flight['latest'], flight['earliest']+86400)
+                flight['provenance'] = 'Missed approach; arrival readiness deferred after controller approval'
+                rows = sorted(rows, key=lambda r: (r['earliest'], r['target']))
+                self.sequence(rows)
             elif action == 'optimize':
                 # Stable earliest-ready baseline, with explicit pins honoured.
                 rows = sorted(rows, key=lambda r: (r['id'] != state.get('emergency') if state['mode']=='emergency' else False, r['earliest'], r['target']))
@@ -208,7 +218,7 @@ class PlanningService:
                 state['undo'] = before if action != 'undo' else None
                 for r in rows:
                     state['messages'].append(dict(id=f"{version+1}:{r['id']}", flight=r['id'],
-                        text=f"{r['callsign']}: planned {r['kind']} slot T+{r['target']} seconds (sandbox advisory)",
+                        text=f"{r['callsign']}: planned {r['kind']} slot T+{r['target']} seconds (planning advisory)",
                         status='draft', revision=version+1))
             if state['mode'] == 'emergency' or action == 'issue':
                 for m in state['messages']:

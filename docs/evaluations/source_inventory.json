@@ -3834,6 +3834,43 @@
       "bytes": 313,
       "cleanup": false,
       "status": "preserved_controller_integration_evidence"
+    },
+    {
+      "path": "docs/evaluations/evidence/examiner_demo_20261118.json",
+      "sha256": "67c0be80343950aa27655c4b222c04bb4975864419e06ad3d58f52d5c0fd854c",
+      "bytes": 20651,
+      "models": [
+        "full_alert_chain",
+        "asr_small_atc_p1",
+        "clearance_extractor",
+        "resolution"
+      ],
+      "cleanup": false,
+      "status": "preserved_synthetic_examiner_integration"
+    },
+    {
+      "path": "docs/evaluations/evidence/examiner_dense_traffic_20261118.json",
+      "sha256": "254b3d9b35c2cb2a7235ed5b2e9497496d83c08c84c1aa41a281507aeaa5ecb4",
+      "bytes": 17946,
+      "models": [
+        "full_alert_chain",
+        "resolution",
+        "clearance_extractor",
+        "asr_small_atc_p1"
+      ],
+      "cleanup": false,
+      "status": "preserved_dense_traffic_integration"
+    },
+    {
+      "path": "docs/evaluations/evidence/examiner_resolution_audio_preview_20261118.json",
+      "sha256": "a2fb952625d8bf273435f0e005e750758ab627e7606be38f73c33794ea2ccd8b",
+      "bytes": 3045,
+      "models": [
+        "resolution",
+        "full_alert_chain"
+      ],
+      "cleanup": false,
+      "status": "preserved_resolution_preview_integration"
     }
   ],
   "retained_context": [

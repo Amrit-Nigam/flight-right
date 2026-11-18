@@ -1,3 +1,5 @@
+> **Examiner scenario (18 November 2026):** [examiner-demo.md](examiner-demo.md) is the under-ten-minute synthetic walkthrough. Opt in with `start.py --mode examiner`; live/replay remain separate startup modes. The new demo is not a model accuracy result.
+
 > **Shared editing rules:** Read [../AGENTS.md](../AGENTS.md) before every task. Add future user-requested editing rules there; this document retains project context, decisions and change history.
 
 > **Project handbook (17 November 2026):** [PROJECT_HANDBOOK.md](PROJECT_HANDBOOK.md) provides the complete explanatory project history, architecture/data flow, model iterations/results, classifier confusion matrices, selected speech results and UI evolution. It is a dated narrative guide; evaluation.md and the individual ledgers remain canonical for evaluation maintenance.
@@ -6827,3 +6829,23 @@ The project and displayed application name are Flight Right. Corrected the handb
 ### 17 November 2026 — Exact project spelling: FlightRight
 
 The user clarified that the project name is FlightRight, one word with capital F and R. This supersedes the spaced spelling in the preceding naming entry. Updated README/handbook branding, workspace/browser branding, API metadata and the editing-rules title. Historical evidence, identifiers, theme preferences and model results are retained. No servers started, no model or deployment changes, no commit/push.
+
+
+### Examiner integration - 18 November 2026
+
+Opt-in synthetic eight-chapter demo; eight-minute script, nine-minute hard stop. Actual served conflict/resolution models, real generated-audio ASR and Chromium fake microphone capture, reviewed readbacks, strip handoffs, takeoff/climb, go-around/resequencing, approved WAV playback/download, simulated compliance, landing and audit export verified. 66 backend tests, frontend lint/build and Chromium walkthrough pass; automated click-through 76.856 seconds is not spoken duration or inference latency. Supplemental forecast/map, emergency/takeover, pins/advisories and weather/theme checks pass.
+
+Full configuration, actual outputs, unsuccessful attempts, artifact/code/raw evidence checksums, scope and limitations: `evidence/examiner_demo_20261118.json`. Generated teaching data, no labelled accuracy benchmark or test-set selection; physical microphone/receiver and fresh external live feed not tested. Weights, preprocessing, decoder, calibration, thresholds, selected/served models and headline unchanged. Current comparison unchanged. Existing experiments and original evidence retained. Live/replay startup preserved; isolated examiner SQLite records. SQLite transcript-ID return fixed for review; PostgreSQL unchanged. Ledger reader preserves legacy prose bytes while parsing UTF-8 evidence capsules.
+
+Fresh paused demo left running on 5173/8000. Live restart: `py -3.13 start.py --mode live`. No commit/push.
+
+
+### Continuous dense-traffic presentation - 18 November 2026
+
+Added 16 aircraft initially (10 airborne/six ground), 11 mixed runway movements, continuous ten-second motion through chapter boundaries and independent actual-model background encounter/resolution approval/audio. Main encounter chapter has 18 aircraft. Normal route/type labels replace repeated synthetic/demo UI labels at user request. Original source identity remains internal; live-data startup and model thresholds/weights are unchanged. Nine-minute presentation cap retained.
+
+69 backend checks, changed frontend lint and production build pass (existing chunk warning). Chromium confirms automatic marker-coordinate changes, dense queue recalculation, actual model versions/forecast/background alert, approved WAV download, compliance reassessment and ten-movement missed-approach recovery. Actual-model narrative passed with the expanded traffic; fresh generated-input ASR matched IGO101 among 16 callsigns (matcher score 82.8, margin 9.6; an example, not accuracy). Initial Pause race and its fix are preserved in raw evidence. Configuration, artifact/code/raw hashes and outputs: `evidence/examiner_dense_traffic_20261118.json`.
+
+No new accuracy, confusion matrix, uncertainty, seed/checkpoint selection or inference-latency benchmark. Physical microphone/receiver and live external network not rerun. No headline, model deployment, features, decoder, calibration or alert-threshold change; current comparison unchanged. Original experiment entries and evidence retained. Global-verifier baseline inventory mismatches remain documented; new evidence checksum round trips and ledger preservation checked separately.
+
+Presentation starts playing automatically. Pause before changing chapter/approving; Play resumes. Both local services left running. No commit/push.

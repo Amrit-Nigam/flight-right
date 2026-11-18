@@ -1,0 +1,485 @@
+{
+  "id": "examiner_demo_integration_20261118",
+  "checked_utc": "2026-11-17T19:41:44.327157+00:00",
+  "source_version": "ad7eca2cd692f2cc3de313d2a7ab974cf90e5a04 plus uncommitted examiner changes",
+  "purpose": "Synthetic examiner integration and frontend acceptance, not model accuracy or latency evaluation",
+  "configuration": "Six synthetic identities including runway service vehicle; eight chapters; 10-second report updates; 120-second educational runway gap; deterministic scenario; no training or seed selection; nine-minute wall-time limit; spoken running order eight minutes.",
+  "baseline": "Existing served model chain, decoding, feature calculations, calibration and thresholds unchanged; live/replay behavior preserved. SQLite transcript insert now returns the stored ID for review; PostgreSQL query unchanged.",
+  "model_versions": {
+    "trajectory_residual": "trajectory_residual@1788683545119468100",
+    "trajectory_multipath": "trajectory_multipath@1790456560238406300+per_mode",
+    "xgboost_conflict": "xgboost_conflict@1790423446996347700",
+    "multipath_temperature": 1.0645782538192603,
+    "missing_models": [],
+    "rule_path": "always on"
+  },
+  "artifact_sha256": {
+    "server/app/ml/saved_models/trajectory_residual.pt": "cd5e1c14d789a3010a8806b41265deef6806d0e9166cb1e1cc7f2212ab4c7442",
+    "server/app/ml/saved_models/trajectory_multipath.pkl": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589",
+    "server/app/ml/saved_models/xgboost_conflict.json": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/config.json": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/preprocessor_config.json": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/tokenizer.json": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/vocabulary.json": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55"
+  },
+  "data": "Purpose-designed synthetic tracks and Windows TTS sample, plus Chromium fake microphone with a resampled known WAV. Not a labelled real-world corpus or held-out split. No accuracy, confusion matrix, per-seed uncertainty or fresh latency benchmark.",
+  "outcomes": {
+    "backend_tests": "66 passed",
+    "lint": "changed JS/JSX zero errors/warnings",
+    "production_build": "passed; existing large-chunk warning",
+    "actual_model_integration": "passed",
+    "browser": {
+      "at": "2026-11-17T19:33:16.142Z",
+      "results": [
+        {
+          "name": "Timed synthetic session, real map, ground strips and handoffs",
+          "status": "passed"
+        },
+        {
+          "name": "Fresh ASR",
+          "transcript": "india go one zero one request departure",
+          "model": "C:\\Users\\singh\\OneDrive\\Desktop\\Archit\\KJ Somaiya\\LY Project\\Flight_Right\\checkpoints\\voice_20261110\\ct2\\local__uniform_soup3__int8_float16"
+        },
+        {
+          "name": "Fake microphone ASR",
+          "transcript": "indigo one zero one request departure indigo one zero",
+          "callsignMatch": {
+            "code": "IGO101",
+            "score": 82.8,
+            "margin": 17.8,
+            "heard": "indigo one zero one",
+            "listSize": 3
+          }
+        },
+        {
+          "name": "Real generated audio ASR and callsign matching, then microphone capture",
+          "status": "passed"
+        },
+        {
+          "name": "Communication sequencing and editable planning controls",
+          "status": "passed"
+        },
+        {
+          "name": "Takeoff approval, command WAV download/playback and climb",
+          "status": "passed"
+        },
+        {
+          "name": "Reviewed controller altitude intent and correct / incorrect pilot readbacks",
+          "status": "passed"
+        },
+        {
+          "name": "Occupied runway, approved go-around and optimized recovery order",
+          "status": "passed"
+        },
+        {
+          "name": "Actual model conflict, SHAP, resolution approval and local command audio",
+          "status": "passed"
+        },
+        {
+          "name": "Simulated compliance clears actual urgent alarm, return landing and final close-out",
+          "status": "passed"
+        },
+        {
+          "name": "Airport provenance, mobile layout and server audit trail",
+          "status": "passed"
+        },
+        {
+          "name": "Complete frontend walkthrough wall time",
+          "seconds": 76.856,
+          "limit": 540
+        }
+      ],
+      "errors": []
+    },
+    "supplemental_browser": {
+      "results": [
+        "Emergency priority and controller takeover / recovery",
+        "Pin/unpin and explicit plan-advisory authorization",
+        "Selected en-route forecast ready and conflict located on real map",
+        "Existing resolution-review modal renders actual model options",
+        "Synthetic weather, theme control and fresh paused initial session"
+      ],
+      "errors": []
+    },
+    "fresh_ASR": {
+      "ok": true,
+      "transcriptionId": 1,
+      "transcript": "india go one zero one request departure",
+      "asrConfidence": 0.917153859833489,
+      "extracted": {
+        "callsign_spoken": "india go one zero one",
+        "callsign_code": "I101",
+        "action": null,
+        "value": null,
+        "fix": null,
+        "confidence": 0.642,
+        "text": "india go one zero one request departure",
+        "all_actions": []
+      },
+      "callsignMatch": {
+        "code": "IGO101",
+        "score": 82.8,
+        "margin": 16.1,
+        "heard": "india go one zero one",
+        "listSize": 3
+      },
+      "clearance": null,
+      "seconds": 2.204,
+      "modelId": "C:\\Users\\singh\\OneDrive\\Desktop\\Archit\\KJ Somaiya\\LY Project\\Flight_Right\\checkpoints\\voice_20261110\\ct2\\local__uniform_soup3__int8_float16",
+      "quantisation": "int8_float16",
+      "role": "pilot",
+      "clearances": [],
+      "readback": null,
+      "recordedAt": 1794944288.7631726,
+      "roleSource": "labelled-channel",
+      "roleReason": "speaker role supplied by channel or review",
+      "reviewOf": null,
+      "heardAt": null,
+      "liveRadio": false,
+      "displayContext": null,
+      "reason": "live radio recorded; live surveillance is required before changing trajectory intent"
+    },
+    "post_compliance_counts": {
+      "assessed": 1,
+      "awaiting_confirmation": 1,
+      "active": 0,
+      "new_notifications": 0,
+      "repeats_suppressed": 0,
+      "collapsed_low_confidence": 0,
+      "tier_1": 0,
+      "tier_2": 0,
+      "retired": 0
+    }
+  },
+  "failures_and_revisions": [
+    "Initial offline Windows synthesis blocked by execution policy and sandbox voice initialization; process-local execution-policy flag and authorized outside-sandbox Windows verification succeeded. No global policy change.",
+    "First integration cleanup encountered existing SQLite connection retention; isolated temporary test cleanup made tolerant. Original failed output retained.",
+    "Chromium test fixes: fake microphone WAV path/48kHz format, POST versus OPTIONS response waits, and opening existing disclosure controls before testing them.",
+    "Frontend exposed synthetic strip scope shared across resets; fixed to include scenario session, with regression coverage.",
+    "Frontend exposed existing SQLite transcript inserts returning no ID; fixed RETURNING id and added real SQLite review regression.",
+    "Corrected synthetic metadata labels and kept a departed aircraft airborne across later chapters; no model feature/weight change."
+  ],
+  "limitations": [
+    "Physical room microphone, receiver and hardware speaker output not measured. Chromium used generated audio as its microphone; fresh generated sample ASR and local audio element playback/download verified.",
+    "No live OpenSky network run in this task; live launcher isolation and OpenSky service selection covered by regression tests.",
+    "Surface/terminal trajectories, runway occupancy and weather are generated teaching inputs; not operational minima or Mumbai procedure validation.",
+    "Chromium automation ran in 76.856 seconds; this is test interaction duration, not a spoken-presentation measurement or inference benchmark."
+  ],
+  "selection": "No model/checkpoint/threshold selection. No test-set optimization. Served weights/deployment/headline unchanged; docs/evaluation.md intentionally unchanged.",
+  "code": [
+    {
+      "path": "README.md",
+      "bytes": 63171,
+      "sha256": "b2613220a6ed21c9581599cebee2c33ea5465f5def019c5ab45160884552c894"
+    },
+    {
+      "path": "client/src/components/DataSourceBar.jsx",
+      "bytes": 3865,
+      "sha256": "c69f0fcbf5dc97de74d9d41c67a321ae8227ae12461446759f8a831197376780"
+    },
+    {
+      "path": "client/src/components/RunwayStatusPanel.jsx",
+      "bytes": 7244,
+      "sha256": "49d6ed3b87ebe92f3e23433729f5d8d2077d1421edb03bbfb2ecf3aed9610e17"
+    },
+    {
+      "path": "client/src/components/WorkspaceHeader.jsx",
+      "bytes": 3301,
+      "sha256": "6916ccbe55d4424445aaace812cfc63baaeb7ff5a9733bae9783014433efeaf2"
+    },
+    {
+      "path": "client/src/hooks/useDisplayClock.js",
+      "bytes": 594,
+      "sha256": "45b368151d32bbb69962ce6ca755011c34b77634753bfd0131bebe01787268ca"
+    },
+    {
+      "path": "client/src/pages/HomePage.jsx",
+      "bytes": 25837,
+      "sha256": "1089069f7e16462f73ece6a0d75ed6dafbd19e9fc111c89d262e8c8547f1954b"
+    },
+    {
+      "path": "client/src/workspace.css",
+      "bytes": 20786,
+      "sha256": "7eada7b5d5e1f4f5b67ef273155830fa566edb7e6c85358fb39ddea026b05fb3"
+    },
+    {
+      "path": "ml_pipeline/tests/test_demo_launcher.py",
+      "bytes": 4234,
+      "sha256": "2bac7425e3fa3ccefab35e48df5782a4dc8e9bc82a782148e1c6d62af4851a36"
+    },
+    {
+      "path": "server/app/api/routes.py",
+      "bytes": 22314,
+      "sha256": "097209eb09533b71044909479b0ce03934067d323ef4732afe94e6f272006409"
+    },
+    {
+      "path": "server/app/main.py",
+      "bytes": 8671,
+      "sha256": "25f27f41cd81fd8c725536b34f3a87773e1f6132423f067db668ca9a5d9b03aa"
+    },
+    {
+      "path": "server/app/services/aircraft_service.py",
+      "bytes": 12527,
+      "sha256": "cd2f19e023d99073366a38770876843ad22efe9f25234d91a2947f46fbddeec6"
+    },
+    {
+      "path": "server/app/services/database.py",
+      "bytes": 27322,
+      "sha256": "f4c86ce09b136d6861ffd7d803217b1892da7b2ccc633c3dde4c8ca412aaff8f"
+    },
+    {
+      "path": "server/app/services/planning_service.py",
+      "bytes": 13598,
+      "sha256": "3503e3f37eeeb8597aefb527108ceb22d64265d17288bc5cc467b1be911e289d"
+    },
+    {
+      "path": "server/app/services/speech_service.py",
+      "bytes": 18847,
+      "sha256": "f9d917148578345951623127478d4f8eccd224d62a12ce4922b50902e2cddbbe"
+    },
+    {
+      "path": "server/app/services/workspace_service.py",
+      "bytes": 4720,
+      "sha256": "f8bb9f15e335e6c72963d2034ef85b952a3e462bb3cd0a11e6333d84eb135b5c"
+    },
+    {
+      "path": "start.py",
+      "bytes": 11199,
+      "sha256": "d7938784b6ee550e3c3b50bccb3c03bfc9a0c4f68cefb9289160de813e86bfb9"
+    },
+    {
+      "path": "server/app/api/examiner.py",
+      "bytes": 12404,
+      "sha256": "0fdb52e5b9b4976bd77d46709921cc3d7e57129d63494b318a0c109e6f98e58f"
+    },
+    {
+      "path": "server/app/services/examiner_service.py",
+      "bytes": 7537,
+      "sha256": "81e5224dacebd027daa2e2cd176e9d4f5f608d62b39cef9f0b2302b680334b35"
+    },
+    {
+      "path": "client/src/components/ExaminerDemo.jsx",
+      "bytes": 7618,
+      "sha256": "cb2d04a24bb972615dceb040f4cd58bc67728c0251ceb668369540f40eb3adb9"
+    },
+    {
+      "path": "scripts/check_examiner_demo.py",
+      "bytes": 4648,
+      "sha256": "b8a5fd647ae121dd4fe930f6c97046793a960c80f1669f45e803bb12017e7946"
+    },
+    {
+      "path": "scripts/examiner_voice.ps1",
+      "bytes": 398,
+      "sha256": "0b29c1d3a82ec4af20a0e24305cd1f5a08990c1acf2791c6c28a571bdc9a2d26"
+    },
+    {
+      "path": "ml_pipeline/tests/test_examiner_demo.py",
+      "bytes": 5286,
+      "sha256": "44d0080900f04d7a1f22a6b53add3a9e8ccf0eb1a38d8cf5ec3af985fa90bde9"
+    },
+    {
+      "path": "ml_pipeline/tests/test_sqlite_transcript_review.py",
+      "bytes": 1802,
+      "sha256": "8dc1d3a0d94ed71ec1e4b0a489f190485bd82c4b245ba35989c6793a34e26361"
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "checkpoints/examiner_20261118/actual-conflict.png",
+      "bytes": 260631,
+      "sha256": "086966ac51c74e74fb64c284867cc33834651f6cded07fbff4558b258c44d705"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/airport.png",
+      "bytes": 419002,
+      "sha256": "8a9a1b3fdb57b14e34ae2ce1ad5e38e8e2803295035fa20e522537fd8a40e83c"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/approved-resolution.wav",
+      "bytes": 226444,
+      "sha256": "8abcc43896505af487455ea5df8770e798a60ebdd873c7a9ba5d215cb1b66aa8"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/approved-takeoff.wav",
+      "bytes": 360492,
+      "sha256": "557849fc592159b65ed87fab75adb287bd60de4616726e2647280a435c0b3d7c"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/audit-export.json",
+      "bytes": 91463,
+      "sha256": "69cb485773c59b7159c75865d7d831fe5a0e521bfd16ea8bad5aef8f6f22a4b6"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/audit.png",
+      "bytes": 137671,
+      "sha256": "d8d535644d8bc413952b1cb3c4ddfb97e9e522e2302f11e9de5e6d1271204890"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/before-review.png",
+      "bytes": 301554,
+      "sha256": "f4cd217796459c68ba55a2e27afa22d2a75751e89f13ac41a443378b76e47934"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-attempt-1794942701033.json",
+      "bytes": 978,
+      "sha256": "44c10b792625dbe7f5be7b67af0f4c723014ba01e74d3b4f367fa9f51e220f82"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-attempt-1794942897867.json",
+      "bytes": 649,
+      "sha256": "2b9905d63a2c9fb5e4d0eb710bc40cbcad600fd08cf8c4a4980ab0da772b2aba"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-attempt-1794943134095.json",
+      "bytes": 978,
+      "sha256": "1e6bde52e70594c4bdc5e0f3d0dee95620e1eebe8d17b3adfed9adfc9aae9c90"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-attempt-1794943291753.json",
+      "bytes": 1283,
+      "sha256": "830978f0ec68d8ee55477802e38dc00e4bbfa20c813e528b963e68f3d14f4810"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-attempt-1794943694239.json",
+      "bytes": 1283,
+      "sha256": "830978f0ec68d8ee55477802e38dc00e4bbfa20c813e528b963e68f3d14f4810"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-attempt-1794943917835.json",
+      "bytes": 2881,
+      "sha256": "664938225d9a0d0a555b744d061fe01b3aa10bae9b38735ba99ec47518d2eeb6"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser-results.json",
+      "bytes": 1852,
+      "sha256": "247dd31442adf92cac9d52320c64f49171ad98914f29eff6d4f97ecf951798e7"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/browser.cjs",
+      "bytes": 13743,
+      "sha256": "b6de5b2399f24ed8fa622b5b45012916e80fa7221383d035fb582f1552538295"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/climb.png",
+      "bytes": 423385,
+      "sha256": "47e1cf9626494b6dfd0e335658e60c023d44ef01e03437eeed40361b6c09e252"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dark-demo.png",
+      "bytes": 490122,
+      "sha256": "f8b95ed1052859b3149d448774fe5c298253dd36dd385966072befd9bc304251"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/extras-attempt-1794944217371.json",
+      "bytes": 425,
+      "sha256": "6d8cde8294a012f6341d3a3e94988855ce18d9a976cd3f8c92eac0db342fd3b8"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/extras-attempt-1794944386908.json",
+      "bytes": 3398,
+      "sha256": "3d1fbf638b1318cdeffbc8b72e10542302bcf14b4bfbf5b1e7cfd9d1bd495df6"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/extras-failure.png",
+      "bytes": 565302,
+      "sha256": "0f42c354b5257b42ce541701d80802d6e951c3bcc1d1c60f4cbb394245f61b1e"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/extras-results.json",
+      "bytes": 371,
+      "sha256": "6bf02974d19c7bf418be087c5dcbbee59422725e305bbd0bdd9c052890340fa0"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/extras.cjs",
+      "bytes": 5007,
+      "sha256": "fea40d5afa95f7e1be49efd6ac6b575693c21bfa35a065ebde6384a1d44b1a75"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/failure.png",
+      "bytes": 331142,
+      "sha256": "15f385b94687c37b8050989185218a4b89c481df8f03898f6018c7a525f2e6bd"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/forecast-and-conflict-map.png",
+      "bytes": 204679,
+      "sha256": "84fc8e54acda9a09c0f2e6438898dda4ced72a976cfae01248be35b5dae17299"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/goaround-resequence.png",
+      "bytes": 428290,
+      "sha256": "c9955315618a6d518c9251b6dd4213ba3dd1ee737cd9b461ead6baa40a3b59b1"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/ground-handoff.png",
+      "bytes": 413298,
+      "sha256": "993e209b669622704ab7ff7a152dc675a01eba65577dc70ead0a52344545b080"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/initial.png",
+      "bytes": 165322,
+      "sha256": "ae1c279c941b0c6042eba2e15428ee7a1dfba6769f08282ac4594a72fa82213c"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/integration-1794941540551732300.json",
+      "bytes": 353380,
+      "sha256": "eab8b5332b44cc90b65b4db955968211212b5da5e4be67b67481b719404b75fa"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/integration-1794942067188146400.json",
+      "bytes": 357675,
+      "sha256": "d2d7a6f399f6ea90a3b583c97a2a80c39dd5c8bf6425c4a4369037cb9623f1a7"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/integration-1794944288870355100.json",
+      "bytes": 361089,
+      "sha256": "b49fdc85b7108f85298c8777bdf50942b104ed2eaa0df4eba820c1dd6b533ac4"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/integration.json",
+      "bytes": 290021,
+      "sha256": "d11c7933724042c9d25ff507ac8bace7067c43a024bf08ae5a7a3fbba39de1b6"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/landing-closeout.png",
+      "bytes": 443579,
+      "sha256": "99dc88ee9886d7d681d1d5bcd876364e502065e2b60c3aab6f0b3817cf0ed9f7"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/mic-48000.wav",
+      "bytes": 388752,
+      "sha256": "b52c2ebd35acce6a57d8e3be0f28d5b5a2a3069cb9a6f658c89ff5a8e2056cae"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/phone.png",
+      "bytes": 77070,
+      "sha256": "153a33ec31d1c8614ff777dc0ebbd6f525f02aafd04c6f8e83087d51a06ec8ef"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/readback.png",
+      "bytes": 300365,
+      "sha256": "0b0890c09215554f0eb983273b04c3acf49fd6bb9df106995316044960c62f00"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/ready-for-examiner.png",
+      "bytes": 416493,
+      "sha256": "b70df3c733747f4e59994c46eee9f51bf2a8d57ed35c768b96f34951eded785c"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/resolution-dialog.png",
+      "bytes": 230729,
+      "sha256": "016f6faf399270df1f0e812ca5ade88cc2f2d2c4c9e8c08f6bdc3781e26972af"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/sequence.png",
+      "bytes": 419410,
+      "sha256": "5f12b78a4529efa494d10eb38531d03f058e20fd6b5327dc739c9fbd0e2a88c4"
+    },
+    {
+      "path": "checkpoints/examiner_20261118/speech.png",
+      "bytes": 322213,
+      "sha256": "c97f7b0ccf61aebde4bebf2aad590f7e1946845af84740878b7606f392cd056d"
+    }
+  ]
+}

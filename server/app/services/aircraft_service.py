@@ -57,6 +57,8 @@ class AircraftService:
     # ------------------------------------------------------------------ refreshing
     def refresh(self) -> dict:
         """Pull one update from whichever provider the mode selects."""
+        if self.mode == 'examiner':
+            return self.refresh_examiner()
         flights, source, error = [], "none", None
 
         if self.mode in ("live", "auto"):
@@ -99,8 +101,33 @@ class AircraftService:
         airport_service.observe(recent)                 # runway movements, derived from the tracks
         return self.snapshot()
 
+    def refresh_examiner(self):
+        from .examiner_service import examiner_service as demo
+        with demo.lock:
+            if demo.playing:
+                demo.advance()
+            flights = demo.states()
+            with self._lock:
+                self.flights = flights
+                self.source = 'synthetic'
+                self.provider = 'Traffic session'
+                self.error = None
+                self.updated_at = datetime.now(timezone.utc).isoformat()
+                self.updates += 1
+                self._record_history(flights)
+                # Deterministic preceding states, not duplicated current reports.
+                for flight in flights:
+                    key = flight['icao24']
+                    if len(self.histories[key]) < 10:
+                        self.histories[key] = deque((next(s for s in demo.states(offset) if s['icao24']==key)
+                            for offset in range(-190, 1, 10)), maxlen=HISTORY_LENGTH)
+        return self.snapshot()
+
     def data_time(self) -> float:
         """Epoch seconds the current picture describes: the recording's own time in replay."""
+        if self.mode == 'examiner':
+            from .examiner_service import examiner_service
+            return examiner_service.timestamp()
         if self.source == "replay":
             status = self.replay.status()
             if status.get("dataTimeUtc"):
@@ -185,10 +212,16 @@ class AircraftService:
                 "updatedAt": self.updated_at,
                 "dataTimeUtc": datetime.fromtimestamp(self.data_time(), tz=timezone.utc).isoformat(),
                 "updates": self.updates,
-                "replay": self.replay.status() if self.source == "replay" else None,
+                "replay": self._session_status(),
                 "creditsRemaining": self.opensky.credits_remaining,
                 "flights": list(self.flights),
             }
+
+    def _session_status(self):
+        if self.mode == 'examiner':
+            from .examiner_service import examiner_service
+            return examiner_service.status_replay()
+        return self.replay.status() if self.source == 'replay' else None
 
     def history(self, key: str) -> list[dict]:
         with self._lock:
@@ -218,6 +251,8 @@ class AircraftService:
                     if len(window) >= 10 and key in self.current_keys}
 
     def set_mode(self, mode: str) -> dict:
+        if self.mode == 'examiner':
+            raise ValueError('Restart without --mode examiner to use live/replay traffic')
         if mode not in ("live", "replay", "auto"):
             raise ValueError(f"mode must be live, replay or auto (got {mode!r})")
         self.mode = mode

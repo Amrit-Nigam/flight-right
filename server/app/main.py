@@ -48,6 +48,8 @@ app.include_router(router)
 from .api.planning import router as planning_router
 app.include_router(planning_router)
 app.include_router(workspace_router)
+from .api.examiner import router as examiner_router
+app.include_router(examiner_router)
 
 _subscribers: set[WebSocket] = set()
 
@@ -56,6 +58,11 @@ async def _ingest_loop() -> None:
     """Poll, assess, broadcast. One tick per surveillance update."""
     while True:
         try:
+            if aircraft_service.mode == 'examiner':
+                await asyncio.to_thread(_examiner_tick)
+                await _broadcast()
+                await asyncio.sleep(POLL_SECONDS)
+                continue
             await asyncio.to_thread(aircraft_service.refresh)
             assessment = await asyncio.to_thread(
                 conflict_service.assess, aircraft_service.histories_for_models(), aircraft_service.histories_for_coverage())
@@ -67,6 +74,19 @@ async def _ingest_loop() -> None:
         except Exception as failure:                          # noqa: BLE001
             log.exception("Ingestion tick failed: %s", failure)
         await asyncio.sleep(POLL_SECONDS)
+
+
+def _examiner_tick():
+    from .services.examiner_service import examiner_service as demo
+    with demo.lock:
+        import time
+        if demo.deadline and time.time()>=demo.deadline:
+            demo.playing=False
+        before=demo.timestamp()
+        aircraft_service.refresh()
+        if before != demo.timestamp():
+            assessment=conflict_service.assess(aircraft_service.histories_for_models(),aircraft_service.histories_for_coverage())
+            database.record_conflicts(assessment.get('active',[]))
 
 
 async def _broadcast() -> None:
@@ -131,7 +151,8 @@ async def startup() -> None:
     await asyncio.to_thread(aircraft_service.refresh)
     # Model loading and the first refresh take time; start the replay clock now so the
     # encounter it seeked to has not already gone past by the time anyone is watching.
-    aircraft_service.replay.reset_clock()
+    if DATA_MODE != 'examiner':
+        aircraft_service.replay.reset_clock()
     await asyncio.to_thread(aircraft_service.refresh)
     # Replay carries its own past, so the models can start assessing immediately rather
     # than waiting a hundred seconds for ten updates to accumulate.

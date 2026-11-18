@@ -1,5 +1,12 @@
 # FlightRight
 
+**Examiner demo (under 10 minutes):** `py -3.13 start.py --mode examiner`.
+Open **Demo controls → Start timed 9-minute demo** and follow the
+[eight-minute running order](docs/examiner-demo.md). Includes labelled synthetic
+ground traffic, takeoff/climb, occupied-runway go-around/resequencing, actual model
+conflict/resolution, real speech recognition/readbacks, and approved command WAV
+playback/download. This mode has isolated demo records and no radio transmission.
+
 **Full project documentation:** [Project handbook and development history](docs/PROJECT_HANDBOOK.md).
 It covers the architecture, data sources/flow, tech stack, major model iterations and
 their measured results, classifier confusion matrices, latest selected speech results,
@@ -804,7 +811,7 @@ python scripts/consolidate_evaluations.py --verify  # verifies consolidated mode
 - **Speech:** measured on European radio, simulator speech, everyday Indian English and
   separately labelled generated voices. These checks do not establish performance on real
   Mumbai controller radio or physically verify receiver capture.
-- **Not yet built:** scenario-simulation mode, drawing the five paths on the map, a
+- **Not yet built:** drawing the five paths on the map, a
   machine-learned manoeuvre ranker, and login (a single configured controller identity,
   `FLIGHT_RIGHT_CONTROLLER_ID`, is used).
 - **Derived, not official:** the runway in use and runway movements are inferred from the tracks

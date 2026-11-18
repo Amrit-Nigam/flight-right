@@ -55,6 +55,19 @@ class DemoLauncherTests(unittest.TestCase):
             start.prepare_python(install=False)
         self.assertFalse((self.root / ".venv-demo").exists())
 
+    def test_live_and_examiner_startup_are_separate(self):
+        (self.root / 'demo').mkdir()
+        manifest={'speech_runtime':'model'}
+        with patch.dict(start.os.environ,{},clear=True):
+            live=start.environment('live',manifest)
+            demo=start.environment('examiner',manifest)
+        self.assertEqual(live['FLIGHT_RIGHT_DATA_MODE'],'live')
+        self.assertEqual(live['FLIGHT_RIGHT_ROUTE_LOOKUP'],'on')
+        self.assertNotIn('FLIGHT_RIGHT_INTENT_FEED',live)
+        self.assertEqual(demo['FLIGHT_RIGHT_INTENT_FEED'],'off')
+        self.assertEqual(demo['FLIGHT_RIGHT_ROUTE_LOOKUP'],'off')
+        self.assertNotEqual(live['FLIGHT_RIGHT_AUDIT_DB'],demo['FLIGHT_RIGHT_AUDIT_DB'])
+
     def test_python_probe_checks_requested_environment(self):
         with patch.object(start.subprocess, "run", return_value=Mock(returncode=0, stdout='["torch"]')) as probe:
             self.assertFalse(start.requirements_satisfied(Path("chosen-python")))

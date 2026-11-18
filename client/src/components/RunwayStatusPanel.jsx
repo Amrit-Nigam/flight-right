@@ -25,6 +25,7 @@ export default function RunwayStatusPanel({ airport = null }) {
   const pairs = [...new Set((airport.runways || []).map((r) => r.runway))];
   const inUse = airport.inUse;
   const marks = [
+    ...(airport.plannedMovements || []).map(m=>({...m,kind:m.kind==='arrival'?'plannedArrival':'plannedDeparture',minutes:(m.time*1000-now)/60000})),
     ...(airport.recentMovements || []).map((m) => ({
       runway: m.runway, end: m.end, callsign: m.callsign, kind: m.kind,
       minutes: (m.time * 1000 - now) / 60000,
@@ -36,6 +37,8 @@ export default function RunwayStatusPanel({ airport = null }) {
   ].filter((m) => m.runway && m.minutes >= -PAST_MIN && m.minutes <= FUTURE_MIN);
 
   const style = {
+    plannedArrival: { bg: 'rgba(0,229,204,0.18)', c: 'var(--teal)', label: 'Arrival slot', dashed:true },
+    plannedDeparture: { bg: 'rgba(245,166,35,0.18)', c: 'var(--amber)', label: 'Departure slot', dashed:true },
     landing: { bg: "rgba(0,229,204,0.18)", c: "var(--teal)", label: "Landed (observed)" },
     departure: { bg: "rgba(245,166,35,0.18)", c: "var(--amber)", label: "Departed (observed)" },
     arrival: { bg: "transparent", c: "var(--teal)", label: "Arriving (estimated)", dashed: true },
@@ -54,7 +57,7 @@ export default function RunwayStatusPanel({ airport = null }) {
         </div>
         <span className="font-display text-[9px] px-1.5 py-0.5 shrink-0" style={{ border: "1px solid var(--border-default)", color: "var(--text-muted)" }}
               title={airport.notes}>
-          DERIVED FROM TRACKS
+          {inUse?.derived==='synthetic scenario'?'RUNWAY ASSIGNMENT':'DERIVED FROM TRACKS'}
         </span>
       </div>
 

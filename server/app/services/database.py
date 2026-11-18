@@ -447,7 +447,7 @@ class Database:
             " model_id, quantisation, asr_version, confidence) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             " RETURNING id",
             "INSERT INTO transcriptions (recorded_at, clip_ref, heard_at, frequency_mhz, transcript,"
-            " model_id, quantisation, asr_version, confidence) VALUES (?,?,?,?,?,?,?,?,?)",
+            " model_id, quantisation, asr_version, confidence) VALUES (?,?,?,?,?,?,?,?,?) RETURNING id",
             _iso_for_sqlite(values, self._backend))
         return rows[0]["id"] if rows else None
 

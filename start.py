@@ -128,7 +128,9 @@ def prepare_frontend(install=True):
 def environment(mode, manifest):
     env = os.environ.copy()
     runtime = ROOT / "demo/.runtime"
-    runtime.mkdir(exist_ok=True)
+    if mode == 'examiner':
+        runtime = runtime / 'examiner'
+    runtime.mkdir(parents=True, exist_ok=True)
     env.update(FLIGHT_RIGHT_DATA_MODE=mode, FLIGHT_RIGHT_REPLAY_DIR=str(ROOT / "demo/replay"),
                FLIGHT_RIGHT_INTENT_HISTORY=str(ROOT / "demo/context/intent.parquet"),
                FLIGHT_RIGHT_AIRCRAFT_INFO=str(ROOT / "demo/context/aircraft_info.parquet"),
@@ -136,9 +138,12 @@ def environment(mode, manifest):
                FLIGHT_RIGHT_VOICE_CACHE=str(ROOT / "demo/voice"),
                FLIGHT_RIGHT_SPEECH_DEMO_DIR=str(ROOT / "demo/clips"),
                FLIGHT_RIGHT_ASR_MODEL_ID=str(asset_path(manifest["speech_runtime"])),
-               FLIGHT_RIGHT_ASR_DEVICE="cpu", FLIGHT_RIGHT_ROUTE_LOOKUP="off" if mode == "replay" else "on",
+               FLIGHT_RIGHT_ASR_DEVICE="cpu", FLIGHT_RIGHT_ROUTE_LOOKUP="off" if mode in ("replay", "examiner") else "on",
                FLIGHT_RIGHT_AUDIT_DB=str(runtime / "audit.sqlite3"),
                DATABASE_URL="", HF_HUB_OFFLINE="1")
+    if mode == 'examiner':
+        env.update(FLIGHT_RIGHT_INTENT_FEED='off', OMP_NUM_THREADS='1', MKL_NUM_THREADS='1',
+                   OPENBLAS_NUM_THREADS='1', LOKY_MAX_CPU_COUNT='1')
     # Own-machine .env stays private. Replay doesn't need credentials; live/auto reads
     # the local .env via the existing backend configuration, never by printing its contents.
     return env
@@ -169,7 +174,7 @@ def stop_process(process):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", choices=("replay", "live", "auto"), default="replay")
+    parser.add_argument("--mode", choices=("replay", "live", "auto", "examiner"), default="replay")
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--check", action="store_true", help="Verify/install requirements and assets, then exit")
     parser.add_argument("--no-install", action="store_true", help="Only use already-installed requirements/assets")

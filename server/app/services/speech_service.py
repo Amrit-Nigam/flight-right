@@ -83,6 +83,12 @@ class SpeechService:
         except Exception:                                            # noqa: BLE001
             return "cpu"
 
+    def reset_demo_conversation(self):
+        """Clear only the working radio view; durable transcripts/audit remain intact."""
+        with self._conversation_lock:
+            self._messages.clear()
+            self._readbacks.clear()
+
     def status(self) -> dict[str, Any]:
         from ml_pipeline.voice.transcribe import ASR_VERSION
         device = self.device()

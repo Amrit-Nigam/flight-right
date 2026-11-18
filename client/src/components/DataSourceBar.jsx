@@ -6,6 +6,7 @@
 // that can quietly present yesterday's aircraft as if they were outside the window.
 
 const TONE = {
+  synthetic: { label: "TRAFFIC SESSION", colour: "var(--amber)" },
   live: { label: "LIVE — OpenSky", colour: "var(--green, #008300)" },
   replay: { label: "REPLAY — recorded session", colour: "var(--teal, #1baf7a)" },
   none: { label: "NO DATA", colour: "var(--red, #e34948)" },
@@ -44,7 +45,7 @@ export default function DataSourceBar({ feed = {}, connection, lastError, confli
         {CONNECTION[connection] || connection}
       </span>
 
-      {feed.replay && (
+      {feed.replay && feed.source!=='synthetic' && (
         <span className="source-session" style={{ color: "var(--text-muted)" }}>
           {feed.replay.session} · frame {feed.replay.frame + 1}/{feed.replay.frames}
           {feed.replay.speed !== 1 ? ` · ${feed.replay.speed}×` : ""}

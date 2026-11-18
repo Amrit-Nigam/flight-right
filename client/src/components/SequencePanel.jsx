@@ -13,7 +13,7 @@ export function PlanningControls({ planning, selectedFlight }) {
     <div className="flex flex-wrap items-center gap-3 text-xs">
       <strong style={{color:plan?.mode === 'emergency' ? 'var(--red)' : 'var(--teal)'}}>{!plan ? 'PLANNING CONNECTING' : plan.mode === 'emergency' ? `EMERGENCY PLAN · ${plan.emergency}` : plan.mode === 'takeover' ? 'ATCO HAS CONTROL' : 'ASSIST · ATCO AUTHORIZES'}</strong>
       <span style={{color:'var(--text-muted)'}}>Planning demonstration · no pilot link</span>
-      <button disabled={!plan || busy} onClick={() => act('optimize')} className="rounded border px-3 py-1" title="Stable earliest-ready scheduling under demonstration constraints">Recalculate sequence</button>
+      <button disabled={!plan || busy} onClick={() => act('optimize')} className="rounded border px-3 py-1" title="Stable earliest-ready scheduling under planning constraints">Recalculate sequence</button>
       <button disabled={!plan || busy || !scheduled || !!plan.emergency} onClick={() => act('emergency',{flight:selectedFlight})} className="rounded border px-3 py-1">Emergency for selected</button>
       <button disabled={!plan} onClick={() => { window.speechSynthesis?.cancel(); act('takeover'); }} className="rounded border px-3 py-1 font-bold" style={{borderColor:'var(--red)',color:'var(--red)'}}>Take control</button>
       {plan && plan.mode !== 'normal' && <button disabled={busy} onClick={() => act('normal')} className="underline">End case / normal</button>}
@@ -84,7 +84,7 @@ export default function SequencePanel({planning, selectedFlight, onSelectFlight,
     })}
     {proposal && <ReviewDialog label="Review sequence changes" onCancel={()=>setProposal(null)}><div className="sequence-review-content" tabIndex={0}>
       <strong>Proposed sequence</strong><p className="my-2">{proposal.order.join(' → ')}</p>
-      <table className="my-2 w-full text-left text-[10px]"><caption className="text-left mb-1">Estimated sandbox slots · UTC</caption><thead><tr><th>Flight</th><th>Current</th><th>Proposed</th></tr></thead><tbody>{preview.rows.map(row=><tr key={row.id}><td className="py-1">{row.callsign}</td><td>{slotUtc(plan,row.previousTarget)}</td><td style={{color:row.target!==row.previousTarget?'var(--amber)':undefined}}>{slotUtc(plan,row.target)}</td></tr>)}</tbody></table>
+      <table className="my-2 w-full text-left text-[10px]"><caption className="text-left mb-1">Estimated runway slots · UTC</caption><thead><tr><th>Flight</th><th>Current</th><th>Proposed</th></tr></thead><tbody>{preview.rows.map(row=><tr key={row.id}><td className="py-1">{row.callsign}</td><td>{slotUtc(plan,row.previousTarget)}</td><td style={{color:row.target!==row.previousTarget?'var(--amber)':undefined}}>{slotUtc(plan,row.target)}</td></tr>)}</tbody></table>
       {preview.error && <p role="alert" className="my-2" style={{color:'var(--red)'}}>{preview.error}</p>}
       <p className="mb-2">Server checks slots and pins before saving. No pilot instruction is sent.</p>
       {proposal.version!==plan.version && <p>Plan changed. Cancel and move again.</p>}
@@ -92,7 +92,7 @@ export default function SequencePanel({planning, selectedFlight, onSelectFlight,
     {closing&&<ReviewDialog label="Close movement" onCancel={()=>setClosing(null)}><div className="sequence-review-content"><h3>Close out {closing.id}</h3><p>Controller-confirmed outcome. Surveillance does not automatically establish completion. The movement and its target stay in history.</p><label>Outcome <select aria-label="Movement outcome" value={closing.outcome} onChange={e=>setClosing({...closing,outcome:e.target.value})}><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label><p>Closing is final for draft undo; use Add movement for another operation.</p></div><footer><button className="action-primary" disabled={busy||closing.version!==plan.version} onClick={async()=>{if(await act('close',{flight:closing.id,outcome:closing.outcome}))setClosing(null);}}>Record close-out</button><button onClick={()=>setClosing(null)}>Cancel</button></footer>{closing.version!==plan.version&&<p>Plan changed. Cancel and review again.</p>}</ReviewDialog>}
     {!!plan.closedMovements?.length&&<details className="sequence-history"><summary>Closed movement history ({plan.closedMovements.length})</summary>{[...plan.closedMovements].reverse().map(r=><p key={`${r.revision}:${r.id}`}>{r.callsign} · {r.kind} · {r.outcome} · target {slotUtc(plan,r.target)}Z · closed {new Date(r.closedAt*1000).toISOString().replace('T',' ')} · {r.reason}</p>)}</details>}
     {target && <div className="rounded border p-2 text-xs"><label>Target date and time (UTC)<input type="datetime-local" step="1" value={target.value} onChange={e=>setTarget({...target,value:e.target.value})} className="mt-1 w-full border bg-transparent p-1" /></label><button disabled={busy||!target.value||target.version!==plan.version} className="mx-2 underline" onClick={setTime}>Save</button><button onClick={()=>setTarget(null)}>Cancel</button>{target.version!==plan.version && <p role="status">Plan changed. Cancel and reopen this target.</p>}</div>}
-    <details className="text-[11px]" style={{color:'var(--text-muted)'}}><summary className="cursor-pointer">Planning limits</summary><p className="mt-1">Demonstration constraint: 120 s gap. Manual departure readiness is unverified; operational wake, fuel, surface and local-rule clearance are not established.</p></details>
+    <details className="text-[11px]" style={{color:'var(--text-muted)'}}><summary className="cursor-pointer">Planning limits</summary><p className="mt-1">Planning gap: 120 s. Manual departure readiness is unverified; operational wake, fuel, surface and local-rule clearance are not established.</p></details>
   </section>;
 }
 
@@ -109,7 +109,7 @@ export function InstructionJournal({planning}) {
   const {plan,busy,act} = planning;
   if (!plan) return null;
   const pending=plan.messages.filter(m=>m.status==='draft');
-  const preview = text => {window.speechSynthesis?.cancel(); if('speechSynthesis' in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(`Planning demonstration. ${text}`));};
+  const preview = text => {window.speechSynthesis?.cancel(); if('speechSynthesis' in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(`${text}`));};
   return <section className="rounded border p-3 text-xs" style={{borderColor:'var(--border-default)'}}>
     <div className="flex items-center justify-between"><h3 className="font-semibold">Plan communications</h3><span>{pending.length} pending</span></div>
     <p className="my-2" style={{color:'var(--text-muted)'}}>Local plan advisories only. Authorization records simulated delivery, not a radio transmission.</p>

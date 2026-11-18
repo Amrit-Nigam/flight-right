@@ -38,7 +38,7 @@ class WorkspaceService:
     @staticmethod
     def scope(snapshot):
         source = snapshot.get("source") or "none"
-        session = (snapshot.get("replay") or {}).get("session") if source == "replay" else None
+        session = (snapshot.get("replay") or {}).get("session") if source in ("replay", "synthetic") else None
         return f"{source}:{session or 'live'}:{datetime.now(timezone.utc).date()}"
 
     def snapshot(self, scope):

@@ -1,0 +1,416 @@
+{
+  "id": "examiner_dense_traffic_20261118",
+  "checked_utc": "2026-11-18T03:19:43.118380+00:00",
+  "purpose": "Continuous multi-aircraft presentation integration; not an accuracy experiment",
+  "source_version": "ad7eca2cd692f2cc3de313d2a7ab974cf90e5a04 plus uncommitted presentation changes",
+  "configuration": {
+    "initial_aircraft": 16,
+    "airborne": 10,
+    "ground": 6,
+    "runway_queue": 11,
+    "main_conflict_chapter_aircraft": 18,
+    "report_interval_seconds": 10,
+    "presentation_cap_seconds": 540,
+    "random_seed": "not applicable; deterministic motion",
+    "selection": "Purpose-designed traffic scenario, no checkpoint or test-score selection"
+  },
+  "changes": [
+    "Separate continuously advancing surveillance time from presentation chapters; automatic playback at startup; explicit idempotent Pause handles arriving ticks.",
+    "11 mixed runway movements, four moving arrival holds, three overflights, four additional ground departures and independent background encounter.",
+    "Normal routes/type labels; presentation UI removes repeated synthetic/demo labels at user request. Internal source identity and historical evidence retained.",
+    "Background resolution uses actual offered model options, explicit approval, recorded intent, local WAV and kinematic compliance; larger queue recovery before/after and planned runway timeline."
+  ],
+  "model_artifact_sha256": {
+    "server/app/ml/saved_models/trajectory_residual.pt": "cd5e1c14d789a3010a8806b41265deef6806d0e9166cb1e1cc7f2212ab4c7442",
+    "server/app/ml/saved_models/trajectory_multipath.pkl": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589",
+    "server/app/ml/saved_models/xgboost_conflict.json": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/config.json": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/preprocessor_config.json": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/tokenizer.json": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/vocabulary.json": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55"
+  },
+  "model_versions": {
+    "trajectory_residual": "trajectory_residual@1788683545119468100",
+    "trajectory_multipath": "trajectory_multipath@1790456560238406300+per_mode",
+    "xgboost_conflict": "xgboost_conflict@1790423446996347700",
+    "multipath_temperature": 1.0645782538192603,
+    "missing_models": [],
+    "rule_path": "always on"
+  },
+  "checks": {
+    "backend": "69 passed",
+    "frontend_lint": "passed, zero errors/warnings",
+    "build": "passed; existing large-chunk warning",
+    "browser": {
+      "results": [
+        "16 aircraft, 10 airborne, 11 queued, marker coordinates change automatically every tick, no synthetic/demo labels",
+        "Mixed 11-movement runway queue recalculates through the existing planner",
+        {
+          "name": "Background actual-model output",
+          "versions": {
+            "trajectory_residual": "trajectory_residual@1788683545119468100",
+            "trajectory_multipath": "trajectory_multipath@1790456560238406300+per_mode",
+            "xgboost_conflict": "xgboost_conflict@1790423446996347700",
+            "multipath_temperature": 1.0645782538192603,
+            "missing_models": [],
+            "rule_path": "always on"
+          },
+          "active": [
+            {
+              "id": "AIC119-IGO918",
+              "pair": [
+                "AIC119",
+                "IGO918"
+              ],
+              "tier": 1,
+              "tierName": "alarm",
+              "severity": "critical",
+              "display": "alert",
+              "isNewNotification": false,
+              "notificationReason": "Already shown 3 s ago and nothing has worsened; the pair stays on the active list.",
+              "reason": "alarm: closest approach 0.31 NM / 0 ft in 135 s, confirmed on 13 consecutive updates.",
+              "timeToCpaSeconds": 135,
+              "cpaLateralNm": 0.3147665394368135,
+              "cpaVerticalFt": 0,
+              "probability": 1,
+              "classifierProbability": 0.48667144775390625,
+              "classifierDecision": {
+                "alert": true,
+                "calibratedThreshold": 0.02579460870461554,
+                "rawProbability": 0.8782014846801758,
+                "rawThreshold": 0.07465646415948868
+              },
+              "ruleIsConflict": true,
+              "triggerGate": "separation-minimum",
+              "confirmationUpdates": 13,
+              "nominalCpa": {
+                "lateralNm": 0.3147665394368135,
+                "verticalFt": 0,
+                "seconds": 135
+              },
+              "alternativeCpa": {
+                "lateralNm": 0.04035896233647529,
+                "verticalFt": 612.4354078407631,
+                "seconds": 135
+              },
+              "isConverging": true,
+              "firstSeen": 1794971777.050709,
+              "notificationsSoFar": 3,
+              "sources": [
+                "constant-velocity dense-grid CPA (rule path)",
+                "multi-path K x K on the dense grid",
+                "XGBoost conflict classifier (calibrated, SHAP-explained)",
+                "rule-based resolution engine (Model 3)"
+              ],
+              "multipathProbability": 0.9999999999999999,
+              "clearanceEffect": [],
+              "combinationsBreaching": 25,
+              "explanation": [
+                {
+                  "feature": "current_vertical_separation_ft",
+                  "value": 0,
+                  "contribution": 2.2525177001953125
+                },
+                {
+                  "feature": "predicted_cpa_vertical_ft",
+                  "value": 0,
+                  "contribution": 0.9872453808784485
+                },
+                {
+                  "feature": "b_altitude_ft",
+                  "value": 18000,
+                  "contribution": -0.46773120760917664
+                },
+                {
+                  "feature": "a_velocity_ms",
+                  "value": 180,
+                  "contribution": -0.4158223271369934
+                },
+                {
+                  "feature": "predicted_cpa_lateral_nm",
+                  "value": 0.3147665394368135,
+                  "contribution": 0.39139652252197266
+                }
+              ],
+              "resolution": {
+                "offered": true,
+                "reason": "Tier 1 alarm confirmed; options ranked by safety 0.60, delay 0.15, fuel 0.10, workload 0.10, confidence 0.05. Checked against the other aircraft's 5 predicted paths and 3 other aircraft nearby.",
+                "options": [
+                  {
+                    "aircraft": "IGO918",
+                    "manoeuvre_type": "altitude",
+                    "magnitude": -2000,
+                    "unit": "ft",
+                    "resulting_lateral_separation_nm": 0.08022291097342421,
+                    "resulting_vertical_separation_ft": 2000.0002556054671,
+                    "resolves": true,
+                    "seconds_to_establish": 118,
+                    "established_before_cpa": true,
+                    "delay_seconds": 0,
+                    "fuel_equivalent_seconds": 60,
+                    "confidence": 0.738,
+                    "score": 0.9769,
+                    "score_components": {
+                      "safety": 1,
+                      "delay": 1,
+                      "fuel": 0.9,
+                      "workload": 1,
+                      "confidence": 0.738
+                    },
+                    "residual_risk": 0,
+                    "new_conflict_risk": 0,
+                    "explanation": "Descend IGO918 to 16,000 ft. Reason: holds vertical separation at 2,000 ft where the paths cross. Fully established about 118 s from now, against a closest approach in 135 s. Confidence 0.74. Tradeoff: about 1.0 min of extra fuel burn. Delay and fuel are approximate."
+                  },
+                  {
+                    "aircraft": "IGO918",
+                    "manoeuvre_type": "heading",
+                    "magnitude": -45,
+                    "unit": "deg",
+                    "resulting_lateral_separation_nm": 6.5995029927842275,
+                    "resulting_vertical_separation_ft": 0.0002556054674041661,
+                    "resolves": true,
+                    "seconds_to_establish": 53,
+                    "established_before_cpa": true,
+                    "delay_seconds": 105.62445840513921,
+                    "fuel_equivalent_seconds": 105.62445840513921,
+                    "confidence": 0.795,
+                    "score": 0.7643,
+                    "score_components": {
+                      "safety": 0.8249378740980284,
+                      "delay": 0.6479184719828692,
+                      "fuel": 0.8239592359914346,
+                      "workload": 0.5,
+                      "confidence": 0.795
+                    },
+                    "residual_risk": 0,
+                    "new_conflict_risk": 0,
+                    "explanation": "Turn IGO918 left 45 degrees, heading 045. Reason: opens the closest approach to 6.6 NM. Fully established about 53 s from now, against a closest approach in 135 s. Confidence 0.80. Tradeoff: about 1.8 min delay; about 1.8 min of extra fuel burn. Delay and fuel are approximate."
+                  }
+                ],
+                "candidatesEvaluated": 26,
+                "blockedUnsafe": 0,
+                "rejectedIneffective": 18,
+                "rejectedNewConflict": 0,
+                "checkedAgainst": "the other aircraft's 5 predicted paths and 3 other aircraft nearby"
+              }
+            }
+          ]
+        },
+        "Background resolution approved, command WAV downloaded, simulated manoeuvre and actual alert reassessment",
+        {
+          "name": "Go-around reoptimizes ten remaining movements",
+          "resequence": {
+            "before": [
+              {
+                "callsign": "SEJ606",
+                "target": 120
+              },
+              {
+                "callsign": "AIC202",
+                "target": 240
+              },
+              {
+                "callsign": "IGO505",
+                "target": 360
+              },
+              {
+                "callsign": "IGO303",
+                "target": 480
+              },
+              {
+                "callsign": "AXB707",
+                "target": 600
+              },
+              {
+                "callsign": "IGO808",
+                "target": 720
+              },
+              {
+                "callsign": "AIC909",
+                "target": 840
+              },
+              {
+                "callsign": "AKJ110",
+                "target": 960
+              },
+              {
+                "callsign": "AIC211",
+                "target": 1080
+              },
+              {
+                "callsign": "IGO312",
+                "target": 1200
+              }
+            ],
+            "after": [
+              {
+                "callsign": "SEJ606",
+                "target": 120
+              },
+              {
+                "callsign": "IGO505",
+                "target": 240
+              },
+              {
+                "callsign": "IGO303",
+                "target": 360
+              },
+              {
+                "callsign": "AXB707",
+                "target": 480
+              },
+              {
+                "callsign": "IGO808",
+                "target": 600
+              },
+              {
+                "callsign": "AIC909",
+                "target": 720
+              },
+              {
+                "callsign": "AKJ110",
+                "target": 840
+              },
+              {
+                "callsign": "AIC211",
+                "target": 960
+              },
+              {
+                "callsign": "AIC202",
+                "target": 1080
+              },
+              {
+                "callsign": "IGO312",
+                "target": 1200
+              }
+            ]
+          }
+        }
+      ],
+      "errors": [],
+      "seconds": 32.906
+    },
+    "integration": "16-aircraft actual-model narrative passed",
+    "asr_match": {
+      "code": "IGO101",
+      "score": 82.8,
+      "margin": 9.6,
+      "heard": "india go one zero one",
+      "listSize": 16
+    }
+  },
+  "limitations": [
+    "Generated traffic is not a labelled real-world accuracy dataset. No accuracy/uncertainty/confusion counts or inference-latency benchmark measured.",
+    "Terminal/ground traffic excluded from en-route conflict classification as before. Runway gap remains 120-second educational resource constraint.",
+    "Physical microphone/receiver not retested; existing generated-input ASR was rerun with 16 visible identities. No fresh external live network test.",
+    "Global report verifier still has the documented pre-existing inventory/ledger mismatches; new records verified independently."
+  ],
+  "attempts": "Original failing Pause-race Chromium output retained in dense-attempt files; idempotent Pause fix regression-covered; prior experiments and failures unchanged.",
+  "deployment": "No weights/features/decoder/calibration/threshold/deployment or headline changes; live startup unchanged; current comparison unchanged.",
+  "code": [
+    {
+      "path": "server/app/services/examiner_service.py",
+      "sha256": "72c0737f92d64190a68c06817f6ad2318812ca868da61f503c6bfa60715047b6",
+      "bytes": 12041
+    },
+    {
+      "path": "server/app/services/aircraft_service.py",
+      "sha256": "5017699e988346d41537ab4a753af75114330a9b16c91a55f8dcdc06d062df58",
+      "bytes": 12352
+    },
+    {
+      "path": "server/app/api/examiner.py",
+      "sha256": "7de3dda3cdf5aaf34c35508a55d78f8f4dc348df0cc3864739c54188e9d5a523",
+      "bytes": 14765
+    },
+    {
+      "path": "server/app/api/routes.py",
+      "sha256": "c94aa3563ecf41e797ead7032e6ce8df5dacaeb1cab85890c935f5a98de6e002",
+      "bytes": 22572
+    },
+    {
+      "path": "client/src/components/ExaminerDemo.jsx",
+      "sha256": "136d0d063d604b9d774f78a675b0d89ebacc37b50c06c1f232a7d3cde77319f9",
+      "bytes": 8350
+    },
+    {
+      "path": "client/src/components/RunwayStatusPanel.jsx",
+      "sha256": "ebda3910913c73eed1496d20f406e5839084f2e4da9a1db3c9deaa63f9fa9c68",
+      "bytes": 7614
+    },
+    {
+      "path": "client/src/components/WorkspaceHeader.jsx",
+      "sha256": "14f17705e47124e5da7f36ba2386647415cb6b913ed9f28e8a77796eaec0a875",
+      "bytes": 3279
+    },
+    {
+      "path": "client/src/components/SequencePanel.jsx",
+      "sha256": "177630e8f372a4b227c0ca3d1ec0d78ea8a6967f827dd62191c56bd4d94d64d6",
+      "bytes": 15453
+    },
+    {
+      "path": "ml_pipeline/tests/test_examiner_demo.py",
+      "sha256": "05f05a867e569c2f3df051332bd517be60206d54900d5cf4cd7855524ba06f16",
+      "bytes": 6951
+    }
+  ],
+  "raw_evidence": [
+    {
+      "path": "checkpoints/examiner_20261118/background-command.wav",
+      "sha256": "1de077416e67f847a901c65cd49c087e9206ed7f3013290975d88a6e9a0fffc7",
+      "bytes": 232610
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-attempt-1794971768606.json",
+      "sha256": "3306876e368b42b96ae9a93e855325712576a39149746bc4d4495590f8325ca0",
+      "bytes": 590
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-background-ml.png",
+      "sha256": "9349fd3e297ee7eb5b668234d737e4867467067a6912c90273a33abb3f5148a4",
+      "bytes": 350285
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-failure.png",
+      "sha256": "3113bfa7f94f07eec67be42197b9c63eadf98a3de414125894fe07abaddaa7da",
+      "bytes": 477143
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-goaround-recovery.png",
+      "sha256": "a476dd8b624726a021ca45535d3dbe8390eb3b56153e019e886e3925d3a654b2",
+      "bytes": 387977
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-moving-traffic.png",
+      "sha256": "b7753c65c5c9ee4761ded3f61081bee1f54e6cd4c393b3b3cf4991bb456d7c40",
+      "bytes": 489085
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-ready.png",
+      "sha256": "1f6838163f0622476ad38d9f4d39cc6397ce20c3f70f4f16ced6cea4919d548d",
+      "bytes": 661102
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-results.json",
+      "sha256": "4e2adcb56f49f7cfbf0753f0f4704cde3548ab5c7d37d46960834d011618e0ef",
+      "bytes": 8466
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-runway-queue.png",
+      "sha256": "1833ccb1488973acb6bc2c00686dc27e8fa3814f436d5f7cf7c988520c507c00",
+      "bytes": 427553
+    },
+    {
+      "path": "checkpoints/examiner_20261118/dense-traffic.cjs",
+      "sha256": "a2aa98d770c80824dc38faf0568c0128d5070215453d3d6f2eb8a38bdf11121f",
+      "bytes": 5856
+    },
+    {
+      "path": "checkpoints/examiner_20261118/integration-1794971364405131300.json",
+      "sha256": "43d55b6717ba4640f164dc786ff0e5538b8233170ac3d119033084b6404eab67",
+      "bytes": 533407
+    }
+  ]
+}

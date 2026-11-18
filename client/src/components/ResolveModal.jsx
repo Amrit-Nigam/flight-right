@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { logAudit } from "@/lib/siteLogger";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import AlertEvidence from '@/components/AlertEvidence';
+import PilotCommandPreview from '@/components/PilotCommandPreview';
 
 // ── Mini trajectory diagram ────────────────────────────────────────────────
 function MiniRadar({ conflict }) {
@@ -153,9 +154,10 @@ function useLiveCountdown(initialSeconds) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-export default function ResolveModal({ open, conflict, options = [], countdown, selectedOption, onSelectOption, onApply, onCancel }) {
+export default function ResolveModal({ open, conflict, options = [], countdown, selectedOption, onSelectOption, onApply, onCancel, previewCommands }) {
   const secs = useLiveCountdown(countdown);
   if (!open || !conflict) return null;
+  const manoeuvre = options.find(option => option.id === selectedOption)?.manoeuvre;
 
   const mins    = Math.floor(secs / 60);
   const remSecs = secs % 60;
@@ -238,6 +240,9 @@ export default function ResolveModal({ open, conflict, options = [], countdown, 
                   : "No manoeuvre in the candidate set restores separation in the time available."}
               </p>
             </div>
+
+            {previewCommands && manoeuvre && <PilotCommandPreview
+              key={JSON.stringify([conflict.id, manoeuvre])} pair={conflict.id} manoeuvre={manoeuvre} />}
 
             {/* ── OPTIONS ── */}
             <div className="p-5 space-y-3">

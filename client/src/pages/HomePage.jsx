@@ -9,6 +9,7 @@ import ModelOverview from '@/components/ModelOverview';
 import {instructionSummaries} from '@/lib/instructionContext';
 import { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import WorkspaceHeader from "@/components/WorkspaceHeader";
+import ExaminerDemo from '@/components/ExaminerDemo';
 import {useWideLayout,useNarrowLayout} from "@/hooks/useWideLayout";
 import MetricsRow from "@/components/MetricsRow";
 import ConflictBanner from "@/components/WorkspaceConflictBanner";
@@ -42,7 +43,7 @@ export default function HomePage() {
   // Everything on this page comes from the backend. There is no mock traffic, no mock
   // conflict and no mock resolution: if the backend is unreachable the dashboard says
   // so rather than showing aircraft that do not exist.
-  const { flights: rawFlights, conflicts, feed, connection, lastError } = useLiveData();
+  const { flights: rawFlights, conflicts, feed, connection, lastError, refresh } = useLiveData();
   // Runways, METAR, runway in use (derived from the tracks), safety constants and the controller
   // identity -- the facts the panels used to invent.
   const { health, airport } = useBackendInfo();
@@ -261,6 +262,7 @@ export default function HomePage() {
     <WorkspaceHeader feed={feed} connection={connection} airport={airport} health={health} theme={theme}
       onToggleTheme={toggleTheme} notifications={notificationLog} alertCount={alertCount} aiEnabled={aiEnabled}
       onToggleAI={()=>setAiEnabled(v=>!v)} />
+    <ExaminerDemo mode={feed.mode} onTrafficChange={async()=>{await refresh();await planning.refresh();await workspace.refresh();}}/>
     <nav aria-label="Workspace tools" className="workspace-nav">
       <div className="workspace-tool-buttons">
         <button data-workspace-tool="map" aria-pressed={!activeTool&&!trafficOpen} onClick={closeTool}>Map</button>
@@ -331,7 +333,7 @@ export default function HomePage() {
       </aside>
     </main>
     <div className="workspace-timeline"><TimelinePanel isOpen={timelineOpen} onToggle={()=>setTimelineOpen(v=>!v)} rows={timelineRows} dataTimeUtc={feed.dataTimeUtc} lookAheadSeconds={constants?.lookAheadSeconds}/></div>
-    <ResolveModal open={resolveModalOpen} conflict={conflict} options={resolveOptions} countdown={conflict?.countdown || 0} selectedOption={selectedOption} onSelectOption={setSelectedOption} onApply={handleAcceptResolution} onCancel={handleCancelResolution}/>
+    <ResolveModal open={resolveModalOpen} conflict={conflict} options={resolveOptions} countdown={conflict?.countdown || 0} selectedOption={selectedOption} onSelectOption={setSelectedOption} onApply={handleAcceptResolution} onCancel={handleCancelResolution} previewCommands={feed.mode === 'examiner'}/>
     <SuccessToast toast={toast}/>
   </div>;
 }

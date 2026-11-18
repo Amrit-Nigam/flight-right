@@ -1,0 +1,43 @@
+{
+  "id": "examiner_resolution_audio_preview_20261118",
+  "checked_utc": "2026-11-18T03:30:52.946263+00:00",
+  "base_commit": "ad7eca2cd692f2cc3de313d2a7ab974cf90e5a04",
+  "purpose": "Preview the selected model resolution as a local command WAV",
+  "scenario": "Existing 16-aircraft examiner fixture, background conflict, ten-second steps, no training or selection",
+  "models": {
+    "trajectory_residual": "trajectory_residual@1788683545119468100",
+    "trajectory_multipath": "trajectory_multipath@1790456560238406300+per_mode",
+    "xgboost_conflict": "xgboost_conflict@1790423446996347700",
+    "multipath_temperature": 1.0645782538192603,
+    "missing_models": [],
+    "rule_path": "always on"
+  },
+  "artifact_sha256": {
+    "server/app/ml/saved_models/trajectory_residual.pt": "cd5e1c14d789a3010a8806b41265deef6806d0e9166cb1e1cc7f2212ab4c7442",
+    "server/app/ml/saved_models/trajectory_multipath.pkl": "f58a719efb1de245abab1804d7312eb56f2a87d26bf28dde0e0529b0796c3589",
+    "server/app/ml/saved_models/xgboost_conflict.json": "f94a2783d2c9dac3620fc1bc51027b190723a305fbb297e7f217a43ae4c6ab65",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/config.json": "364e66f09ce360358f61e549786419eedc8e6ab709186304dc77f84a3c4966c8",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/model.bin": "5e7cb42cb68003198d222bc77994a6fdfc0fad2524cf401e7f6509bdb5d945e1",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/preprocessor_config.json": "3e4dc53c73e7e3954fc4435034f5027733c61d7c123b38bbd1461598fd8503ef",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/README.md": "fa20e1e3d9e1f0d5bae6c6e2d4e8193d714606731fdbba0da002b841ce05fd3b",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/tokenizer.json": "7b469ff15eb7816315aa45eec391f5943d639b9d73d110f5c003df5192fd54e3",
+    "checkpoints/voice_20261110/ct2/local__uniform_soup3__int8_float16/vocabulary.json": "aa4e6188766a36f6a7f3e44db3f74823c6fee0bf33a9559247e18fedb3bc8d55"
+  },
+  "browser": {
+    "status": "passed",
+    "commands": [
+      "IGO918, descend to flight level 160.",
+      "IGO918, turn left heading 045."
+    ],
+    "wavBytes": 232610,
+    "errors": []
+  },
+  "raw_path": "checkpoints/examiner_20261118/resolution-preview-results.json",
+  "raw_sha256": "a1ff680cf63456a7c26d550e60fc8c60810a5817f7076eb5743e578aef895a71",
+  "validation": "14 examiner tests, changed JSX lint, production build, Chromium playback, downloaded RIFF WAV, option switching and no change to approvals",
+  "attempts": [
+    "Initial server launch hit occupied port and one retry failed inside XGBoost initialization; startup retry passed.",
+    "Chromium capture of intercepted response body produced empty bytes while direct HTTP returned RIFF. Final check verified playback time and read the downloaded WAV."
+  ],
+  "limits": "No accuracy, model latency, or physical speaker measurement. No changes to model configuration or served artifacts."
+}

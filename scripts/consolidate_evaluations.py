@@ -142,8 +142,10 @@ def read_ledger(key):
         return {"model": key, "records": []}
     merged = {"model": key, "records": []}
     records = {}
-    for block in p.read_text(encoding="utf-8").split(MARK)[1:]:
-        capsule = json.loads(block.split("\n```", 1)[0])
+    # Some legacy prose contains Windows punctuation bytes. Parse only the UTF-8
+    # JSON capsules; never rewrite or lossy-decode historical narrative/evidence.
+    for block in p.read_bytes().split(MARK.encode("utf-8"))[1:]:
+        capsule = json.loads(block.split(b"\n```", 1)[0].decode("utf-8"))
         assert capsule["model"] == key
         for name, value in capsule.items():
             if name == "model":

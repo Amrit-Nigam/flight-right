@@ -13,7 +13,7 @@ export default function StripOperations({ flight, position, workspace }) {
     <div className="flex justify-between"><h2 className="font-semibold">{flight.callsign} · coordination</h2><span className="text-xs">v{strip.version || 0}</span></div>
     <p className="text-xs">Owner: <strong>{strip.owner || "Unassigned"}</strong>{strip.pending && ` → awaiting ${strip.pending}`}</p>
     <p className="text-xs">Recorded stage: <strong>{strip.stage || "Unassigned"}</strong></p>
-    <p className="text-xs" style={{ color: "var(--text-muted)" }}>Manual demonstration records. No radio transmission or runway authorization.</p>
+    <p className="text-xs" style={{ color: "var(--text-muted)" }}>Controller coordination records.</p>
     {error && <div role="alert" className="text-xs" style={{ color: "var(--amber)" }}>{error} <button onClick={refresh} className={button}>Refresh</button></div>}
     <div className="flex flex-wrap gap-2">
       {!strip.owner && <button className={button} disabled={busy || !data.scope} onClick={() => act("claim")}>Assume at {position}</button>}

@@ -1,4 +1,14 @@
 .workspace-root {display:flex;flex-direction:column;height:100dvh;min-height:0;overflow:hidden;background:var(--bg-base);color:var(--text-primary)}
+.examiner-demo {flex-shrink:0;background:var(--bg-panel);border-bottom:2px solid var(--amber);padding:6px 16px;font-size:12px;max-height:45dvh;overflow:auto}
+.examiner-toolbar {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.examiner-demo button,.examiner-demo select {border:1px solid var(--border-default);border-radius:4px;padding:5px 8px;background:var(--bg-panel-alt)}
+.examiner-demo button:disabled {opacity:.4}
+.examiner-body {max-width:1000px;display:grid;gap:10px;padding:10px 0}
+.examiner-demo article {border:1px solid var(--border-default);padding:10px;display:grid;gap:8px}
+.examiner-demo details {padding:6px 0}
+.examiner-demo textarea {display:block;width:100%;background:var(--bg-panel-alt);border:1px solid var(--border-default);padding:8px}
+.examiner-demo pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.examiner-demo a {text-decoration:underline;color:var(--teal)}
 .workspace-root [hidden] {display:none!important}
 .workspace-root button,.workspace-root select,.workspace-root summary {touch-action:manipulation}
 .workspace-root :is(button,select,summary):focus-visible {outline:2px solid var(--teal);outline-offset:2px}
